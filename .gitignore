@@ -1,0 +1,6 @@
+/bin
+/obj
+/test
+/Rewriters/Fuzzer.cs
+/Rewriters/LiteFuzzer.cs
+/Rewriters/StringFuzzer.cs
