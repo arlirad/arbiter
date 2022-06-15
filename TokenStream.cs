@@ -132,7 +132,7 @@ namespace Arbiter {
             return value == token.Data;
         }
 
-        public void ExpectString(out string? value) {
+        public void ExpectString(out string value) {
             if (!AcceptString(out value))
                 throw new UnexpectedTokenException(Peek());
         }
