@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace Arbiter {
     public class Listener {
         public delegate void OnConnectionHandler(object sender, Socket socket);
-        public event OnConnectionHandler OnConnection;
+        public event OnConnectionHandler? OnConnection;
 
         private List<IPAddress> _addresses = new List<IPAddress>();
         private List<int> _ports = new List<int>();
@@ -39,8 +39,13 @@ namespace Arbiter {
                 _ports.Add(port);
         }
 
-        void AcceptEventArgs_Completed(object sender, SocketAsyncEventArgs e) {
+        void AcceptEventArgs_Completed(object? sender, SocketAsyncEventArgs e) {
+            if (sender == null)
+                throw new Exception("sender borke");
+
             var socket = e.AcceptSocket;
+            if (socket == null)
+                throw new Exception("socket borke");
             
             OnConnection?.Invoke(this, socket);
 
