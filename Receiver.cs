@@ -60,6 +60,11 @@ namespace Arbiter {
         }
 
         public async Task Reply(State state, Request request, Response response) {
+            if (response.DontRespond) {
+                Console.WriteLine($"{state.EndPoint} <%<");
+                return;
+            }
+
             Console.WriteLine($"{state.EndPoint} << HTTP/1.1 {response.Code} {response.Phrase}");
 
             if (request.Version == "HTTP/0.9") {
@@ -318,6 +323,7 @@ namespace Arbiter {
             string? headline;
             
             request = new Request();
+            request.SocketStream = state.Stream;
             request.EndPoint = state.EndPoint;
 
             using (var stream = new MemoryStream(state.Buffer, 0, len)) {
@@ -379,7 +385,9 @@ namespace Arbiter {
                     host ??= "0.0.0.0:" + (state.Socket.LocalEndPoint as System.Net.IPEndPoint)?.Port;
 
                     string uri = (state.Secure ? "https://" : "http://") + host + path;
-                    request.Uri = new Uri(uri);
+                    
+                    request.Uri          = new Uri(uri);
+                    request.RewrittenUri = new Uri(uri);
                 }
             }
             

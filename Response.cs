@@ -72,6 +72,7 @@ namespace Arbiter {
         public string? Mime = null;
         public Stream? Stream = null;
         public bool SimpleResponse = false;
+        public bool DontRespond = false;
 
         public void SetCode(int code) {
             string? phrase;
@@ -100,6 +101,14 @@ namespace Arbiter {
         public void Redirect(string uri) {
             SetCode(302);
             Headers["Location"] = uri;
+        }
+
+        public void Proxy(Request request, System.Net.IPEndPoint ep, string uri) {
+            var link = new Link(request, uri);
+            link.Begin(ep);
+
+            DontRespond = true;
+            Stream = null;
         }
     }
 }

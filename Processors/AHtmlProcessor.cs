@@ -44,7 +44,7 @@ namespace Arbiter {
         }
 
         public void Process(Stream stream, Request request, Response response) {
-            string lpath = request.Uri.LocalPath;
+            string lpath = request.RewrittenUri.LocalPath;
             string path = request.Site.Path + lpath;
             var unit = GetUnit(request, path);
 

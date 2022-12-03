@@ -76,7 +76,7 @@ namespace Arbiter {
                     if (Server.Cache.GetFile(docpath, out Stream docstream)) {
                         string ext = Path.GetExtension(docpath);
 
-                        request.Uri = new Uri(request.Uri, Path.GetFileName(docpath));
+                        request.RewrittenUri = new Uri(request.Uri, Path.GetFileName(docpath));
 
                         if (filename.Length < 32 && ProcessorBindings.TryGetValue(ext, out var processor)) {
                             try {
@@ -107,7 +107,7 @@ namespace Arbiter {
                 response.SetCode(404);
             }
 
-            if (response.Stream == null && !response.SimpleResponse) {
+            if (response.Stream == null && !response.SimpleResponse && !response.DontRespond) {
                 response.Mime = "text/html";
 
                 if (request.Method != "HEAD")
