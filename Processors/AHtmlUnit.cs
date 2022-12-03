@@ -5,8 +5,10 @@ using System.Runtime.Loader;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace Arbiter {
-    public class AHtmlUnit : IDisposable {
+namespace Arbiter
+{
+    public class AHtmlUnit : IDisposable
+    {
         public bool Success;
         public string LayoutPath;
 
@@ -14,39 +16,45 @@ namespace Arbiter {
         public Assembly Assembly;
         public AssemblyLoadContext Context;
 
-        public AHtmlUnit(bool success, ImmutableArray<Diagnostic> diagnostics, Assembly assembly = null, AssemblyLoadContext context = null) {
+        public AHtmlUnit(bool success, ImmutableArray<Diagnostic> diagnostics, Assembly assembly = null, AssemblyLoadContext context = null)
+        {
             Success = success;
             Diagnostics = diagnostics.ToArray();
             Assembly = assembly;
             Context = context;
         }
 
-        ~AHtmlUnit() {
+        ~AHtmlUnit()
+        {
             Dispose();
         }
 
-        public void Dispose() {
+        public void Dispose()
+        {
             // if (Context != null) {
             //     Context.Unload(); 
             //     Context = null;
             // } 
         }
 
-        public void Run(Request request, Response response, AHtmlPageState state) {
+        public void Run(Request request, Response response, AHtmlPageState state)
+        {
             var pageType = Assembly.GetType("Arbiter.Page.Page");
             var field = pageType.GetField("AsyncLocalState", BindingFlags.Public | BindingFlags.Static);
             var fieldValue = field.GetValue(null);
             var prop = field.FieldType.GetProperty("Value");
-            prop.SetMethod.Invoke(fieldValue, new[] {state});
+            prop.SetMethod.Invoke(fieldValue, new[] { state });
 
             var entry = Assembly.GetType("Arbiter.Page.Page").GetMethod("MainAsync");
 
-            var task = (Task) entry.Invoke(null, null);
+            var task = (Task)entry.Invoke(null, null);
             task.GetAwaiter().GetResult();
         }
 
-        public static AHtmlUnit CompilePage(Site site, string path) {
-            using (var buffer = new MemoryStream()) {
+        public static AHtmlUnit CompilePage(Site site, string path)
+        {
+            using (var buffer = new MemoryStream())
+            {
                 CSharpCompilation compilation;
 
                 using (var stream = File.OpenRead(path))
@@ -67,11 +75,14 @@ namespace Arbiter {
             }
         }
 
-        public static AHtmlUnit CompileSourceFile(string path) {
-            using (var buffer = new MemoryStream()) {
+        public static AHtmlUnit CompileSourceFile(string path)
+        {
+            using (var buffer = new MemoryStream())
+            {
                 CSharpCompilation compilation;
 
-                using (var stream = File.OpenRead(path)) {
+                using (var stream = File.OpenRead(path))
+                {
                     compilation = AHtmlCompiler.CreateSourceFileCompilation(Path.GetFileName(path), stream);
                 }
 
@@ -88,7 +99,8 @@ namespace Arbiter {
             }
         }
 
-        private static void Assembly_ModuleResolve(object sender) {
+        private static void Assembly_ModuleResolve(object sender)
+        {
 
         }
     }

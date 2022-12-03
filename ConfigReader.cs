@@ -1,39 +1,49 @@
 using System;
 
-namespace Arbiter {
-    public static class ConfigReader {
+namespace Arbiter
+{
+    public static class ConfigReader
+    {
         private static Dictionary<string, IStatement> _statements = new Dictionary<string, IStatement>();
 
-        static ConfigReader() {
+        static ConfigReader()
+        {
             GatherStatements();
         }
 
-        public static void ReadFromFile(string path) {
+        public static void ReadFromFile(string path)
+        {
             var stream = TokenStream.Tokenize(path, File.OpenRead(path));
 
-            while (!stream.EndOfStream) {
-                if (stream.AcceptIdentifier(out string? identifier) && _statements.TryGetValue(identifier, out IStatement? statement)) {
+            while (!stream.EndOfStream)
+            {
+                if (stream.AcceptIdentifier(out string? identifier) && _statements.TryGetValue(identifier, out IStatement? statement))
+                {
                     statement.Read(stream);
                 }
-                else {
+                else
+                {
                     throw new UnexpectedTokenException(stream.Peek());
                 }
             }
         }
 
-        private static void GatherStatements() {
+        private static void GatherStatements()
+        {
             var types = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(s => s.GetTypes())
                 .Where(p => typeof(IStatement).IsAssignableFrom(p));
 
-            foreach (var type in types) {
+            foreach (var type in types)
+            {
                 if (type.IsInterface)
                     continue;
 
                 string identifier = null;
                 var attributes = type.GetCustomAttributes(false);
 
-                foreach (var attribute in attributes) {
+                foreach (var attribute in attributes)
+                {
                     if (attribute is IdentifierAttribute casted)
                         identifier = casted.Identifier;
                 }

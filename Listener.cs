@@ -1,9 +1,11 @@
-using System.Net; 
-using System.Net.Sockets; 
-using System.Threading.Tasks; 
+using System.Net;
+using System.Net.Sockets;
+using System.Threading.Tasks;
 
-namespace Arbiter {
-    public class Listener {
+namespace Arbiter
+{
+    public class Listener
+    {
         public delegate void OnConnectionHandler(object sender, Socket socket);
         public event OnConnectionHandler? OnConnection;
 
@@ -11,8 +13,10 @@ namespace Arbiter {
         private List<int> _ports = new List<int>();
         private List<Socket> _sockets = new List<Socket>();
 
-        public void Start() {
-            foreach (ushort port in _ports) {
+        public void Start()
+        {
+            foreach (ushort port in _ports)
+            {
                 var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
                 foreach (var address in _addresses)
@@ -30,27 +34,30 @@ namespace Arbiter {
             }
         }
 
-        public void Bind(IPAddress addr) {
+        public void Bind(IPAddress addr)
+        {
             _addresses.Add(addr);
         }
 
-        public void Bind(int port) {
+        public void Bind(int port)
+        {
             if (!_ports.Contains(port))
                 _ports.Add(port);
         }
 
-        void AcceptEventArgs_Completed(object? sender, SocketAsyncEventArgs e) {
+        void AcceptEventArgs_Completed(object? sender, SocketAsyncEventArgs e)
+        {
             if (sender == null)
                 throw new Exception("sender borke");
 
             var socket = e.AcceptSocket;
             if (socket == null)
                 throw new Exception("socket borke");
-            
+
             OnConnection?.Invoke(this, socket);
 
             e.AcceptSocket = null; // unix hhh
-            if (!((Socket) sender).AcceptAsync(e))
+            if (!((Socket)sender).AcceptAsync(e))
                 AcceptEventArgs_Completed(sender, e);
         }
     }

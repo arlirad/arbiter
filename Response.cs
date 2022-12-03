@@ -1,8 +1,11 @@
 using System;
 
-namespace Arbiter {
-    public class Response {
-        private static readonly Dictionary<int, string> _defaultPhrases = new Dictionary<int, string> {
+namespace Arbiter
+{
+    public class Response
+    {
+        private static readonly Dictionary<int, string> _defaultPhrases = new Dictionary<int, string>
+        {
             [0] = "Unknown",
 
             [100] = "Continue",
@@ -74,7 +77,8 @@ namespace Arbiter {
         public bool SimpleResponse = false;
         public bool DontRespond = false;
 
-        public void SetCode(int code) {
+        public void SetCode(int code)
+        {
             string? phrase;
 
             Code = code;
@@ -85,9 +89,10 @@ namespace Arbiter {
                 Phrase = _defaultPhrases[0];
         }
 
-        public void SimpleCode(int code) {
+        public void SimpleCode(int code)
+        {
             string? phrase;
-            
+
             Stream = null;
             Code = code;
             SimpleResponse = true;
@@ -98,12 +103,14 @@ namespace Arbiter {
                 Phrase = _defaultPhrases[0];
         }
 
-        public void Redirect(string uri) {
+        public void Redirect(string uri)
+        {
             SetCode(302);
             Headers["Location"] = uri;
         }
 
-        public void Proxy(Request request, System.Net.IPEndPoint ep, string uri) {
+        public void Proxy(Request request, System.Net.IPEndPoint ep, string uri)
+        {
             var link = new Link(request, uri);
             link.Begin(ep);
 

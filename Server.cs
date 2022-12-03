@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
 
-namespace Arbiter {
-    public static class Server {
+namespace Arbiter
+{
+    public static class Server
+    {
         public static string Version { get => "Arbiter 2.00"; }
 
         public static Cache Cache = new Cache();
@@ -10,7 +12,8 @@ namespace Arbiter {
         public static Handler Handler = new Handler();
         public static Random Random = new Random();
 
-        public static void Main(string[] args) {
+        public static void Main(string[] args)
+        {
             Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("pl-PL");
 
             ConfigReader.ReadFromFile("cfg/arbiter.cfg");
@@ -30,40 +33,50 @@ namespace Arbiter {
                 Thread.Sleep(-1);
         }
 
-        private static void Listener_OnConnection(object sender, System.Net.Sockets.Socket socket) {
+        private static void Listener_OnConnection(object sender, System.Net.Sockets.Socket socket)
+        {
             Receiver.ReceiveOn(socket);
         }
 
-        private static void Receiver_Requested(object sender, State state, Request request) {
-            Handler.Handle(request).ContinueWith(async (task) => {
+        private static void Receiver_Requested(object sender, State state, Request request)
+        {
+            Handler.Handle(request).ContinueWith(async (task) =>
+            {
                 await Receiver.Reply(state, request, task.Result);
             });
         }
 
-        private static void SetPorts() {
-            foreach (var site in Handler.Sites) {
-                foreach (var binding in site.Value.Bindings) {
+        private static void SetPorts()
+        {
+            foreach (var site in Handler.Sites)
+            {
+                foreach (var binding in site.Value.Bindings)
+                {
                     int port = binding.Port;
                     Listener.Bind(port);
                 }
             }
         }
 
-        private static void UpdateCerts() {
-            if (!File.Exists("./acme.sh")) {
+        private static void UpdateCerts()
+        {
+            if (!File.Exists("./acme.sh"))
+            {
                 Console.WriteLine("./acme.sh not found, unable to update certificates");
                 return;
             }
 
             Dictionary<string, Site> certifiable = new Dictionary<string, Site>();
 
-            foreach (var sitePair in Handler.Sites) {
+            foreach (var sitePair in Handler.Sites)
+            {
                 foreach (var binding in sitePair.Value.Bindings)
                     if (binding.Scheme == "https" && binding.Port == 443)
                         certifiable[binding.Host] = sitePair.Value;
             }
 
-            foreach (var pair in certifiable) {
+            foreach (var pair in certifiable)
+            {
                 if (pair.Key == "localhost")
                     continue;
 

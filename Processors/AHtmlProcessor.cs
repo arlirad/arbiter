@@ -7,19 +7,22 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
-namespace Arbiter {
+namespace Arbiter
+{
     [Name("ahtmlproc")]
-    public class AHtmlProcessor : IProcessor {
+    public class AHtmlProcessor : IProcessor
+    {
         public static readonly List<MetadataReference> References = new List<MetadataReference>();
         public readonly Dictionary<string, AHtmlUnit> _sourceFiles = new Dictionary<string, AHtmlUnit>();
 
         public static AssemblyLoadContext Context { get; private set; }
         public static AssemblyDependencyResolver Resolver = new AssemblyDependencyResolver("ahtml");
 
-        private SegmentHandle _sourceSegment; 
+        private SegmentHandle _sourceSegment;
         private object _lock = new object();
 
-        public AHtmlProcessor() {
+        public AHtmlProcessor()
+        {
             Context = new AssemblyLoadContext("ahtml", true);
             Context.Resolving += Context_Resolving;
 
@@ -38,19 +41,22 @@ namespace Arbiter {
             _sourceSegment.Start();
         }
 
-        private Assembly? Context_Resolving(AssemblyLoadContext context, AssemblyName name) {
+        private Assembly? Context_Resolving(AssemblyLoadContext context, AssemblyName name)
+        {
             Console.WriteLine("Loading " + name);
             return context.LoadFromAssemblyName(name);
         }
 
-        public void Process(Stream stream, Request request, Response response) {
+        public void Process(Stream stream, Request request, Response response)
+        {
             string lpath = request.RewrittenUri.LocalPath;
             string path = request.Site.Path + lpath;
             var unit = GetUnit(request, path);
 
             response.Stream = new LimitedMemoryStream(1048576 * 32);
 
-            if (!unit.Success) {
+            if (!unit.Success)
+            {
                 CompilationError(response, unit, lpath);
                 return;
             }
@@ -65,13 +71,16 @@ namespace Arbiter {
 
             int recursions = 0;
 
-            try {
-                do {
+            try
+            {
+                do
+                {
                     state.Layout = null;
                     state.Section(null);
 
                     unit.Run(request, response, state);
-                    if (!unit.Success) {
+                    if (!unit.Success)
+                    {
                         CompilationError(response, unit, lpath);
                         return;
                     }
@@ -91,7 +100,8 @@ namespace Arbiter {
                 }
                 while (true);
             }
-            catch (Exception e) {
+            catch (Exception e)
+            {
                 RuntimeError(response, unit, lpath, e);
             }
 
@@ -99,39 +109,50 @@ namespace Arbiter {
             state.Flush();
         }
 
-        public static void ReadConfig(string path) {
+        public static void ReadConfig(string path)
+        {
             var stream = TokenStream.Tokenize(path, File.OpenRead(path));
 
-            while (!stream.EndOfStream) {
+            while (!stream.EndOfStream)
+            {
                 stream.ExpectIdentifier(out string identifier);
 
-                switch (identifier) {
-                case "assembly": {
-                    if (stream.AcceptString(out string assemblyName)) {
-                        var assembly = Context.LoadFromAssemblyName(new AssemblyName(assemblyName));
+                switch (identifier)
+                {
+                    case "assembly":
+                        {
+                            if (stream.AcceptString(out string assemblyName))
+                            {
+                                var assembly = Context.LoadFromAssemblyName(new AssemblyName(assemblyName));
 
-                        References.Add(MetadataReference.CreateFromFile(assembly.Location));
+                                References.Add(MetadataReference.CreateFromFile(assembly.Location));
+                                break;
+                            }
+
+                            stream.ExpectOperator("{");
+
+                            while (!stream.AcceptOperator("}"))
+                            {
+                                var assembly = Context.LoadFromAssemblyName(new AssemblyName(stream.ExpectString()));
+
+                                References.Add(MetadataReference.CreateFromFile(assembly.Location));
+                            }
+                        }
                         break;
-                    }
-
-                    stream.ExpectOperator("{");
-
-                    while (!stream.AcceptOperator("}")) {
-                        var assembly = Context.LoadFromAssemblyName(new AssemblyName(stream.ExpectString()));
-
-                        References.Add(MetadataReference.CreateFromFile(assembly.Location));
-                    }
-                } break;
                 }
             }
         }
 
-        private AHtmlUnit GetUnit(Request request, string path) {
+        private AHtmlUnit GetUnit(Request request, string path)
+        {
             var unit = Server.Cache.GetTie<AHtmlUnit>(path);
-            if (unit == null) {
-                lock (_lock) {
+            if (unit == null)
+            {
+                lock (_lock)
+                {
                     unit = Server.Cache.GetTie<AHtmlUnit>(path);
-                    if (unit == null) {
+                    if (unit == null)
+                    {
                         unit = AHtmlUnit.CompilePage(request.Site, path);
                         Server.Cache.SetTie(path, unit);
                     }
@@ -141,27 +162,32 @@ namespace Arbiter {
             return unit;
         }
 
-        public void CompilationError(Response response, AHtmlUnit unit, string path) {
+        public void CompilationError(Response response, AHtmlUnit unit, string path)
+        {
             response.SetCode(500);
             response.Mime = "text/html";
 
-            using (var writer = new StreamWriter(response.Stream, null, -1, true)) {
+            using (var writer = new StreamWriter(response.Stream, null, -1, true))
+            {
                 writer.WriteLine("<meta charset=\"utf-8\">");
                 writer.WriteLine($"Failed to compile <b>{path}</b>");
                 writer.WriteLine("<br>");
 
-                foreach (var diagnostic in unit.Diagnostics) {
+                foreach (var diagnostic in unit.Diagnostics)
+                {
                     writer.Write(diagnostic);
                     writer.WriteLine("<br>");
                 }
             }
         }
 
-        public void RuntimeError(Response response, AHtmlUnit unit, string path, Exception e) {
+        public void RuntimeError(Response response, AHtmlUnit unit, string path, Exception e)
+        {
             response.SetCode(500);
             response.Mime = "text/html";
 
-            using (var writer = new StreamWriter(response.Stream, null, -1, true)) {
+            using (var writer = new StreamWriter(response.Stream, null, -1, true))
+            {
                 writer.WriteLine("<meta charset=\"utf-8\">");
                 writer.WriteLine($"Exception while executing <b>{path}</b>");
                 writer.WriteLine("<br>");
@@ -169,20 +195,25 @@ namespace Arbiter {
             }
         }
 
-        void SourceSegment_OnChanged(object sender, string path) {
+        void SourceSegment_OnChanged(object sender, string path)
+        {
             Console.WriteLine(path);
             // Console.WriteLine(File.ReadAllText(path));
-            
-            if (!File.Exists(path)) {
+
+            if (!File.Exists(path))
+            {
                 _sourceFiles[path].Dispose();
                 _sourceFiles[path] = null;
             }
-            else {
+            else
+            {
                 var unit = AHtmlUnit.CompileSourceFile(path);
-                if (unit.Success) {
+                if (unit.Success)
+                {
                     _sourceFiles[path] = unit;
                 }
-                else {
+                else
+                {
                     foreach (var diagnostic in unit.Diagnostics)
                         Console.WriteLine(diagnostic);
                 }
@@ -190,21 +221,25 @@ namespace Arbiter {
         }
     }
 
-    public class LimitedMemoryStream : MemoryStream {
+    public class LimitedMemoryStream : MemoryStream
+    {
         private int _max = 0;
 
-        public LimitedMemoryStream(int max) : base() {
+        public LimitedMemoryStream(int max) : base()
+        {
             _max = max;
         }
 
-        public override void Write(byte[] buffer, int offset, int count) {
+        public override void Write(byte[] buffer, int offset, int count)
+        {
             if (base.Position > _max)
                 throw new OutOfMemoryException();
 
             base.Write(buffer, offset, count);
         }
 
-        public override void WriteByte(byte value) {
+        public override void WriteByte(byte value)
+        {
             if (base.Position > _max)
                 throw new OutOfMemoryException();
 

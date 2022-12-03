@@ -1,25 +1,30 @@
 using System;
 
-namespace Arbiter {
-    public class Handler {
+namespace Arbiter
+{
+    public class Handler
+    {
         public Dictionary<string, IProcessor> Processors = new Dictionary<string, IProcessor>();
         public Dictionary<string, IProcessor> ProcessorBindings = new Dictionary<string, IProcessor>();
         public Dictionary<string, IRewriter> Rewriters = new Dictionary<string, IRewriter>();
         public Dictionary<string, Site> Sites = new Dictionary<string, Site>();
         public Dictionary<string, string> Mime = new Dictionary<string, string>();
 
-        public Handler() {
+        public Handler()
+        {
             GatherProcessors();
             GatherRewriters();
         }
 
-        public async Task<Response> Handle(Request request) {
+        public async Task<Response> Handle(Request request)
+        {
             var response = new Response();
             var site = FindSite(request.Uri);
 
             response.Headers["access-control-allow-origin"] = "*";
 
-            if (request.Uri.LocalPath == "/.debug/cache") {
+            if (request.Uri.LocalPath == "/.debug/cache")
+            {
                 response.Stream = new MemoryStream();
                 response.SetCode(200);
                 Server.Cache.WriteDebugInfo(response.Stream);
@@ -27,7 +32,8 @@ namespace Arbiter {
                 return response;
             }
 
-            if (site == null) {
+            if (site == null)
+            {
                 response.SetCode(404);
                 response.Mime = "text/html";
                 response.Stream = Server.Cache.GetFile($"err/{response.Code}.html");
@@ -36,62 +42,78 @@ namespace Arbiter {
 
             request.Site = site;
 
-            try {
+            try
+            {
                 foreach (string rewriter in site.Rewriters)
                     Rewriters[rewriter].Rewrite(request);
             }
-            catch (Exception e) {
+            catch (Exception e)
+            {
                 return GetExceptionPage(e);
             }
 
             string path = site.Path + request.Uri.LocalPath;
             string filename = Path.GetFileName(path);
-            
-            if (Server.Cache.GetFile(path, out Stream stream)) {
+
+            if (Server.Cache.GetFile(path, out Stream stream))
+            {
                 string ext = Path.GetExtension(path);
 
-                if (filename.Length < 32 && ProcessorBindings.TryGetValue(ext, out var processor)) {
-                    try {
+                if (filename.Length < 32 && ProcessorBindings.TryGetValue(ext, out var processor))
+                {
+                    try
+                    {
                         processor.Process(stream, request, response);
                     }
-                    catch (Exception e) {
+                    catch (Exception e)
+                    {
                         return GetExceptionPage(e);
                     }
                 }
-                else if (ResolveMime(ext, out string? mime)) {
+                else if (ResolveMime(ext, out string? mime))
+                {
                     response.SetCode(200);
                     response.Mime = mime;
                     response.Stream = stream;
                 }
-                else {
+                else
+                {
                     response.SetCode(403);
                 }
             }
-            else if (Directory.Exists(path)) {
+            else if (Directory.Exists(path))
+            {
                 bool found = false;
 
-                foreach (var doc in site.DefaultDocs) {
+                foreach (var doc in site.DefaultDocs)
+                {
                     string docpath = Path.Combine(path, doc);
 
-                    if (Server.Cache.GetFile(docpath, out Stream docstream)) {
+                    if (Server.Cache.GetFile(docpath, out Stream docstream))
+                    {
                         string ext = Path.GetExtension(docpath);
 
                         request.RewrittenUri = new Uri(request.Uri, Path.GetFileName(docpath));
 
-                        if (filename.Length < 32 && ProcessorBindings.TryGetValue(ext, out var processor)) {
-                            try {
+                        if (filename.Length < 32 && ProcessorBindings.TryGetValue(ext, out var processor))
+                        {
+                            try
+                            {
                                 processor.Process(stream, request, response);
                             }
-                            catch (Exception e) {
+                            catch (Exception e)
+                            {
                                 return GetExceptionPage(e);
                             }
                         }
-                        else if (ResolveMime(ext, out string? mime)) {
+                        else if (ResolveMime(ext, out string? mime))
+                        {
                             response.SetCode(200);
                             response.Mime = mime;
                             response.Stream = docstream;
                         }
-                        else {
+                        else
+                        {
                             response.SetCode(403);
                         }
 
@@ -103,18 +125,21 @@ namespace Arbiter {
                 if (!found)
                     response.SetCode(404);
             }
-            else {
+            else
+            {
                 response.SetCode(404);
             }
 
-            if (response.Stream == null && !response.SimpleResponse && !response.DontRespond) {
+            if (response.Stream == null && !response.SimpleResponse && !response.DontRespond)
+            {
                 response.Mime = "text/html";
 
                 if (request.Method != "HEAD")
                     response.Stream = Server.Cache.GetFile($"err/{response.Code}.html");
             }
 
-            if (request.Method == "HEAD") {
+            if (request.Method == "HEAD")
+            {
                 if (response.Stream != null)
                     response.Stream.Dispose();
 
@@ -124,13 +149,17 @@ namespace Arbiter {
             return response;
         }
 
-        public void BindProcessor(string extension, string processorName) {
+        public void BindProcessor(string extension, string processorName)
+        {
             ProcessorBindings[extension] = Processors[processorName];
         }
 
-        private Site FindSite(Uri uri) {
-            foreach (var site in Sites) {
-                foreach (var binding in site.Value.Bindings) {
+        private Site FindSite(Uri uri)
+        {
+            foreach (var site in Sites)
+            {
+                foreach (var binding in site.Value.Bindings)
+                {
                     if (binding.Scheme == uri.Scheme && binding.Host == uri.Host && binding.Port == uri.Port)
                         return site.Value;
                 }
@@ -139,14 +168,16 @@ namespace Arbiter {
             return null;
         }
 
-        private bool ResolveMime(string ext, out string? mime) {
+        private bool ResolveMime(string ext, out string? mime)
+        {
             if (!Mime.TryGetValue(ext, out mime))
                 Mime.TryGetValue(".*", out mime);
 
             return mime != null;
         }
 
-        private Response GetExceptionPage(Exception e) {
+        private Response GetExceptionPage(Exception e)
+        {
             Console.WriteLine(e);
 
             var response = new Response();
@@ -154,9 +185,10 @@ namespace Arbiter {
             response.SetCode(500);
             response.Stream = new MemoryStream();
 
-            if (Server.Cache.GetFile($"err/{response.Code}.html", out Stream err_stream)) {
+            if (Server.Cache.GetFile($"err/{response.Code}.html", out Stream err_stream))
+            {
                 string page;
-                
+
                 using (var reader = new StreamReader(err_stream))
                     page = reader.ReadToEnd();
 
@@ -165,7 +197,8 @@ namespace Arbiter {
                 using (var writer = new StreamWriter(response.Stream, null, -1, true))
                     writer.Write(page);
             }
-            else {
+            else
+            {
                 using (var writer = new StreamWriter(response.Stream, null, -1, true))
                     writer.WriteLine(e.ToString());
             }
@@ -173,19 +206,22 @@ namespace Arbiter {
             return response;
         }
 
-        private void GatherProcessors() {
+        private void GatherProcessors()
+        {
             var types = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(s => s.GetTypes())
                 .Where(p => typeof(IProcessor).IsAssignableFrom(p));
 
-            foreach (var type in types) {
+            foreach (var type in types)
+            {
                 if (type.IsInterface)
                     continue;
 
                 string name = null;
                 var attributes = type.GetCustomAttributes(false);
 
-                foreach (var attribute in attributes) {
+                foreach (var attribute in attributes)
+                {
                     if (attribute is NameAttribute casted)
                         name = casted.Name;
                 }
@@ -199,19 +235,22 @@ namespace Arbiter {
             }
         }
 
-        private void GatherRewriters() {
+        private void GatherRewriters()
+        {
             var types = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(s => s.GetTypes())
                 .Where(p => typeof(IRewriter).IsAssignableFrom(p));
 
-            foreach (var type in types) {
+            foreach (var type in types)
+            {
                 if (type.IsInterface)
                     continue;
 
                 string name = null;
                 var attributes = type.GetCustomAttributes(false);
 
-                foreach (var attribute in attributes) {
+                foreach (var attribute in attributes)
+                {
                     if (attribute is NameAttribute casted)
                         name = casted.Name;
                 }

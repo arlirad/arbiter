@@ -1,10 +1,13 @@
 using System;
 
-namespace Arbiter {
+namespace Arbiter
+{
     [Identifier("source")]
-    public class SourceStatement : IStatement {
-        public void Read(TokenStream stream) {
-            
+    public class SourceStatement : IStatement
+    {
+        public void Read(TokenStream stream)
+        {
+
         }
     }
 }

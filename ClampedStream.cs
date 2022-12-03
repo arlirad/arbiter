@@ -1,7 +1,9 @@
 using System;
 
-namespace Arbiter {
-    public class ClampedStream : Stream {
+namespace Arbiter
+{
+    public class ClampedStream : Stream
+    {
         private Stream _base;
         private int _remaining;
         private byte[] _buffer;
@@ -14,14 +16,16 @@ namespace Arbiter {
         public override bool CanSeek { get => false; }
 
         public override long Length { get => throw new NotSupportedException(); }
-        public override long Position { 
+        public override long Position
+        {
             get => throw new NotSupportedException();
-            set => throw new NotSupportedException(); 
+            set => throw new NotSupportedException();
         }
 
         public long Remaining { get => _remaining; }
 
-        public ClampedStream(Stream stream, int limit, byte[] buffer, int bufferLen) : base() {
+        public ClampedStream(Stream stream, int limit, byte[] buffer, int bufferLen) : base()
+        {
             _base = stream;
             _remaining = limit;
             _buffer = buffer;
@@ -29,10 +33,11 @@ namespace Arbiter {
             _bufferLength = bufferLen;
         }
 
-        public void ClipLeftovers() {
+        public void ClipLeftovers()
+        {
             int rem_len = Math.Clamp(_remaining, 0, _bufferLength - _bufferOffset);
             _remaining -= rem_len;
-            
+
             if (_remaining == 0)
                 return;
 
@@ -40,7 +45,8 @@ namespace Arbiter {
 
             byte[] buffer = new byte[1024];
 
-            while (_remaining > 0) {
+            while (_remaining > 0)
+            {
                 int len = Read(buffer, 0, Math.Clamp(_remaining, 0, 1024));
                 if (len == 0)
                     break;
@@ -49,20 +55,23 @@ namespace Arbiter {
             }
         }
 
-        public override void SetLength(long len) 
+        public override void SetLength(long len)
             => _base.SetLength(len);
 
-        public override int Read(byte[] buffer, int offset, int count) {
+        public override int Read(byte[] buffer, int offset, int count)
+        {
             int bufferRead = 0;
 
-            if (count > _remaining) {
+            if (count > _remaining)
+            {
                 count = _remaining;
 
                 if (count == 0)
                     return count;
             }
 
-            if (_buffer != null && count > 0) {
+            if (_buffer != null && count > 0)
+            {
                 int len = Math.Clamp(count, 0, _bufferLength - _bufferOffset);
                 Array.Copy(_buffer, _bufferOffset, buffer, offset, len);
 
@@ -74,7 +83,8 @@ namespace Arbiter {
                 if (_bufferOffset == _bufferLength)
                     _buffer = null;
 
-                if (count == 0) {
+                if (count == 0)
+                {
                     _remaining -= len;
                     return bufferRead;
                 }
@@ -82,7 +92,8 @@ namespace Arbiter {
 
             _remaining -= bufferRead;
 
-            while (count > 0) {
+            while (count > 0)
+            {
                 int ret = _base.Read(buffer, offset, count);
                 if (ret == 0)
                     break;
@@ -98,14 +109,16 @@ namespace Arbiter {
             return bufferRead;
         }
 
-        public override void Write(byte[] buffer, int offset, int count) {
+        public override void Write(byte[] buffer, int offset, int count)
+        {
             throw new NotImplementedException();
         }
 
         public override void Flush()
             => _base.Flush();
 
-        public override long Seek(long val, SeekOrigin origin) {
+        public override long Seek(long val, SeekOrigin origin)
+        {
             throw new NotImplementedException();
         }
     }

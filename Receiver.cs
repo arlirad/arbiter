@@ -7,8 +7,10 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Arbiter {
-    public class Receiver {
+namespace Arbiter
+{
+    public class Receiver
+    {
         public delegate void RequestedHandler(object sender, State state, Request request);
         public event RequestedHandler Requested;
 
@@ -21,12 +23,15 @@ namespace Arbiter {
         object _closeLock = new object();
         object _sslLock = new object();
 
-        public Receiver() {
-            for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        public Receiver()
+        {
+            for (int i = 0; i < MAX_CONNECTIONS; i++)
+            {
                 var args = new SocketAsyncEventArgs();
                 var buffer = new byte[BUFFER_SIZE];
 
-                args.UserToken = new State() {
+                args.UserToken = new State()
+                {
                     Buffer = buffer,
                     Arguments = args,
                 };
@@ -37,7 +42,8 @@ namespace Arbiter {
             }
         }
 
-        public void ReceiveOn(Socket socket) {
+        public void ReceiveOn(Socket socket)
+        {
             Console.WriteLine($"{socket.RemoteEndPoint} opened");
 
             _connectionSemaphore.WaitOne();
@@ -59,22 +65,29 @@ namespace Arbiter {
                 ReceiveEventArgs_Completed(socket, args);
         }
 
-        public async Task Reply(State state, Request request, Response response) {
-            if (response.DontRespond) {
+        public async Task Reply(State state, Request request, Response response)
+        {
+            if (response.DontRespond)
+            {
                 Console.WriteLine($"{state.EndPoint} <%<");
                 return;
             }
 
             Console.WriteLine($"{state.EndPoint} << HTTP/1.1 {response.Code} {response.Phrase}");
 
-            if (request.Version == "HTTP/0.9") {
-                try {
-                    if (response.Stream != null && !response.SimpleResponse) {
+            if (request.Version == "HTTP/0.9")
+            {
+                try
+                {
+                    if (response.Stream != null && !response.SimpleResponse)
+                    {
                         response.Stream.Position = 0;
                         await response.Stream.CopyToAsync(state.Stream);
                     }
-                    else {
-                        using (var writer = new StreamWriter(state.Stream, null, -1, true)) {
+                    else
+                    {
+                        using (var writer = new StreamWriter(state.Stream, null, -1, true))
+                        {
                             writer.Write("HTTP/0.9");
                             writer.Write(' ');
                             writer.Write(response.Code);
@@ -86,20 +99,23 @@ namespace Arbiter {
 
                     state.Socket.Dispose();
                 }
-                catch {}
+                catch { }
                 return;
             }
 
-            try {
+            try
+            {
                 response.Headers["Connection"] = (request.Version == "HTTP/1.0" ? "close" : "keep-alive");
 
-                if (request.Stream != null) {
+                if (request.Stream != null)
+                {
                     request.Stream.ClipLeftovers();
                     request.Stream.Dispose();
                     request.Stream = null;
                 }
-            
-                if (state.CopyLeftovers > 0) {
+
+                if (state.CopyLeftovers > 0)
+                {
                     Array.Clear(state.Buffer, state.Offset, BUFFER_SIZE - state.Offset);
                     Array.Copy(state.Buffer, state.CopyLeftovers, state.Buffer, 0, BUFFER_SIZE - state.Offset);
 
@@ -108,7 +124,8 @@ namespace Arbiter {
                     state.CopyLeftovers = 0;
                 }
 
-                using (var writer = new StreamWriter(state.Stream, null, -1, true)) {
+                using (var writer = new StreamWriter(state.Stream, null, -1, true))
+                {
                     writer.NewLine = "\r\n";
 
                     writer.Write("HTTP/1.1");
@@ -118,22 +135,26 @@ namespace Arbiter {
                     writer.Write(response.Phrase);
                     writer.WriteLine();
 
-                    if (response.Stream == null || response.SimpleResponse) {
+                    if (response.Stream == null || response.SimpleResponse)
+                    {
                         writer.WriteLine("Content-Length: 0");
                     }
-                    else {
+                    else
+                    {
                         writer.Write("Content-Length: ");
                         writer.Write(response.Stream.Length);
                         writer.WriteLine();
                     }
 
-                    if (response.Mime != null) {
+                    if (response.Mime != null)
+                    {
                         writer.Write("Content-Type: ");
                         writer.Write(response.Mime);
                         writer.WriteLine();
                     }
 
-                    foreach (var pair in response.Headers) {
+                    foreach (var pair in response.Headers)
+                    {
                         writer.Write(pair.Key);
                         writer.Write(": ");
                         writer.Write(pair.Value);
@@ -143,23 +164,28 @@ namespace Arbiter {
                     writer.WriteLine();
                 }
 
-                if (response.Stream != null && !response.SimpleResponse) {
+                if (response.Stream != null && !response.SimpleResponse)
+                {
                     response.Stream.Position = 0;
                     await response.Stream.CopyToAsync(state.Stream);
                 }
-            
-                if (request.Version == "HTTP/1.0") {
-                    try {
+
+                if (request.Version == "HTTP/1.0")
+                {
+                    try
+                    {
                         state.Stream.Flush();
                         state.Socket.Dispose();
                     }
-                    catch {}
+                    catch { }
                 }
-                else {
-                    try {
+                else
+                {
+                    try
+                    {
                         state.Stream.Flush();
                     }
-                    catch {}
+                    catch { }
                 }
             }
             catch { /*CloseConnection(state.Arguments);*/ }
@@ -167,27 +193,33 @@ namespace Arbiter {
             Process(state);
         }
 
-        private void ReceiveEventArgs_Completed(object sender, SocketAsyncEventArgs args) {
+        private void ReceiveEventArgs_Completed(object sender, SocketAsyncEventArgs args)
+        {
             var state = args.UserToken as State;
 
-            if (args.BytesTransferred == 0 || args.SocketError != SocketError.Success) {
+            if (args.BytesTransferred == 0 || args.SocketError != SocketError.Success)
+            {
                 CloseConnection(state);
                 return;
             }
 
             Stream stream = new NetworkStream(state.Socket);
 
-            if (args.Buffer[0] == 22) {
+            if (args.Buffer[0] == 22)
+            {
                 var ssl = new SslStream(stream, false);
-                
+
                 state.Stream = ssl;
                 state.Secure = true;
 
                 Array.Clear(state.Buffer);
 
-                try {
-                    ssl.AuthenticateAsServerAsync(new ServerOptionsSelectionCallback(ServerOptionsCallback), null).ContinueWith((Task t) => {
-                        try {
+                try
+                {
+                    ssl.AuthenticateAsServerAsync(new ServerOptionsSelectionCallback(ServerOptionsCallback), null).ContinueWith((Task t) =>
+                    {
+                        try
+                        {
                             t.Wait();
                             Process(state);
                         }
@@ -204,23 +236,27 @@ namespace Arbiter {
 
             Array.Clear(state.Buffer);
 
-            try {
+            try
+            {
                 Process(state);
             }
             catch { CloseConnection(state); }
         }
 
-        private void Read_Completed(IAsyncResult ar) {
+        private void Read_Completed(IAsyncResult ar)
+        {
             var state = ar.AsyncState as State;
             int len = 0;
 
-            try {
+            try
+            {
                 len = state.Stream.EndRead(ar);
                 state.Offset += len;
             }
             catch { }
 
-            if (len == 0) {
+            if (len == 0)
+            {
                 CloseConnection(state);
                 return;
             }
@@ -228,57 +264,71 @@ namespace Arbiter {
             Process(state);
         }
 
-        private void Authentication_Completed(IAsyncResult ar) {
+        private void Authentication_Completed(IAsyncResult ar)
+        {
             var state = ar.AsyncState as State;
 
-            try {
+            try
+            {
                 (state.Stream as SslStream).EndAuthenticateAsServer(ar);
             }
-            catch (AuthenticationException e) {
+            catch (AuthenticationException e)
+            {
                 Console.WriteLine(e);
             }
             catch { /* CloseConnection(state); */ }
 
-            try {
+            try
+            {
                 Process(state);
             }
             catch { CloseConnection(state); }
         }
 
-        private void CloseConnection(State state) {
+        private void CloseConnection(State state)
+        {
             var socket = (state.Arguments.UserToken as State).Socket;
             Console.WriteLine($"{state.EndPoint} closed"); // @ {Environment.StackTrace}
 
-            try {
+            try
+            {
                 socket.Shutdown(SocketShutdown.Send);
                 socket.Shutdown(SocketShutdown.Receive);
                 socket.Shutdown(SocketShutdown.Both);
             }
-            catch {}
+            catch { }
 
             _argsPool.Push(state.Arguments);
             _connectionSemaphore.Release();
         }
 
-        private async ValueTask<SslServerAuthenticationOptions> ServerOptionsCallback(SslStream stream, SslClientHelloInfo clientHelloInfo, object? state, CancellationToken cancellationToken) {
+        private async ValueTask<SslServerAuthenticationOptions> ServerOptionsCallback(SslStream stream, SslClientHelloInfo clientHelloInfo, object? state, CancellationToken cancellationToken)
+        {
             var options = new SslServerAuthenticationOptions();
 
             var path = $"pfx/{clientHelloInfo.ServerName}.pfx";
             var cert = Server.Cache.GetTie<X509Certificate>(path);
-            if (cert == null) {
-                lock (_sslLock) {
+            if (cert == null)
+            {
+                lock (_sslLock)
+                {
                     cert = Server.Cache.GetTie<X509Certificate>(path);
-                    if (cert == null) {
-                        try {
-                            if (!File.Exists(path)) {
+                    if (cert == null)
+                    {
+                        try
+                        {
+                            if (!File.Exists(path))
+                            {
                                 Console.WriteLine($"{path} not found!");
                             }
-                            else {
+                            else
+                            {
                                 cert = new X509Certificate2(File.ReadAllBytes(path));
                                 Server.Cache.SetTie(path, cert);
                             }
                         }
-                        catch (Exception e) {
+                        catch (Exception e)
+                        {
                             Console.WriteLine(e);
                         }
                     }
@@ -292,15 +342,19 @@ namespace Arbiter {
             return options;
         }
 
-        private int Check(State state) {
+        private int Check(State state)
+        {
             int headSpaceCount = 0;
 
-            for (int i = 1; i < state.Offset; i++) {
+            for (int i = 1; i < state.Offset; i++)
+            {
                 if (state.Buffer[i] == ' ')
                     headSpaceCount++;
 
-                if (state.Buffer[i - 1] == '\r' && state.Buffer[i - 0] == '\n') {
-                    if (headSpaceCount == 1) {
+                if (state.Buffer[i - 1] == '\r' && state.Buffer[i - 0] == '\n')
+                {
+                    if (headSpaceCount == 1)
+                    {
                         state.LastCheckOffset = 0;
                         return i + 1;
                     }
@@ -310,7 +364,8 @@ namespace Arbiter {
             }
 
             for (int i = Math.Max(state.LastCheckOffset - 5, 3); i < state.Offset; i++)
-                if (state.Buffer[i - 3] == '\r' && state.Buffer[i - 2] == '\n' && state.Buffer[i - 1] == '\r' && state.Buffer[i - 0] == '\n') {
+                if (state.Buffer[i - 3] == '\r' && state.Buffer[i - 2] == '\n' && state.Buffer[i - 1] == '\r' && state.Buffer[i - 0] == '\n')
+                {
                     state.LastCheckOffset = 0;
                     return i + 1;
                 }
@@ -319,15 +374,18 @@ namespace Arbiter {
             return -1;
         }
 
-        private bool Parse(State state, int len, out Request request) {
+        private bool Parse(State state, int len, out Request request)
+        {
             string? headline;
-            
+
             request = new Request();
             request.SocketStream = state.Stream;
             request.EndPoint = state.EndPoint;
 
-            using (var stream = new MemoryStream(state.Buffer, 0, len)) {
-                using (var reader = new StreamReader(stream)) {
+            using (var stream = new MemoryStream(state.Buffer, 0, len))
+            {
+                using (var reader = new StreamReader(stream))
+                {
                     headline = reader.ReadLine()?.Trim();
                     if (headline == null)
                         return false;
@@ -341,8 +399,10 @@ namespace Arbiter {
                     request.Method = head[0];
                     request.Version = (head.Length < 3 ? "HTTP/0.9" : head[2]);
 
-                    if (request.Version != "HTTP/0.9") {
-                        while (true) {
+                    if (request.Version != "HTTP/0.9")
+                    {
+                        while (true)
+                        {
                             string? line = reader.ReadLine();
                             if (string.IsNullOrEmpty(line))
                                 break;
@@ -366,12 +426,14 @@ namespace Arbiter {
 
                     path = path.Replace("..", "");
 
-                    if (path.IndexOf('?') != -1) {
+                    if (path.IndexOf('?') != -1)
+                    {
                         var split = path.Split('?');
 
                         path = split[0];
 
-                        foreach (var entry in split[1].Split('&')) {
+                        foreach (var entry in split[1].Split('&'))
+                        {
                             if (entry.IndexOf('=') == -1)
                                 continue;
 
@@ -385,20 +447,22 @@ namespace Arbiter {
                     host ??= "0.0.0.0:" + (state.Socket.LocalEndPoint as System.Net.IPEndPoint)?.Port;
 
                     string uri = (state.Secure ? "https://" : "http://") + host + path;
-                    
-                    request.Uri          = new Uri(uri);
+
+                    request.Uri = new Uri(uri);
                     request.RewrittenUri = new Uri(uri);
                 }
             }
-            
+
             Array.Clear(state.Buffer, state.Offset, BUFFER_SIZE - state.Offset);
             Array.Copy(state.Buffer, len, state.Buffer, 0, BUFFER_SIZE - len);
 
             state.Offset -= len;
             state.CopyLeftovers = 0;
 
-            if (request.Headers.TryGetValue("content-length", out string? contentLength)) {
-                if (int.TryParse(contentLength, out int dataLen)) {
+            if (request.Headers.TryGetValue("content-length", out string? contentLength))
+            {
+                if (int.TryParse(contentLength, out int dataLen))
+                {
                     dataLen = Math.Clamp(dataLen, 0, 1024 * 1024 * 8);
                     // Console.WriteLine("data len: " + dataLen);
 
@@ -412,13 +476,16 @@ namespace Arbiter {
             return true;
         }
 
-        private void Process(State state) {
+        private void Process(State state)
+        {
             int requestLen;
-            while ((requestLen = Check(state)) != -1) {
-                if (!Parse(state, requestLen, out var request)) {
+            while ((requestLen = Check(state)) != -1)
+            {
+                if (!Parse(state, requestLen, out var request))
+                {
                     var response = new Response();
                     response.SimpleCode(400);
-            
+
                     Array.Clear(state.Buffer, state.Offset, BUFFER_SIZE - state.Offset);
                     Array.Copy(state.Buffer, requestLen, state.Buffer, 0, BUFFER_SIZE - requestLen);
 
@@ -431,14 +498,16 @@ namespace Arbiter {
                 return;
             }
 
-            try {
+            try
+            {
                 state.Stream.BeginRead(state.Buffer, state.Offset, 2048 - state.Offset, new AsyncCallback(Read_Completed), state);
             }
             catch { CloseConnection(state); }
         }
     }
-        
-    public class State {
+
+    public class State
+    {
         public Socket Socket;
         public Stream? Stream;
         public byte[] Buffer;
