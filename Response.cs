@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Arbiter
 {
@@ -116,6 +117,31 @@ namespace Arbiter
 
             DontRespond = true;
             Stream = null;
+        }
+
+        public void SetCookie(Cookie cookie, DateTime expires = default, string? path = null, string? domain = null, bool secure = true, bool httponly = true)
+        {
+            if (!Headers.TryGetValue("Set-Cookie", out string cookieString))
+                cookieString = "";
+
+            cookieString += cookie.Name + "=" + cookie.Value;
+
+            if (expires != default)
+                cookieString += "; expires=" + expires.ToUniversalTime().ToString("ddd, dd-MMM-yyyy hh:mm:ss", CultureInfo.InvariantCulture) + " GMT";
+
+            if (path != null)
+                cookieString += "; path=" + path;
+
+            if (domain != null)
+                cookieString += "; domain=" + domain;
+
+            if (secure)
+                cookieString += "; secure";
+
+            if (httponly)
+                cookieString += "; httponly";
+
+            Headers["Set-Cookie"] = cookieString;
         }
     }
 }
