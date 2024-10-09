@@ -14,7 +14,7 @@ namespace Arbiter
         public delegate void RequestedHandler(object sender, State state, Request request);
         public event RequestedHandler Requested;
 
-        private const int MAX_CONNECTIONS = 4096;
+        private const int MAX_CONNECTIONS = 4096 * 16;
         private const int BUFFER_SIZE = 2048;
 
         ConcurrentStack<SocketAsyncEventArgs> _argsPool = new ConcurrentStack<SocketAsyncEventArgs>();
