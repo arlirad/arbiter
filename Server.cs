@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace Arbiter;
 
@@ -12,13 +13,18 @@ public static class Server
     public static Handler Handler = new Handler();
     public static Random Random = new Random();
 
+    public static string ConfigRoot { get; private set; } = "/etc/";
+
     public static void Main(string[] args)
     {
         Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("pl-PL");
 
-        ConfigReader.ReadFromFile("cfg/arbiter.cfg");
-        ConfigReader.ReadFromFile("cfg/mime.cfg");
-        ConfigReader.ReadFromFile("cfg/sites.cfg");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || args.Contains("--local-config"))
+            ConfigRoot = "./cfg/";
+
+        ConfigReader.ReadFromFile(ConfigRoot + "arbiter.cfg");
+        ConfigReader.ReadFromFile(ConfigRoot + "mime.cfg");
+        ConfigReader.ReadFromFile(ConfigRoot + "sites.cfg");
 
         SetPorts();
 
