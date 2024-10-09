@@ -13,7 +13,7 @@ public static class Server
     public readonly static Handler Handler = new();
     public readonly static Random Random = new();
 
-    public static string ConfigRoot { get; private set; } = "/etc/";
+    public static string ConfigRoot { get; private set; } = "/etc/arbiter/";
     public static string ConfigExtension { get; private set; } = "";
 
     public static void Main(string[] args)
