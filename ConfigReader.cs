@@ -1,5 +1,3 @@
-using System;
-
 namespace Arbiter;
 
 public static class ConfigReader
@@ -18,13 +16,9 @@ public static class ConfigReader
         while (!stream.EndOfStream)
         {
             if (stream.AcceptIdentifier(out string? identifier) && _statements.TryGetValue(identifier, out IStatement? statement))
-            {
                 statement.Read(stream);
-            }
             else
-            {
-                throw new UnexpectedTokenException(stream.Peek());
-            }
+                throw new UnexpectedTokenException(stream.Peek() ?? throw new EndOfStreamException());
         }
     }
 
@@ -39,7 +33,7 @@ public static class ConfigReader
             if (type.IsInterface)
                 continue;
 
-            string identifier = null;
+            string? identifier = null;
             var attributes = type.GetCustomAttributes(false);
 
             foreach (var attribute in attributes)

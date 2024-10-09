@@ -273,22 +273,22 @@ public class AHtmlCompiler
         }
 
         var runMembers = new List<MemberDeclarationSyntax>() {
-                ParseMemberDeclaration("public static System.Threading.AsyncLocal<Arbiter.AHtmlPageState> AsyncLocalState = new System.Threading.AsyncLocal<Arbiter.AHtmlPageState>();"),
+            ParseMemberDeclaration("public static System.Threading.AsyncLocal<Arbiter.AHtmlPageState> AsyncLocalState = new System.Threading.AsyncLocal<Arbiter.AHtmlPageState>();"),
 
-                ParseMemberDeclaration("private static Arbiter.AHtmlPageState State { get => AsyncLocalState.Value; }"),
+            ParseMemberDeclaration("private static Arbiter.AHtmlPageState State { get => AsyncLocalState.Value; }"),
 
-                ParseMemberDeclaration("private static string Title { get => State.Title; set => State.Title = value; }"),
-                ParseMemberDeclaration("private static string Layout { get => State.Layout; set => State.Layout = value; }"),
+            ParseMemberDeclaration("private static string Title { get => State.Title; set => State.Title = value; }"),
+            ParseMemberDeclaration("private static string Layout { get => State.Layout; set => State.Layout = value; }"),
 
-                ParseMemberDeclaration("private static Arbiter.Request Request { get => State.Request; }"),
-                ParseMemberDeclaration("private static Arbiter.Response Response { get => State.Response; }"),
+            ParseMemberDeclaration("private static Arbiter.Request Request { get => State.Request; }"),
+            ParseMemberDeclaration("private static Arbiter.Response Response { get => State.Response; }"),
 
-                ParseMemberDeclaration("private static void Write(object obj) { State.Write(obj); }"),
-                ParseMemberDeclaration("private static void WriteLine(object obj) { State.WriteLine(obj); }"),
+            ParseMemberDeclaration("private static void Write(object obj) { State.Write(obj); }"),
+            ParseMemberDeclaration("private static void WriteLine(object obj) { State.WriteLine(obj); }"),
 
-                ParseMemberDeclaration("private static void Section(string name) { State.Section(name); }"),
-                ParseMemberDeclaration("private static void WriteSection(string name) { State.WriteSection(name); }"),
-            };
+            ParseMemberDeclaration("private static void Section(string name) { State.Section(name); }"),
+            ParseMemberDeclaration("private static void WriteSection(string name) { State.WriteSection(name); }"),
+        };
 
         var runMainAsync = MethodDeclaration(ParseTypeName("System.Threading.Tasks.Task"), Identifier("MainAsync")).AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword), Token(SyntaxKind.AsyncKeyword)).AddBodyStatements(statements.ToArray());
         var runClass = ClassDeclaration(Identifier("Page")).AddModifiers(Token(SyntaxKind.PublicKeyword)).AddMembers(runMainAsync).AddMembers(runMembers.ToArray()).AddMembers(classes.ToArray());

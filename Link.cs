@@ -47,7 +47,7 @@ public class Link
                 {
                     writer.NewLine = "\r\n";
 
-                    writer.WriteLine("HTTP/1.1 800 Proxy is broken");
+                    writer.WriteLine("HTTP/1.1 404 Not found");
                     writer.WriteLine("");
                     writer.Flush();
                 }
@@ -69,7 +69,7 @@ public class Link
             {
                 writer.NewLine = "\r\n";
 
-                writer.WriteLine($"GET {_uri} HTTP/1.1");
+                writer.WriteLine($"{_request.Method} {_uri} HTTP/1.1");
 
                 foreach (var header in _request.Headers)
                 {

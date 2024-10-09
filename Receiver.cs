@@ -20,8 +20,8 @@ public class Receiver
     ConcurrentStack<SocketAsyncEventArgs> _argsPool = new ConcurrentStack<SocketAsyncEventArgs>();
     Semaphore _connectionSemaphore = new Semaphore(MAX_CONNECTIONS, MAX_CONNECTIONS);
 
-    object _closeLock = new object();
-    object _sslLock = new object();
+    object _closeLock = new();
+    object _sslLock = new();
 
     public Receiver()
     {
@@ -463,7 +463,7 @@ public class Receiver
         {
             if (int.TryParse(contentLength, out int dataLen))
             {
-                dataLen = Math.Clamp(dataLen, 0, 1024 * 1024 * 8);
+                dataLen = Math.Clamp(dataLen, 0, 1024 * 1024 * 128);
                 // Console.WriteLine("data len: " + dataLen);
 
                 request.Stream = new ClampedStream(state.Stream, dataLen, state.Buffer, state.Offset);

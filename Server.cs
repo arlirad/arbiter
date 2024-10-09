@@ -6,15 +6,14 @@ namespace Arbiter;
 public static class Server
 {
     public static string Version { get => "Arbiter 2.00"; }
+    public static string ConfigRoot { get; private set; } = "/etc/arbiter/";
+    public static string ConfigExtension { get; private set; } = "";
 
     public readonly static Cache Cache = new();
     public readonly static Listener Listener = new();
     public readonly static Receiver Receiver = new();
     public readonly static Handler Handler = new();
     public readonly static Random Random = new();
-
-    public static string ConfigRoot { get; private set; } = "/etc/arbiter/";
-    public static string ConfigExtension { get; private set; } = "";
 
     public static void Main(string[] args)
     {
@@ -27,7 +26,9 @@ public static class Server
         }
 
         if (args.Contains("--local-config"))
-            ConfigRoot = "./cfg";
+            ConfigRoot = "./cfg/";
+
+        Handler.Gather();
 
         ConfigReader.ReadFromFile(ConfigRoot + "arbiter" + ConfigExtension);
         ConfigReader.ReadFromFile(ConfigRoot + "mime" + ConfigExtension);

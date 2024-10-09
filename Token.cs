@@ -39,7 +39,7 @@ public class UnexpectedTokenException : Exception
     public UnexpectedTokenException() { }
     public UnexpectedTokenException(string message) : base(message) { }
     public UnexpectedTokenException(string message, System.Exception inner) : base(message, inner) { }
-    public UnexpectedTokenException(Token token) : base($"Unexpected {token.Type.ToString()} '{token.Data}' token in {token.Source} at line {token.Line}") { }
+    public UnexpectedTokenException(Token token) : base($"Unexpected {token.Type} '{token.Data}' token in {token.Source} at line {token.Line}") { }
 
     protected UnexpectedTokenException(
         System.Runtime.Serialization.SerializationInfo info,

@@ -10,7 +10,7 @@ public class Handler
     public Dictionary<string, Site> Sites = new Dictionary<string, Site>();
     public Dictionary<string, string> Mime = new Dictionary<string, string>();
 
-    public Handler()
+    public void Gather()
     {
         GatherProcessors();
         GatherRewriters();
@@ -55,7 +55,18 @@ public class Handler
         string path = site.Path + request.Uri.LocalPath;
         string filename = Path.GetFileName(path);
 
-        if (Server.Cache.GetFile(path, out Stream stream))
+        if (site.Processor != null)
+        {
+            try
+            {
+                site.Processor.Process(null, request, response);
+            }
+            catch (Exception e)
+            {
+                return GetExceptionPage(e);
+            }
+        }
+        else if (Server.Cache.GetFile(path, out Stream stream))
         {
             string ext = Path.GetExtension(path);
 
