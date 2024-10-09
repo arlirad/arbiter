@@ -26,7 +26,7 @@ public class AHtmlProcessor : IProcessor
         Context = new AssemblyLoadContext("ahtml", true);
         Context.Resolving += Context_Resolving;
 
-        ReadConfig("cfg/ahtml.cfg");
+        ReadConfig(Server.ConfigRoot + "ahtml" + Server.ConfigExtension);
 
         References.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
         References.Add(MetadataReference.CreateFromFile(typeof(System.Uri).Assembly.Location));

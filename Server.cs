@@ -7,24 +7,31 @@ public static class Server
 {
     public static string Version { get => "Arbiter 2.00"; }
 
-    public static Cache Cache = new Cache();
-    public static Listener Listener = new Listener();
-    public static Receiver Receiver = new Receiver();
-    public static Handler Handler = new Handler();
-    public static Random Random = new Random();
+    public readonly static Cache Cache = new();
+    public readonly static Listener Listener = new();
+    public readonly static Receiver Receiver = new();
+    public readonly static Handler Handler = new();
+    public readonly static Random Random = new();
 
     public static string ConfigRoot { get; private set; } = "/etc/";
+    public static string ConfigExtension { get; private set; } = "";
 
     public static void Main(string[] args)
     {
         Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("pl-PL");
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || args.Contains("--local-config"))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
             ConfigRoot = "./cfg/";
+            ConfigExtension = ".cfg";
+        }
 
-        ConfigReader.ReadFromFile(ConfigRoot + "arbiter.cfg");
-        ConfigReader.ReadFromFile(ConfigRoot + "mime.cfg");
-        ConfigReader.ReadFromFile(ConfigRoot + "sites.cfg");
+        if (args.Contains("--local-config"))
+            ConfigRoot = "./cfg";
+
+        ConfigReader.ReadFromFile(ConfigRoot + "arbiter" + ConfigExtension);
+        ConfigReader.ReadFromFile(ConfigRoot + "mime" + ConfigExtension);
+        ConfigReader.ReadFromFile(ConfigRoot + "sites" + ConfigExtension);
 
         SetPorts();
 
