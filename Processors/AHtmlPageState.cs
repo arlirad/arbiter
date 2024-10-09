@@ -1,77 +1,76 @@
 using System;
 
-namespace Arbiter
+namespace Arbiter;
+
+public class AHtmlPageState
 {
-    public class AHtmlPageState
+    public string Title;
+    public string Layout;
+
+    public Request Request;
+    public Response Response;
+
+    Stream Stream;
+    Dictionary<string, Stream> SectionStreams;
+
+    StreamWriter Writer;
+    StreamWriter RawWriter;
+    StreamWriter DefaultWriter;
+
+    public AHtmlPageState(Stream stream)
     {
-        public string Title;
-        public string Layout;
+        SectionStreams = new Dictionary<string, Stream>();
 
-        public Request Request;
-        public Response Response;
+        Stream = stream;
+        Writer = new StreamWriter(stream, leaveOpen: true);
+        Writer.NewLine = "\r\n";
 
-        Stream Stream;
-        Dictionary<string, Stream> SectionStreams;
+        DefaultWriter = Writer;
+    }
 
-        StreamWriter Writer;
-        StreamWriter RawWriter;
-        StreamWriter DefaultWriter;
+    public void Write(object obj)
+    {
+        Writer.Write(obj);
+    }
 
-        public AHtmlPageState(Stream stream)
-        {
-            SectionStreams = new Dictionary<string, Stream>();
+    public void WriteLine(object obj)
+    {
+        Writer.WriteLine(obj);
+    }
 
-            Stream = stream;
-            Writer = new StreamWriter(stream, leaveOpen: true);
-            Writer.NewLine = "\r\n";
-
-            DefaultWriter = Writer;
-        }
-
-        public void Write(object obj)
-        {
-            Writer.Write(obj);
-        }
-
-        public void WriteLine(object obj)
-        {
-            Writer.WriteLine(obj);
-        }
-
-        public void Section(string name)
-        {
-            if (name == null)
-            {
-                Writer.Flush();
-                Writer = DefaultWriter;
-                return;
-            }
-
-            SectionStreams[name] = new MemoryStream();
-            Writer = new StreamWriter(SectionStreams[name], leaveOpen: true);
-            Writer.NewLine = "\r\n";
-        }
-
-        public void WriteSection(string name)
+    public void Section(string name)
+    {
+        if (name == null)
         {
             Writer.Flush();
-
-            if (SectionStreams.TryGetValue(name, out Stream str))
-            {
-                str.Position = 0;
-                str.CopyTo(Stream);
-                str.Position = str.Length;
-            }
+            Writer = DefaultWriter;
+            return;
         }
 
-        public void Clear()
+        SectionStreams[name] = new MemoryStream();
+        Writer = new StreamWriter(SectionStreams[name], leaveOpen: true);
+        Writer.NewLine = "\r\n";
+    }
+
+    public void WriteSection(string name)
+    {
+        Writer.Flush();
+
+        if (SectionStreams.TryGetValue(name, out Stream str))
         {
-            Writer = new StreamWriter(Stream, leaveOpen: true);
+            str.Position = 0;
+            str.CopyTo(Stream);
+            str.Position = str.Length;
         }
+    }
 
-        public void Flush()
-        {
-            Writer.Flush();
-        }
+    public void Clear()
+    {
+        Writer = new StreamWriter(Stream, leaveOpen: true);
+    }
+
+    public void Flush()
+    {
+        Writer.Flush();
     }
 }

@@ -1,56 +1,55 @@
 using System;
 
-namespace Arbiter
+namespace Arbiter;
+
+[Identifier("site")]
+public class SiteStatement : IStatement
 {
-    [Identifier("site")]
-    public class SiteStatement : IStatement
+    public void Read(TokenStream stream)
     {
-        public void Read(TokenStream stream)
+        var site = new Site();
+
+        stream.ExpectString(out string name);
+        stream.ExpectOperator("{");
+
+        while (!stream.AcceptOperator("}"))
         {
-            var site = new Site();
+            stream.ExpectIdentifier(out string identifier);
 
-            stream.ExpectString(out string name);
-            stream.ExpectOperator("{");
-
-            while (!stream.AcceptOperator("}"))
+            switch (identifier)
             {
-                stream.ExpectIdentifier(out string identifier);
-
-                switch (identifier)
-                {
-                    case "path":
-                        stream.ExpectString(out site.Path);
-                        break;
-                    case "listen":
+                case "path":
+                    stream.ExpectString(out site.Path);
+                    break;
+                case "listen":
+                    {
+                        site.Bindings.Add(new Uri(stream.ExpectString().Replace("*", "0.0.0.0")));
+                    }
+                    break;
+                case "rewrite":
+                    {
+                        site.Rewriters.Add(stream.ExpectString());
+                    }
+                    break;
+                case "default":
+                    {
+                        if (stream.AcceptString(out string doc))
                         {
-                            site.Bindings.Add(new Uri(stream.ExpectString().Replace("*", "0.0.0.0")));
+                            site.DefaultDocs.Add(doc);
+                            break;
                         }
-                        break;
-                    case "rewrite":
-                        {
-                            site.Rewriters.Add(stream.ExpectString());
-                        }
-                        break;
-                    case "default":
-                        {
-                            if (stream.AcceptString(out string doc))
-                            {
-                                site.DefaultDocs.Add(doc);
-                                break;
-                            }
 
-                            stream.ExpectOperator("{");
+                        stream.ExpectOperator("{");
 
-                            while (!stream.AcceptOperator("}"))
-                            {
-                                site.DefaultDocs.Add(stream.ExpectString());
-                            }
+                        while (!stream.AcceptOperator("}"))
+                        {
+                            site.DefaultDocs.Add(stream.ExpectString());
                         }
-                        break;
-                }
+                    }
+                    break;
             }
-
-            Server.Handler.Sites[name] = site;
         }
+
+        Server.Handler.Sites[name] = site;
     }
 }

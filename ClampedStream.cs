@@ -1,125 +1,124 @@
 using System;
 
-namespace Arbiter
+namespace Arbiter;
+
+public class ClampedStream : Stream
 {
-    public class ClampedStream : Stream
+    private Stream _base;
+    private int _remaining;
+    private byte[] _buffer;
+    private int _bufferOffset;
+    private int _bufferLength;
+    private int _length;
+
+    public override bool CanRead { get => _base.CanRead; }
+    public override bool CanWrite { get => false; }
+    public override bool CanSeek { get => false; }
+
+    public override long Length { get => throw new NotSupportedException(); }
+    public override long Position
     {
-        private Stream _base;
-        private int _remaining;
-        private byte[] _buffer;
-        private int _bufferOffset;
-        private int _bufferLength;
-        private int _length;
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
 
-        public override bool CanRead { get => _base.CanRead; }
-        public override bool CanWrite { get => false; }
-        public override bool CanSeek { get => false; }
+    public long Remaining { get => _remaining; }
 
-        public override long Length { get => throw new NotSupportedException(); }
-        public override long Position
+    public ClampedStream(Stream stream, int limit, byte[] buffer, int bufferLen) : base()
+    {
+        _base = stream;
+        _remaining = limit;
+        _buffer = buffer;
+        _bufferOffset = 0;
+        _bufferLength = bufferLen;
+    }
+
+    public void ClipLeftovers()
+    {
+        int rem_len = Math.Clamp(_remaining, 0, _bufferLength - _bufferOffset);
+        _remaining -= rem_len;
+
+        if (_remaining == 0)
+            return;
+
+        Console.WriteLine("clipping " + _remaining);
+
+        byte[] buffer = new byte[1024];
+
+        while (_remaining > 0)
         {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
+            int len = Read(buffer, 0, Math.Clamp(_remaining, 0, 1024));
+            if (len == 0)
+                break;
+
+            _remaining -= len;
+        }
+    }
+
+    public override void SetLength(long len)
+        => _base.SetLength(len);
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        int bufferRead = 0;
+
+        if (count > _remaining)
+        {
+            count = _remaining;
+
+            if (count == 0)
+                return count;
         }
 
-        public long Remaining { get => _remaining; }
-
-        public ClampedStream(Stream stream, int limit, byte[] buffer, int bufferLen) : base()
+        if (_buffer != null && count > 0)
         {
-            _base = stream;
-            _remaining = limit;
-            _buffer = buffer;
-            _bufferOffset = 0;
-            _bufferLength = bufferLen;
-        }
+            int len = Math.Clamp(count, 0, _bufferLength - _bufferOffset);
+            Array.Copy(_buffer, _bufferOffset, buffer, offset, len);
 
-        public void ClipLeftovers()
-        {
-            int rem_len = Math.Clamp(_remaining, 0, _bufferLength - _bufferOffset);
-            _remaining -= rem_len;
+            offset += len;
+            _bufferOffset += len;
+            count -= len;
+            bufferRead = len;
 
-            if (_remaining == 0)
-                return;
+            if (_bufferOffset == _bufferLength)
+                _buffer = null;
 
-            Console.WriteLine("clipping " + _remaining);
-
-            byte[] buffer = new byte[1024];
-
-            while (_remaining > 0)
+            if (count == 0)
             {
-                int len = Read(buffer, 0, Math.Clamp(_remaining, 0, 1024));
-                if (len == 0)
-                    break;
-
                 _remaining -= len;
+                return bufferRead;
             }
         }
 
-        public override void SetLength(long len)
-            => _base.SetLength(len);
+        _remaining -= bufferRead;
 
-        public override int Read(byte[] buffer, int offset, int count)
+        while (count > 0)
         {
-            int bufferRead = 0;
+            int ret = _base.Read(buffer, offset, count);
+            if (ret == 0)
+                break;
 
-            if (count > _remaining)
-            {
-                count = _remaining;
-
-                if (count == 0)
-                    return count;
-            }
-
-            if (_buffer != null && count > 0)
-            {
-                int len = Math.Clamp(count, 0, _bufferLength - _bufferOffset);
-                Array.Copy(_buffer, _bufferOffset, buffer, offset, len);
-
-                offset += len;
-                _bufferOffset += len;
-                count -= len;
-                bufferRead = len;
-
-                if (_bufferOffset == _bufferLength)
-                    _buffer = null;
-
-                if (count == 0)
-                {
-                    _remaining -= len;
-                    return bufferRead;
-                }
-            }
-
-            _remaining -= bufferRead;
-
-            while (count > 0)
-            {
-                int ret = _base.Read(buffer, offset, count);
-                if (ret == 0)
-                    break;
-
-                _remaining -= ret;
-                count -= ret;
-                offset += ret;
-                bufferRead += ret;
-            }
-
-            // Console.WriteLine(ret + " but wanted " + (count + bufferRead) + " remaining "+ _remaining);
-
-            return bufferRead;
+            _remaining -= ret;
+            count -= ret;
+            offset += ret;
+            bufferRead += ret;
         }
 
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotImplementedException();
-        }
+        // Console.WriteLine(ret + " but wanted " + (count + bufferRead) + " remaining "+ _remaining);
 
-        public override void Flush()
-            => _base.Flush();
+        return bufferRead;
+    }
 
-        public override long Seek(long val, SeekOrigin origin)
-        {
-            throw new NotImplementedException();
-        }
+    public override void Write(byte[] buffer, int offset, int count)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void Flush()
+        => _base.Flush();
+
+    public override long Seek(long val, SeekOrigin origin)
+    {
+        throw new NotImplementedException();
     }
 }

@@ -1,20 +1,19 @@
 using System;
 
-namespace Arbiter
+namespace Arbiter;
+
+[AttributeUsage(System.AttributeTargets.Class)]
+public class NameAttribute : System.Attribute
 {
-    [System.AttributeUsage(System.AttributeTargets.Class)]
-    public class NameAttribute : System.Attribute
-    {
-        public string Name;
+    public string Name;
 
-        public NameAttribute(string name)
-        {
-            Name = name;
-        }
-    }
-
-    public interface IProcessor
+    public NameAttribute(string name)
     {
-        void Process(Stream stream, Request request, Response response);
+        Name = name;
     }
+}
+
+public interface IProcessor
+{
+    void Process(Stream stream, Request request, Response response);
 }

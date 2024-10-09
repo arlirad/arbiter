@@ -1,92 +1,91 @@
 ﻿using System.Diagnostics;
 
-namespace Arbiter
+namespace Arbiter;
+
+public static class Server
 {
-    public static class Server
+    public static string Version { get => "Arbiter 2.00"; }
+
+    public static Cache Cache = new Cache();
+    public static Listener Listener = new Listener();
+    public static Receiver Receiver = new Receiver();
+    public static Handler Handler = new Handler();
+    public static Random Random = new Random();
+
+    public static void Main(string[] args)
     {
-        public static string Version { get => "Arbiter 2.00"; }
+        Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("pl-PL");
 
-        public static Cache Cache = new Cache();
-        public static Listener Listener = new Listener();
-        public static Receiver Receiver = new Receiver();
-        public static Handler Handler = new Handler();
-        public static Random Random = new Random();
+        ConfigReader.ReadFromFile("cfg/arbiter.cfg");
+        ConfigReader.ReadFromFile("cfg/mime.cfg");
+        ConfigReader.ReadFromFile("cfg/sites.cfg");
 
-        public static void Main(string[] args)
+        SetPorts();
+
+        Receiver.Requested += Receiver_Requested;
+        Listener.OnConnection += Listener_OnConnection;
+
+        Listener.Start();
+
+        UpdateCerts();
+
+        while (true)
+            Thread.Sleep(-1);
+    }
+
+    private static void Listener_OnConnection(object sender, System.Net.Sockets.Socket socket)
+    {
+        Receiver.ReceiveOn(socket);
+    }
+
+    private static void Receiver_Requested(object sender, State state, Request request)
+    {
+        Handler.Handle(request).ContinueWith(async (task) =>
         {
-            Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("pl-PL");
+            await Receiver.Reply(state, request, task.Result);
+        });
+    }
 
-            ConfigReader.ReadFromFile("cfg/arbiter.cfg");
-            ConfigReader.ReadFromFile("cfg/mime.cfg");
-            ConfigReader.ReadFromFile("cfg/sites.cfg");
-
-            SetPorts();
-
-            Receiver.Requested += Receiver_Requested;
-            Listener.OnConnection += Listener_OnConnection;
-
-            Listener.Start();
-
-            UpdateCerts();
-
-            while (true)
-                Thread.Sleep(-1);
-        }
-
-        private static void Listener_OnConnection(object sender, System.Net.Sockets.Socket socket)
+    private static void SetPorts()
+    {
+        foreach (var site in Handler.Sites)
         {
-            Receiver.ReceiveOn(socket);
-        }
-
-        private static void Receiver_Requested(object sender, State state, Request request)
-        {
-            Handler.Handle(request).ContinueWith(async (task) =>
+            foreach (var binding in site.Value.Bindings)
             {
-                await Receiver.Reply(state, request, task.Result);
-            });
-        }
-
-        private static void SetPorts()
-        {
-            foreach (var site in Handler.Sites)
-            {
-                foreach (var binding in site.Value.Bindings)
-                {
-                    int port = binding.Port;
-                    Listener.Bind(port);
-                }
+                int port = binding.Port;
+                Listener.Bind(port);
             }
         }
+    }
 
-        private static void UpdateCerts()
+    private static void UpdateCerts()
+    {
+        if (!File.Exists("./acme.sh"))
         {
-            if (!File.Exists("./acme.sh"))
-            {
-                Console.WriteLine("./acme.sh not found, unable to update certificates");
-                return;
-            }
+            Console.WriteLine("./acme.sh not found, unable to update certificates");
+            return;
+        }
 
-            Dictionary<string, Site> certifiable = new Dictionary<string, Site>();
+        Dictionary<string, Site> certifiable = new Dictionary<string, Site>();
 
-            foreach (var sitePair in Handler.Sites)
-            {
-                foreach (var binding in sitePair.Value.Bindings)
-                    if (binding.Scheme == "https" && binding.Port == 443)
-                        certifiable[binding.Host] = sitePair.Value;
-            }
+        foreach (var sitePair in Handler.Sites)
+        {
+            foreach (var binding in sitePair.Value.Bindings)
+                if (binding.Scheme == "https" && binding.Port == 443)
+                    certifiable[binding.Host] = sitePair.Value;
+        }
 
-            foreach (var pair in certifiable)
-            {
-                if (pair.Key == "localhost")
-                    continue;
+        foreach (var pair in certifiable)
+        {
+            if (pair.Key == "localhost")
+                continue;
 
-                var host = pair.Key;
-                var site = pair.Value;
+            var host = pair.Key;
+            var site = pair.Value;
 
-                Console.WriteLine($"Updating {host}");
-                Process.Start("./acme.sh", $"--issue -d {host} -w {site.Path} --home acme/").WaitForExit();
-                Process.Start("openssl", $"pkcs12 -export -out pfx/{host}.pfx -inkey acme/{host}/{host}.key -in acme/{host}/fullchain.cer -passout pass:").WaitForExit();
-            }
+            Console.WriteLine($"Updating {host}");
+            Process.Start("./acme.sh", $"--issue -d {host} -w {site.Path} --home acme/").WaitForExit();
+            Process.Start("openssl", $"pkcs12 -export -out pfx/{host}.pfx -inkey acme/{host}/{host}.key -in acme/{host}/fullchain.cer -passout pass:").WaitForExit();
         }
     }
 }

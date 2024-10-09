@@ -2,13 +2,12 @@ using System;
 using System.Reflection;
 using System.Runtime.Loader;
 
-namespace Arbiter
+namespace Arbiter;
+
+public class AHtmlLoadContext : AssemblyLoadContext
 {
-    public class AHtmlLoadContext : AssemblyLoadContext
+    public Assembly? Load(string context)
     {
-        public Assembly? Load(string context)
-        {
-            return null;
-        }
+        return null;
     }
 }

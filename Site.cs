@@ -1,10 +1,9 @@
-namespace Arbiter
+namespace Arbiter;
+
+public class Site
 {
-    public class Site
-    {
-        public string Path = null;
-        public List<Uri> Bindings = new List<Uri>();
-        public List<string> Rewriters = new List<string>();
-        public List<string> DefaultDocs = new List<string>();
-    }
+    public string Path = null;
+    public List<Uri> Bindings = new List<Uri>();
+    public List<string> Rewriters = new List<string>();
+    public List<string> DefaultDocs = new List<string>();
 }

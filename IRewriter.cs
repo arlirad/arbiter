@@ -1,9 +1,8 @@
 using System;
 
-namespace Arbiter
+namespace Arbiter;
+
+public interface IRewriter
 {
-    public interface IRewriter
-    {
-        void Rewrite(Request request);
-    }
+    void Rewrite(Request request);
 }

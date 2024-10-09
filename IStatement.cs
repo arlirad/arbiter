@@ -1,20 +1,19 @@
 using System;
 
-namespace Arbiter
+namespace Arbiter;
+
+[AttributeUsage(AttributeTargets.Class)]
+public class IdentifierAttribute : System.Attribute
 {
-    [System.AttributeUsage(System.AttributeTargets.Class)]
-    public class IdentifierAttribute : System.Attribute
-    {
-        public string Identifier;
+    public string Identifier;
 
-        public IdentifierAttribute(string identifier)
-        {
-            Identifier = identifier;
-        }
-    }
-
-    public interface IStatement
+    public IdentifierAttribute(string identifier)
     {
-        void Read(TokenStream stream);
+        Identifier = identifier;
     }
+}
+
+public interface IStatement
+{
+    void Read(TokenStream stream);
 }
