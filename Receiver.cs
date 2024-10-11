@@ -105,7 +105,7 @@ public class Receiver
 
         try
         {
-            response.Headers["Connection"] = (request.Version == "HTTP/1.0" ? "close" : "keep-alive");
+            response.Headers["Connection"] = request.Version == "HTTP/1.0" ? "close" : "keep-alive";
 
             if (request.Stream != null)
             {

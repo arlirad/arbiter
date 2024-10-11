@@ -58,12 +58,12 @@ public class Link
 
         _sStream = new NetworkStream(_sSocket);
 
-        _cStream.WriteTimeout = 50;
-        _sStream.WriteTimeout = 50;
+        // _cStream.WriteTimeout = 5000;
+        // _sStream.WriteTimeout = 5000;
 
         try
         {
-            Console.WriteLine($"Proxied {_cep} >>> {_sep}");
+            Console.WriteLine($"Proxied {_cep} >>> {_sep} ({_request.Method})");
 
             using (var writer = new StreamWriter(_sStream, leaveOpen: true))
             {
@@ -80,6 +80,17 @@ public class Link
 
                 writer.WriteLine();
                 writer.Flush();
+            }
+
+            if (_request.Stream != null)
+            {
+                _request.Stream.CopyToAsync(_sStream).ContinueWith((t) =>
+                {
+                    _cStream.BeginRead(_cBuffer, 0, _cBuffer.Length, new AsyncCallback(Read_Completed), _cStream);
+                });
+
+                _sStream.BeginRead(_sBuffer, 0, _sBuffer.Length, new AsyncCallback(Read_Completed), _sStream);
+                return;
             }
 
             _cStream.BeginRead(_cBuffer, 0, _cBuffer.Length, new AsyncCallback(Read_Completed), _cStream);
