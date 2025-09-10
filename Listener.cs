@@ -17,20 +17,36 @@ public class Listener
     {
         foreach (ushort port in _ports)
         {
-            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            var ipv4Addresses = _addresses.Where(a => a.AddressFamily == AddressFamily.InterNetwork).ToList();
+            var ipv6Addresses = _addresses.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6).ToList();
 
-            foreach (var address in _addresses)
-                socket.Bind(new IPEndPoint(address, port));
+            Socket? socket4 = ipv4Addresses.Count > 0
+                ? new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+                : null;
 
-            var acceptEventArgs = new SocketAsyncEventArgs();
-            acceptEventArgs.Completed += AcceptEventArgs_Completed;
+            Socket? socket6 = ipv6Addresses.Count > 0
+                ? new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp)
+                : null;
 
-            socket.Listen();
+            foreach (var address in ipv4Addresses)
+            {
+                socket4!.Bind(new IPEndPoint(address, port));
+            }
 
-            if (!socket.AcceptAsync(acceptEventArgs))
-                AcceptEventArgs_Completed(socket, acceptEventArgs);
+            foreach (var address in ipv6Addresses)
+            {
+                socket6!.Bind(new IPEndPoint(address, port));
+            }
 
-            _sockets.Add(socket);
+            if (socket4 is not null)
+            {
+                InitialAccept(socket4);
+            }
+
+            if (socket6 is not null)
+            {
+                InitialAccept(socket6);
+            }
         }
     }
 
@@ -45,7 +61,20 @@ public class Listener
             _ports.Add(port);
     }
 
-    void AcceptEventArgs_Completed(object? sender, SocketAsyncEventArgs e)
+    private void InitialAccept(Socket socket)
+    {
+        var acceptEventArgs = new SocketAsyncEventArgs();
+        acceptEventArgs.Completed += AcceptEventArgs_Completed;
+
+        socket.Listen();
+
+        if (!socket.AcceptAsync(acceptEventArgs))
+            AcceptEventArgs_Completed(socket, acceptEventArgs);
+
+        _sockets.Add(socket);
+    }
+
+    private void AcceptEventArgs_Completed(object? sender, SocketAsyncEventArgs e)
     {
         if (sender == null)
             throw new Exception("sender borke");
