@@ -98,6 +98,8 @@ public static class Server
             var site = pair.Value;
 
             Console.WriteLine($"Updating {host}");
+
+            Directory.CreateDirectory("./pfx");
             Process.Start("./acme.sh", $"--issue -d {host} -w {site.Path} --home acme/").WaitForExit();
             Process.Start("openssl", $"pkcs12 -export -out pfx/{host}.pfx -inkey acme/{host}_ecc/{host}.key -in acme/{host}_ecc/fullchain.cer -passout pass:").WaitForExit();
         }
