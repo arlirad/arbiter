@@ -99,7 +99,7 @@ public static class Server
 
             Console.WriteLine($"Updating {host}");
             Process.Start("./acme.sh", $"--issue -d {host} -w {site.Path} --home acme/").WaitForExit();
-            Process.Start("openssl", $"pkcs12 -export -out pfx/{host}.pfx -inkey acme/{host}/{host}.key -in acme/{host}/fullchain.cer -passout pass:").WaitForExit();
+            Process.Start("openssl", $"pkcs12 -export -out pfx/{host}.pfx -inkey acme/{host}_ecc/{host}.key -in acme/{host}_ecc/fullchain.cer -passout pass:").WaitForExit();
         }
     }
 }
