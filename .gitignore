@@ -1,8 +1,6 @@
-/bin
-/obj
+bin
+obj
 /test
-/Rewriters/Fuzzer.cs
-/Rewriters/LiteFuzzer.cs
-/Rewriters/StringFuzzer.cs
 .vscode/launch.json
 global.json
+arbiter.code-workspace
