@@ -4,3 +4,4 @@ obj
 .vscode/launch.json
 global.json
 arbiter.code-workspace
+.vscode/tasks.json
