@@ -5,3 +5,4 @@ obj
 global.json
 arbiter.code-workspace
 .vscode/tasks.json
+*.user

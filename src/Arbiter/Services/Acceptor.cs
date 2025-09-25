@@ -1,72 +1,133 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 
 namespace Arbiter.Services;
 
-public class Acceptor
+internal class AcceptorSocket(Socket socket)
 {
-    public const int Backlog = 128;
+    private CancellationTokenSource _cts = new();
 
-    private readonly List<IPAddress> _addresses = [];
-    private readonly List<int> _ports = [];
-    private readonly List<Socket> _sockets = [];
-    private readonly Dictionary<Socket, Task<Socket>> _acceptTasks = [];
-
-    public void Start()
+    public async Task<Socket> Accept()
     {
-        foreach (ushort port in _ports)
+        return await socket.AcceptAsync(_cts.Token);
+    }
+
+    public async Task Stop()
+    {
+        var oldCts = _cts;
+        _cts = new CancellationTokenSource();
+        await oldCts.CancelAsync();
+    }
+
+    public void Close()
+    {
+        socket.Close();
+        socket.Dispose();
+    }
+}
+
+internal class Acceptor
+{
+    private const int Backlog = 128;
+
+    private readonly Dictionary<IPEndPoint, AcceptorSocket> _sockets = [];
+    private readonly Dictionary<AcceptorSocket, Task<Socket>> _acceptTasks = [];
+    private readonly SemaphoreSlim _interrupter = new(1, 1);
+
+    public async Task Bind(IEnumerable<IPAddress> addresses, IEnumerable<int> ports)
+    {
+        var endPoints = new List<IPEndPoint>();
+
+        foreach (var address in addresses)
         {
-            var ipv4Addresses = _addresses.Where(a => a.AddressFamily == AddressFamily.InterNetwork).ToList();
-            var ipv6Addresses = _addresses.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6).ToList();
-
-            Socket? socket4 = ipv4Addresses.Count > 0
-                ? new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
-                : null;
-
-            Socket? socket6 = ipv6Addresses.Count > 0
-                ? new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp)
-                : null;
-
-            foreach (var address in ipv4Addresses)
-                socket4!.Bind(new IPEndPoint(address, port));
-
-            foreach (var address in ipv6Addresses)
-                socket6!.Bind(new IPEndPoint(address, port));
-
-            if (socket4 is not null)
-                _sockets.Add(socket4);
-
-            if (socket6 is not null)
-                _sockets.Add(socket6);
+            foreach (var port in ports)
+            {
+                endPoints.Add(new IPEndPoint(address, port));
+            }
         }
 
-        foreach (var socket in _sockets)
+        await CreateSocket(endPoints);
+        await PruneSockets(endPoints);
+        await RestartAccepts();
+    }
+
+    private async Task RestartAccepts()
+    {
+        var tasks = _sockets.Select(socket => socket.Value.Stop()).ToList();
+
+        await Task.WhenAll(tasks);
+    }
+
+    private Task CreateSocket(List<IPEndPoint> endPoints)
+    {
+        foreach (var endPoint in endPoints)
         {
+            if (_sockets.ContainsKey(endPoint))
+                continue;
+
+            var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+            socket.Bind(endPoint);
             socket.Listen(Backlog);
-            _acceptTasks[socket] = socket.AcceptAsync();
+
+            var acceptorSocket = new AcceptorSocket(socket);
+
+            _sockets[endPoint] = acceptorSocket;
+            _acceptTasks[acceptorSocket] = acceptorSocket.Accept();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task PruneSockets(IEnumerable<IPEndPoint> endPoints)
+    {
+        var cancellationTasks = new List<Task>();
+        var pruned = new Dictionary<IPEndPoint, AcceptorSocket>();
+
+        foreach (var socket in _sockets
+            .Where(s => !endPoints.Any(e => e.Equals(s.Key))))
+        {
+            cancellationTasks.Add(socket.Value.Stop());
+            pruned[socket.Key] = socket.Value;
+        }
+
+        foreach (var prunedSocket in pruned)
+        {
+            _sockets.Remove(prunedSocket.Key);
+            _acceptTasks.Remove(prunedSocket.Value);
+        }
+
+        if (cancellationTasks.Count > 0)
+            await Task.WhenAll(cancellationTasks);
+
+        foreach (var prunedSocket in pruned)
+        {
+            prunedSocket.Value.Close();
         }
     }
 
     public async Task<Socket> Accept()
     {
-        var completedTask = await Task.WhenAny(_acceptTasks.Select(kvp => kvp.Value));
-        var acceptKvp = _acceptTasks
-            .Where(kvp => kvp.Value == completedTask)
-            .First();
+        while (true)
+        {
+            try
+            {
+                var completedTask = await Task.WhenAny(_acceptTasks.Select(kvp => kvp.Value));
+                var acceptKvp = _acceptTasks
+                    .FirstOrDefault(kvp => kvp.Value == completedTask);
 
-        _acceptTasks[acceptKvp.Key] = acceptKvp.Key.AcceptAsync();
+                if (acceptKvp.Key is null)
+                    continue;
 
-        return await completedTask;
-    }
+                _acceptTasks[acceptKvp.Key] = acceptKvp.Key.Accept();
 
-    public void Bind(IPAddress addr)
-    {
-        _addresses.Add(addr);
-    }
-
-    public void Bind(int port)
-    {
-        if (!_ports.Contains(port))
-            _ports.Add(port);
+                return await completedTask;
+            }
+            catch (OperationCanceledException)
+            {
+                continue;
+            }
+        }
     }
 }

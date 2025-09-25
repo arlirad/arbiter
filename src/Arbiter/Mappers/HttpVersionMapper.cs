@@ -1,3 +1,5 @@
+namespace Arbiter.Mappers;
+
 internal static class HttpVersionMapper
 {
     public static HttpVersion? ToEnum(string version)

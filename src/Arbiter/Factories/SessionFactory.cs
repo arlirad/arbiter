@@ -1,5 +1,5 @@
 using System.Net.Sockets;
-using Arbiter.Network;
+using Arbiter.Infrastructure.Network;
 
 internal class SessionFactory
 {

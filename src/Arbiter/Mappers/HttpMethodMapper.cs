@@ -1,3 +1,5 @@
+namespace Arbiter.Mappers;
+
 internal static class HttpMethodMapper
 {
     public static HttpMethod? ToEnum(string method)

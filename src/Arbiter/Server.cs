@@ -3,97 +3,70 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Arbiter.Network;
+using Arbiter.Infrastructure.Network;
+using Arbiter.Models.Config;
 using Arbiter.Services;
+using Microsoft.Extensions.Options;
 
 namespace Arbiter;
 
-internal class Server(
-    Acceptor acceptor,
-    SessionFactory sessionFactory
-)
+internal class Server
 {
-    public string Version { get => "Arbiter 2.00"; }
-    public string ConfigRoot { get; private set; } = "/etc/arbiter/";
-    public string ConfigExtension { get; private set; } = "";
+    private readonly Acceptor _acceptor;
+    private readonly SessionFactory _sessionFactory;
+    private readonly Receiver _handler;
+    private readonly IOptionsMonitor<ConfigModel> _configMonitor;
 
-    public readonly static Cache Cache = new();
-    public readonly static Acceptor Listener = new();
-    public readonly static Receiver Receiver = new();
-    public readonly static Handler Handler = new();
-    public readonly static Random Random = new();
-
-    /*public static void Main(string[] args)
+    public Server(
+        IOptionsMonitor<ConfigModel> configMonitor,
+        Acceptor acceptor,
+        SessionFactory sessionFactory,
+        Receiver handler)
     {
-        Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("pl-PL");
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            ConfigRoot = "./cfg/";
-            ConfigExtension = ".cfg";
-        }
-
-        if (args.Contains("--local-config"))
-            ConfigRoot = "./cfg/";
-
-        SetPorts();
-
-        Receiver.Requested += Receiver_Requested;
-        Listener.OnConnection += Listener_OnConnection;
-
-        Listener.Start();
-
-        UpdateCerts();
-
-        while (true)
-            Thread.Sleep(-1);
-    }*/
+        _acceptor = acceptor;
+        _sessionFactory = sessionFactory;
+        _handler = handler;
+        _configMonitor = configMonitor;
+        _configMonitor.OnChange(ConfigChanged);
+    }
 
     public async Task Run()
     {
-        acceptor.Bind(IPAddress.IPv6Any);
-        acceptor.Bind(8080);
-        acceptor.Start();
+        ConfigChanged(_configMonitor.CurrentValue, null);
 
         while (true)
         {
-            var socket = await acceptor.Accept();
-            var session = sessionFactory.Create(socket);
+            var socket = await _acceptor.Accept();
+            var session = _sessionFactory.Create(socket);
 
-            Receive(session);
+            _ = _handler.Receive(session);
         }
     }
 
-    private void Receive(Session session)
+    private async void ConfigChanged(ConfigModel config, string? _)
     {
-        _ = session.Receive()
-            .ContinueWith((result) => ReceiveComplete(session, result))
-            .ConfigureAwait(false);
+        var (addresses, ports) = ExtractConfigBindings(config);
+
+        if (addresses is not null && ports is not null)
+            await _acceptor.Bind(addresses, ports);
     }
 
-    private async Task ReceiveComplete(Session session, Task<SessionReceiveResult> task)
+    private static (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings(ConfigModel config)
     {
-        var result = await task;
+        if (config.ListenOn is null || config.Sites is null)
+            return (null, null);
 
-        if (result.IsClosed || result.IsBad)
-            return;
+        var ports = config.Sites
+            .SelectMany(s => s.Value.Bindings)
+            .Select(b => b.Port);
 
-        Receive(session);
+        return (
+            config.ListenOn.Select(b => IPAddress.Parse(b)),
+            ports
+        );
     }
 
-    private static void SetPorts()
-    {
-        foreach (var site in Handler.Sites)
-        {
-            foreach (var binding in site.Value.Bindings)
-            {
-                int port = binding.Port;
-                Listener.Bind(port);
-            }
-        }
-    }
-
-    private static void UpdateCerts()
+    /*private static void UpdateCerts()
     {
         if (!File.Exists("./acme.sh"))
         {
@@ -124,5 +97,5 @@ internal class Server(
             Process.Start("./acme.sh", $"--issue -d {host} -w {site.Path} --home acme/").WaitForExit();
             Process.Start("openssl", $"pkcs12 -export -out pfx/{host}.pfx -inkey acme/{host}_ecc/{host}.key -in acme/{host}_ecc/fullchain.cer -passout pass:").WaitForExit();
         }
-    }
+    }*/
 }
