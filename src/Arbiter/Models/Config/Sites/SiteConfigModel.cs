@@ -1,6 +1,4 @@
-using Arbiter.Models.Config.Site;
-
-namespace Arbiter.Models.Config;
+namespace Arbiter.Models.Config.Sites;
 
 internal class SiteConfigModel
 {
@@ -8,5 +6,5 @@ internal class SiteConfigModel
     public List<Uri>? Bindings { get; set; }
     public List<string>? DefaultFiles { get; set; }
     public List<string>? Handlers { get; set; }
-    public List<HandlerConfigModel>? Configuration { get; set; }
+    public List<SiteHandlerConfigModel>? Configuration { get; set; }
 }

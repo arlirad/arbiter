@@ -1,6 +1,8 @@
 using System.Net.Sockets;
+using Arbiter.DTOs;
+using Arbiter.Mappers;
 
-namespace Arbiter.Network;
+namespace Arbiter.Infrastructure.Network;
 
 internal class Session(Socket socket)
 {
@@ -12,7 +14,7 @@ internal class Session(Socket socket)
         if (!_inSsl && await CheckForSsl(socket))
             _stream = await WrapInSsl();
 
-        using var reader = new StreamReader(_stream);
+        using var reader = new StreamReader(_stream, leaveOpen: true);
 
         try
         {
@@ -29,7 +31,7 @@ internal class Session(Socket socket)
             var uri = headerSplit[1];
             var version = HttpVersionMapper.ToEnum(headerSplit[2]);
 
-            if (!method.HasValue || !version.HasValue)
+            if (!method.HasValue || !version.HasValue || uri.Contains(".."))
                 return SessionReceiveResult.BadRequest();
 
             var headers = await GetHeaders(reader);
@@ -37,10 +39,9 @@ internal class Session(Socket socket)
             if (headers is null)
                 return SessionReceiveResult.BadRequest();
 
-            // TODO: .. and %2E%2E
             var request = new HttpRequest(method.Value, uri, version.Value, headers);
 
-            return SessionReceiveResult.Ok(request);
+            return SessionReceiveResult.Ok(request, _stream);
         }
         catch (Exception e)
         {

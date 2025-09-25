@@ -1,6 +1,6 @@
-namespace Arbiter.Models.Config.Site;
+namespace Arbiter.Models.Config.Sites;
 
-internal class HandlerConfigModel
+internal class SiteHandlerConfigModel
 {
     public string? Name { get; set; }
     public object? Config { get; set; }

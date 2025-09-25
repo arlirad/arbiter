@@ -1,6 +1,6 @@
 using System;
 
-namespace Arbiter.Network;
+namespace Arbiter.Infrastructure.Network;
 
 public class ClampedStream : Stream
 {

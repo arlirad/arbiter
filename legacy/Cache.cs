@@ -2,9 +2,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 
-namespace Arbiter;
+namespace Arbiter.Infrastructure;
 
-public class Cache
+public class Cache : ICache
 {
     private readonly TimeSpan _timeout = TimeSpan.FromMinutes(10);
     private readonly FileSystemWatcher _watcher;

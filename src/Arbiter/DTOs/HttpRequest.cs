@@ -1,3 +1,5 @@
+namespace Arbiter.DTOs;
+
 internal class HttpRequest(
     HttpMethod method,
     string uri,

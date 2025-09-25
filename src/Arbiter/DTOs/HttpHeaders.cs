@@ -1,4 +1,8 @@
-internal class HttpHeaders
+using System.Collections;
+
+namespace Arbiter.DTOs;
+
+public class HttpHeaders
 {
     private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
 
@@ -6,6 +10,11 @@ internal class HttpHeaders
     {
         get => Get(name);
         set => Set(name, value);
+    }
+
+    public Dictionary<string, string>.Enumerator GetEnumerator()
+    {
+        return _headers.GetEnumerator();
     }
 
     private string? Get(string name)
