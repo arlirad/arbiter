@@ -80,11 +80,11 @@ internal class StaticMiddleware(IOptionsMonitor<ConfigModel> optionsMonitor) : I
     {
         try
         {
-            return (File.GetAttributes(queryPath) & FileAttributes.Directory) == 0 
-                ? File.OpenRead(queryPath) 
+            return (File.GetAttributes(queryPath) & FileAttributes.Directory) == 0
+                ? File.OpenRead(queryPath)
                 : null;
         }
-        catch (FileNotFoundException)
+        catch (Exception e) when (e is FileNotFoundException || e is DirectoryNotFoundException)
         {
             return null;
         }
