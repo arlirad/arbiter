@@ -1,3 +1,4 @@
+using Arbiter.Enums;
 using Arbiter.Models;
 using Arbiter.Models.Config;
 using Arbiter.Models.Network;

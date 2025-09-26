@@ -1,4 +1,5 @@
 using Arbiter.DTOs;
+using Arbiter.Enums;
 using Arbiter.Mappers;
 
 namespace Arbiter.Models.Network;
