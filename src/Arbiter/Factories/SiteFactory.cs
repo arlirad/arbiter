@@ -2,6 +2,7 @@ using Arbiter.Middleware;
 using Arbiter.Models;
 using Arbiter.Models.Config.Sites;
 using Arbiter.Workers;
+using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Factories;
 
@@ -17,11 +18,11 @@ internal class SiteFactory(
         siteConfig.Workers ??= [];
 
         var middlewares = siteConfig.Middleware
-            .Select<SiteComponentConfigModel, (IMiddleware Instance, object Config)>(m => (Instance: middlewareFactory.Create(m.Name!), m.Config))
+            .Select<SiteComponentConfigModel, (IMiddleware Instance, IConfigurationSection Config)>(m => (Instance: middlewareFactory.Create(m.Name!), m.Config))
             .ToList();
         
         var workers = siteConfig.Workers
-            .Select<SiteComponentConfigModel, (IWorker Instance, object Config)>(w => (Instance: workerFactory.Create(w.Name!), w.Config))
+            .Select<SiteComponentConfigModel, (IWorker Instance, IConfigurationSection Config)>(w => (Instance: workerFactory.Create(w.Name!), w.Config))
             .ToList();
 
         var site = new Site(
