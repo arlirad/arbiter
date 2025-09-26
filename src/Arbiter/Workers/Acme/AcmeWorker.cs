@@ -5,8 +5,6 @@ namespace Arbiter.Workers.Acme;
 
 internal class AcmeWorker : IWorker
 {
-    public string Name { get; }
-    
     public Task Configure(Site site, IConfiguration config)
     {
         return Task.CompletedTask;
