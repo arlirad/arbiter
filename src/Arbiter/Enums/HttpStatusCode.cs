@@ -5,7 +5,7 @@ internal enum HttpStatusCode
     Continue = 100,
     SwitchingProtocol = 101,
     EarlyHints = 103,
-    OK = 200,
+    Ok = 200,
     Created = 201,
     Accepted = 202,
     NonAuthoritativeInformation = 203,

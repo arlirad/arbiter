@@ -43,7 +43,7 @@ internal class StaticMiddleware : IMiddleware
             if (_mimeTypes.TryGetValue(Path.GetExtension(path), out var mime))
                 response.Headers["Content-Type"] = mime;
 
-            await response.Send(HttpStatusCode.OK, stream);
+            await response.Send(HttpStatusCode.Ok, stream);
         }
         catch (UnauthorizedAccessException e)
         {
