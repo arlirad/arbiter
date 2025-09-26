@@ -5,8 +5,6 @@ namespace Arbiter.Middleware.CSharp;
 
 internal class CSharpMiddleware : IMiddleware
 {
-    public string Name => "csharp";
-
     public Task Configure(Site site, object config)
     {
         return Task.CompletedTask;

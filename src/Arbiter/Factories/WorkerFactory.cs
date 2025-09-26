@@ -1,10 +1,11 @@
 using Arbiter.Middleware;
 using Arbiter.Services;
 using Arbiter.Workers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Factories;
 
-internal class WorkerFactory(ComponentTypeRegistry<IWorker> workerTypeRegistry)
+internal class WorkerFactory(IServiceProvider services, ComponentTypeRegistry<IWorker> workerTypeRegistry)
 {
     public IWorker Create(string name)
     {
@@ -12,6 +13,6 @@ internal class WorkerFactory(ComponentTypeRegistry<IWorker> workerTypeRegistry)
         if (type is null)
             throw new Exception($"Worker '{name}' not found");
 
-        return (Activator.CreateInstance(type) as IWorker)!;
+        return (ActivatorUtilities.CreateInstance(services, type) as IWorker)!;
     }
 }

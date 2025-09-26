@@ -5,8 +5,6 @@ namespace Arbiter.Middleware;
 
 internal interface IMiddleware
 {
-    public string Name { get; }
-
     public Task Configure(Site site, object config);
 
     public Task<bool> CanHandle(HttpRequestContext request);

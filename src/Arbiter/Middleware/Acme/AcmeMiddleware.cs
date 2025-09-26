@@ -5,8 +5,6 @@ namespace Arbiter.Middleware.Acme;
 
 internal class AcmeMiddleware : IMiddleware
 {
-    public string Name => "acme";
-
     public Task Configure(Site site, object config)
     {
         return Task.CompletedTask;
