@@ -6,27 +6,19 @@ using Microsoft.Extensions.Options;
 
 namespace Arbiter.Middleware.Static;
 
-internal class StaticMiddleware(IOptionsMonitor<ConfigModel> optionsMonitor) : IMiddleware
+internal class StaticMiddleware : IMiddleware
 {
-    private List<string> _defaultFiles = new();
+    private List<string> _defaultFiles = [];
     private Dictionary<string, string> _mimeTypes = new();
 
     public Task Configure(Site site, IConfigurationSection config)
     {
         var typedConfig = config.Get<StaticMiddlewareConfigModel>();
         
-        optionsMonitor.OnChange(ReloadMime);
-
         _defaultFiles = typedConfig?.DefaultFiles ?? [];
-        ReloadMime(optionsMonitor.CurrentValue, null);
+        _mimeTypes = typedConfig?.Mime ?? [];
         
         return Task.CompletedTask;
-    }
-
-    private void ReloadMime(ConfigModel config, string? _)
-    {
-        if (config.Mime is not null)
-            _mimeTypes = new Dictionary<string, string>(config.Mime);
     }
 
     public Task<bool> CanHandle(HttpRequestContext request)
@@ -47,7 +39,7 @@ internal class StaticMiddleware(IOptionsMonitor<ConfigModel> optionsMonitor) : I
                 return;
             }
 
-            if (_mimeTypes.TryGetValue(Path.GetExtension(request.Uri.PathAndQuery), out var mime))
+            if (_mimeTypes.TryGetValue(Path.GetExtension(path), out var mime))
                 response.Headers["Content-Type"] = mime;
 
             await response.Send(HttpStatusCode.OK, stream);
@@ -70,7 +62,7 @@ internal class StaticMiddleware(IOptionsMonitor<ConfigModel> optionsMonitor) : I
             var fallbackStream = TryOpenRead(fallbackPath);
             
             if (fallbackStream is not null)
-                return (queryPath, fallbackStream);
+                return (fallbackPath, fallbackStream);
         }
 
         return (queryPath, null);
