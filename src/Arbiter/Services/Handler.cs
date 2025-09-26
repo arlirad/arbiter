@@ -1,5 +1,6 @@
 using Arbiter.Infrastructure.Network;
 using Arbiter.Models.Network;
+using Serilog;
 
 namespace Arbiter.Services;
 
@@ -38,13 +39,16 @@ internal class Handler(SiteManager siteManager)
 
                 await middleware.Handle(requestContext, responseContext);
                 handled = true;
+                
+                break;
             }
 
             if (!handled)
                 await responseContext.Send(HttpStatusCode.InternalServerError);
         }
-        catch
+        catch (Exception e)
         {
+            Log.Error("Exception caught while handling a request for site '{Site}': {Exception}", site, e);
             await responseContext.Send(HttpStatusCode.InternalServerError, Stream.Null);
         }
     }

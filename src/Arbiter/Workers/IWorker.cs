@@ -1,4 +1,5 @@
 using Arbiter.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Workers;
 
@@ -6,7 +7,7 @@ internal interface IWorker
 {
     public string Name { get; }
 
-    public Task Configure(Site site, object config);
+    public Task Configure(Site site, IConfigurationSection config);
     public Task Start();
     public Task Stop();
 }

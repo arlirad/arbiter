@@ -1,11 +1,12 @@
 using Arbiter.Models;
 using Arbiter.Models.Network;
+using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Middleware.CSharp;
 
 internal class CSharpMiddleware : IMiddleware
 {
-    public Task Configure(Site site, object config)
+    public Task Configure(Site site, IConfigurationSection config)
     {
         return Task.CompletedTask;
     }
