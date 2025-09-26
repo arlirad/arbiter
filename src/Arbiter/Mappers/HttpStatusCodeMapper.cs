@@ -1,3 +1,5 @@
+using Arbiter.Enums;
+
 namespace Arbiter.Mappers;
 
 internal static class HttpStatusCodeMapper
