@@ -50,6 +50,6 @@ internal class SessionReceiveResult
             ? request.Headers["Host"]!.Split(':')[0]
             : "*";
         
-        return new Uri($"{(isSecure ? "https" : "http")}://{host}:{port}/{request.Path}");
+        return new Uri($"{(isSecure ? "https" : "http")}://{host}:{port}{request.Path}");
     }
 }

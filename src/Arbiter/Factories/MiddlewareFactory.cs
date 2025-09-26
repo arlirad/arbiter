@@ -1,9 +1,10 @@
 using Arbiter.Middleware;
 using Arbiter.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Factories;
 
-internal class MiddlewareFactory(ComponentTypeRegistry<IMiddleware> middlewareTypeRegistry)
+internal class MiddlewareFactory(IServiceProvider services, ComponentTypeRegistry<IMiddleware> middlewareTypeRegistry)
 {
     public IMiddleware Create(string name)
     {
@@ -11,6 +12,6 @@ internal class MiddlewareFactory(ComponentTypeRegistry<IMiddleware> middlewareTy
         if (type is null)
             throw new Exception($"Middleware '{name}' not found");
 
-        return (Activator.CreateInstance(type) as IMiddleware)!;
+        return (ActivatorUtilities.CreateInstance(services, type) as IMiddleware)!;
     }
 }

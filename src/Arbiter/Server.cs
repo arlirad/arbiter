@@ -88,7 +88,7 @@ internal class Server
             .Select(b => b.Port);
 
         return (
-            config.ListenOn.Select(b => IPAddress.Parse(b)),
+            config.ListenOn.Select(IPAddress.Parse),
             ports
         );
     }

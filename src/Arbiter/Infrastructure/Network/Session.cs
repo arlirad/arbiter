@@ -29,10 +29,10 @@ internal class Session(Socket socket)
                 return SessionReceiveResult.BadRequest();
 
             var method = HttpMethodMapper.ToEnum(headerSplit[0]);
-            var uri = headerSplit[1];
+            var path = headerSplit[1];
             var version = HttpVersionMapper.ToEnum(headerSplit[2]);
 
-            if (!method.HasValue || !version.HasValue || uri.Contains(".."))
+            if (!method.HasValue || !version.HasValue || path.Contains(".."))
                 return SessionReceiveResult.BadRequest();
 
             var headers = await GetHeaders(reader);
@@ -41,7 +41,7 @@ internal class Session(Socket socket)
                 return SessionReceiveResult.BadRequest();
 
             var port = (socket.LocalEndPoint as IPEndPoint)?.Port ?? 0;
-            var request = new HttpRequest(method.Value, uri, version.Value, headers);
+            var request = new HttpRequest(method.Value, path, version.Value, headers);
 
             return SessionReceiveResult.Ok(request, _stream, _inSsl, port);
         }
