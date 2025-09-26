@@ -6,7 +6,7 @@ namespace Arbiter.Middleware.CSharp;
 
 internal class CSharpMiddleware : IMiddleware
 {
-    public Task Configure(Site site, IConfigurationSection config)
+    public Task Configure(Site site, IConfiguration config)
     {
         return Task.CompletedTask;
     }

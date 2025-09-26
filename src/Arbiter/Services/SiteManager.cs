@@ -21,22 +21,22 @@ internal class SiteManager(
         ).Value;
     }
     
-    public async Task Update(ConfigModel config)
+    public async Task Update(ServerConfigModel serverConfig)
     {
-        if (config.Sites is null)
+        if (serverConfig.Sites is null)
             return;
 
-        await CreateSites(config);
+        await CreateSites(serverConfig);
         // await RecreateSites(config);
-        await PruneSites(config);
+        await PruneSites(serverConfig);
     }
 
-    private async Task CreateSites(ConfigModel config)
+    private async Task CreateSites(ServerConfigModel serverConfig)
     {
-        if (config.Sites is null)
+        if (serverConfig.Sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
 
-        var sitesToCreate = config.Sites
+        var sitesToCreate = serverConfig.Sites
             .Where(s => !_sites.ContainsKey(s.Key))
             .ToList();
 
@@ -51,21 +51,21 @@ internal class SiteManager(
         }
     }
 
-    private async Task RecreateSites(ConfigModel config)
+    private async Task RecreateSites(ServerConfigModel serverConfig)
     {
-        if (config.Sites is null)
+        if (serverConfig.Sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
         
         throw new NotImplementedException();
     }
 
-    private async Task PruneSites(ConfigModel config)
+    private async Task PruneSites(ServerConfigModel serverConfig)
     {
-        if (config.Sites is null)
+        if (serverConfig.Sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
 
         var sitesToPrune = _sites
-            .Where(site => !config.Sites.ContainsKey(site.Key))
+            .Where(site => !serverConfig.Sites.ContainsKey(site.Key))
             .Select(kvp => kvp.Key)
             .ToList();
 

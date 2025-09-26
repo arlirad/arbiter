@@ -13,24 +13,28 @@ namespace Arbiter;
 
 internal class Server
 {
-    private readonly IOptionsMonitor<ConfigModel> _configMonitor;
+    private readonly IOptionsMonitor<ServerConfigModel> _configMonitor;
     private readonly Acceptor _acceptor;
     private readonly SessionFactory _sessionFactory;
     private readonly SiteManager _siteManager;
     private readonly Handler _handler;
+    private readonly ConfigManager _configManager;
 
     public Server(
-        IOptionsMonitor<ConfigModel> configMonitor,
+        IOptionsMonitor<ServerConfigModel> configMonitor,
         Acceptor acceptor,
         SessionFactory sessionFactory,
         SiteManager siteManager,
-        Handler handler)
+        Handler handler,
+        ConfigManager configManager
+    )
     {
         _configMonitor = configMonitor;
         _acceptor = acceptor;
         _sessionFactory = sessionFactory;
         _siteManager = siteManager;
         _handler = handler;
+        _configManager = configManager;
         _configMonitor.OnChange(ConfigChanged);
     }
 
@@ -56,16 +60,16 @@ internal class Server
         }
     }
 
-    private async void ConfigChanged(ConfigModel config, string? _)
+    private async void ConfigChanged(ServerConfigModel serverConfig, string? _)
     {
         try
         {
-            var (addresses, ports) = ExtractConfigBindings(config);
+            var (addresses, ports) = ExtractConfigBindings(serverConfig);
 
             if (addresses is not null && ports is not null)
                 await _acceptor.Bind(addresses, ports);
 
-            await _siteManager.Update(config);
+            await _siteManager.Update(serverConfig);
         }
         catch(Exception e)
         {
@@ -76,19 +80,19 @@ internal class Server
     /// <summary>
     /// Extracts configuration bindings from the provided ConfigModel.
     /// </summary>
-    /// <param name="config">The configuration model containing binding information.</param>
+    /// <param name="serverConfig">The configuration model containing binding information.</param>
     /// <returns>A tuple containing lists of IP addresses and ports, or null if listenOn or sites are not set.</returns>
-    private static (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings(ConfigModel config)
+    private static (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings(ServerConfigModel serverConfig)
     {
-        if (config.ListenOn is null || config.Sites is null)
+        if (serverConfig.ListenOn is null || serverConfig.Sites is null)
             return (null, null);
 
-        var ports = config.Sites
+        var ports = serverConfig.Sites
             .SelectMany(s => s.Value.Bindings)
             .Select(b => b.Port);
 
         return (
-            config.ListenOn.Select(IPAddress.Parse),
+            serverConfig.ListenOn.Select(IPAddress.Parse),
             ports
         );
     }

@@ -7,7 +7,7 @@ internal class AcmeWorker : IWorker
 {
     public string Name { get; }
     
-    public Task Configure(Site site, IConfigurationSection config)
+    public Task Configure(Site site, IConfiguration config)
     {
         return Task.CompletedTask;
     }
