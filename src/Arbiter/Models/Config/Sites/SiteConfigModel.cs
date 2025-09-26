@@ -6,5 +6,7 @@ internal class SiteConfigModel
     public List<Uri>? Bindings { get; set; }
     public List<string>? DefaultFiles { get; set; }
     public List<string>? Handlers { get; set; }
-    public List<SiteHandlerConfigModel>? Configuration { get; set; }
+    
+    public List<SiteComponentConfigModel>? Middleware { get; set; }
+    public List<SiteComponentConfigModel>? Workers { get; set; }
 }
