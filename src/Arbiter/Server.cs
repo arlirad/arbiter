@@ -7,26 +7,30 @@ using Arbiter.Infrastructure.Network;
 using Arbiter.Models.Config;
 using Arbiter.Services;
 using Microsoft.Extensions.Options;
+using Serilog;
 
 namespace Arbiter;
 
 internal class Server
 {
+    private readonly IOptionsMonitor<ConfigModel> _configMonitor;
     private readonly Acceptor _acceptor;
     private readonly SessionFactory _sessionFactory;
-    private readonly Receiver _handler;
-    private readonly IOptionsMonitor<ConfigModel> _configMonitor;
+    private readonly SiteManager _siteManager;
+    private readonly Handler _handler;
 
     public Server(
         IOptionsMonitor<ConfigModel> configMonitor,
         Acceptor acceptor,
         SessionFactory sessionFactory,
-        Receiver handler)
+        SiteManager siteManager,
+        Handler handler)
     {
+        _configMonitor = configMonitor;
         _acceptor = acceptor;
         _sessionFactory = sessionFactory;
+        _siteManager = siteManager;
         _handler = handler;
-        _configMonitor = configMonitor;
         _configMonitor.OnChange(ConfigChanged);
     }
 
@@ -39,18 +43,41 @@ internal class Server
             var socket = await _acceptor.Accept();
             var session = _sessionFactory.Create(socket);
 
-            _ = _handler.Receive(session);
+            _ = Handle(session).ConfigureAwait(false);
+        }
+    }
+
+    private async Task Handle(Session session)
+    {
+        while (true)
+        {
+            var result = await session.Receive();
+            await _handler.Handle(result);
         }
     }
 
     private async void ConfigChanged(ConfigModel config, string? _)
     {
-        var (addresses, ports) = ExtractConfigBindings(config);
+        try
+        {
+            var (addresses, ports) = ExtractConfigBindings(config);
 
-        if (addresses is not null && ports is not null)
-            await _acceptor.Bind(addresses, ports);
+            if (addresses is not null && ports is not null)
+                await _acceptor.Bind(addresses, ports);
+
+            await _siteManager.Update(config);
+        }
+        catch(Exception e)
+        {
+            Log.Error("Failed to reload config: {Exception}", e);
+        }
     }
 
+    /// <summary>
+    /// Extracts configuration bindings from the provided ConfigModel.
+    /// </summary>
+    /// <param name="config">The configuration model containing binding information.</param>
+    /// <returns>A tuple containing lists of IP addresses and ports, or null if listenOn or sites are not set.</returns>
     private static (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings(ConfigModel config)
     {
         if (config.ListenOn is null || config.Sites is null)

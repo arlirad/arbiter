@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Sockets;
 using Arbiter.DTOs;
 using Arbiter.Mappers;
@@ -39,9 +40,10 @@ internal class Session(Socket socket)
             if (headers is null)
                 return SessionReceiveResult.BadRequest();
 
+            var port = (socket.LocalEndPoint as IPEndPoint)?.Port ?? 0;
             var request = new HttpRequest(method.Value, uri, version.Value, headers);
 
-            return SessionReceiveResult.Ok(request, _stream);
+            return SessionReceiveResult.Ok(request, _stream, _inSsl, port);
         }
         catch (Exception e)
         {

@@ -9,7 +9,7 @@ internal class CSharpMiddleware : IMiddleware
 
     public Task Configure(Site site, object config)
     {
-        throw new NotImplementedException();
+        return Task.CompletedTask;
     }
 
     public Task<bool> CanHandle(HttpRequestContext request)

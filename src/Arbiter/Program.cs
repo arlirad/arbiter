@@ -1,6 +1,12 @@
 ﻿using Arbiter;
+using Arbiter.Factories;
+using Arbiter.Middleware;
+using Arbiter.Middleware.Acme;
+using Arbiter.Middleware.Static;
 using Arbiter.Models.Config;
 using Arbiter.Services;
+using Arbiter.Workers;
+using Arbiter.Workers.Acme;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -19,6 +25,17 @@ var configuration = new ConfigurationBuilder()
     .AddJsonFile(configPath, optional: false, reloadOnChange: true)
     .Build();
 
+var middlewareRegistry = new ComponentTypeRegistry<IMiddleware>(new Dictionary<string, Type>()
+{
+    ["static"] = typeof(StaticMiddleware),
+    ["acme"] = typeof(AcmeMiddleware),
+});
+
+var workerRegistry = new ComponentTypeRegistry<IWorker>(new Dictionary<string, Type>()
+{
+    ["acme"] = typeof(AcmeWorker),
+});
+
 Log.Information("Starting Arbiter");
 
 try
@@ -27,13 +44,18 @@ try
         .CreateDefaultBuilder(args)
         .ConfigureServices((_, services) =>
         {
+            services.AddSingleton<SessionFactory>();
+            services.AddSingleton<SiteFactory>();
             services.AddSingleton<Server>();
             services.AddSingleton<Acceptor>();
-            services.AddSingleton<SessionFactory>();
-            services.AddSingleton<Receiver>();
             services.AddSingleton<Handler>();
+            services.AddSingleton<MiddlewareFactory>();
+            services.AddSingleton<WorkerFactory>();
+            services.AddSingleton<SiteManager>();
             services.Configure<ConfigModel>(configuration);
             services.AddSingleton<IOptionsMonitor<ConfigModel>, OptionsMonitor<ConfigModel>>();
+            services.AddSingleton(middlewareRegistry);
+            services.AddSingleton(workerRegistry);
         })
         .Build();
 
