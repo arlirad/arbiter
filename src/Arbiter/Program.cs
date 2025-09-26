@@ -52,8 +52,9 @@ try
             services.AddSingleton<MiddlewareFactory>();
             services.AddSingleton<WorkerFactory>();
             services.AddSingleton<SiteManager>();
-            services.Configure<ConfigModel>(configuration);
-            services.AddSingleton<IOptionsMonitor<ConfigModel>, OptionsMonitor<ConfigModel>>();
+            services.AddSingleton<ConfigManager>();
+            services.Configure<ServerConfigModel>(configuration);
+            services.AddSingleton<IOptionsMonitor<ServerConfigModel>, OptionsMonitor<ServerConfigModel>>();
             services.AddSingleton(middlewareRegistry);
             services.AddSingleton(workerRegistry);
         })

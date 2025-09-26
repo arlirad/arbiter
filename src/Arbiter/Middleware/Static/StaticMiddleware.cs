@@ -11,7 +11,7 @@ internal class StaticMiddleware : IMiddleware
     private List<string> _defaultFiles = [];
     private Dictionary<string, string> _mimeTypes = new();
 
-    public Task Configure(Site site, IConfigurationSection config)
+    public Task Configure(Site site, IConfiguration config)
     {
         var typedConfig = config.Get<StaticMiddlewareConfigModel>();
         

@@ -1,6 +1,8 @@
+using Arbiter.Helpers;
 using Arbiter.Middleware;
 using Arbiter.Models;
 using Arbiter.Models.Config.Sites;
+using Arbiter.Services;
 using Arbiter.Workers;
 using Microsoft.Extensions.Configuration;
 
@@ -9,7 +11,8 @@ namespace Arbiter.Factories;
 
 internal class SiteFactory(
     MiddlewareFactory middlewareFactory,
-    WorkerFactory workerFactory
+    WorkerFactory workerFactory,
+    ConfigManager configManager
 )
 {
     public async Task<Site> Create(SiteConfigModel siteConfig)
@@ -18,11 +21,14 @@ internal class SiteFactory(
         siteConfig.Workers ??= [];
 
         var middlewares = siteConfig.Middleware
-            .Select<SiteComponentConfigModel, (IMiddleware Instance, IConfigurationSection Config)>(m => (Instance: middlewareFactory.Create(m.Name!), m.Config))
+            .Select<SiteComponentConfigModel, (IMiddleware Instance, IConfiguration Config)>(m => 
+                (Instance: middlewareFactory.Create(m.Name!), 
+                    ConfigMerger.Merge(configManager.GetDefaultMiddlewareConfig(m.Name!), m.Config)))
             .ToList();
         
         var workers = siteConfig.Workers
-            .Select<SiteComponentConfigModel, (IWorker Instance, IConfigurationSection Config)>(w => (Instance: workerFactory.Create(w.Name!), w.Config))
+            .Select<SiteComponentConfigModel, (IWorker Instance, IConfiguration Config)>(w => 
+                (Instance: workerFactory.Create(w.Name!), w.Config))
             .ToList();
 
         var site = new Site(
