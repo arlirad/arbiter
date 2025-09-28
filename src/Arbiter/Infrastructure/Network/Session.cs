@@ -1,19 +1,22 @@
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using Arbiter.DTOs;
 using Arbiter.Mappers;
+using Arbiter.Services;
 
 namespace Arbiter.Infrastructure.Network;
 
-internal class Session(Socket socket)
+internal class Session(Socket socket, CertificateManager certificateManager)
 {
-    private Stream _stream = new NetworkStream(socket);
     private bool _inSsl = false;
+    private Stream _stream = new NetworkStream(socket);
 
     public async Task<SessionReceiveResult> Receive()
     {
         if (!_inSsl && await CheckForSsl(socket))
-            _stream = await WrapInSsl();
+            _stream = await WrapInSsl(_stream);
 
         using var reader = new StreamReader(_stream, leaveOpen: true);
 
@@ -84,8 +87,23 @@ internal class Session(Socket socket)
         return buffer[0] == 22;
     }
 
-    private async Task<Stream> WrapInSsl()
+    private async Task<Stream> WrapInSsl(Stream stream)
     {
-        throw new NotImplementedException();
+        var ssl = new SslStream(stream, false);
+
+        await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+        {
+            ServerCertificateSelectionCallback = CertificateSelectionCallback,
+        });
+
+        return ssl;
+    }
+
+    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName)
+    {
+        if (hostName is null)
+            return certificateManager.GetFallback();
+
+        return certificateManager.Get(hostName) ?? certificateManager.GetFallback();
     }
 }

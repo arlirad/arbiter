@@ -7,20 +7,24 @@ using Certify.ACME.Anvil;
 using Certify.ACME.Anvil.Acme;
 using Certify.ACME.Anvil.Acme.Resource;
 using Microsoft.Extensions.Configuration;
+using Org.BouncyCastle.Crypto;
 using Serilog;
 
 namespace Arbiter.Workers.Acme;
 
-internal class AcmeWorker(ConfigManager configManager) : IWorker
+internal class AcmeWorker(
+    ConfigManager configManager,
+    CertificateManager certificateManager
+) : IWorker
 {
     private const double RenewalTimeRemainingFraction = 0.80;
     private const string CertificatePassword = "";
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(6);
 
+    private readonly CancellationTokenSource _cts = new();
     private string? _accountName;
     private AcmeContext? _acmeContext;
     private Uri? _acmeDirectoryUrl;
-    private CancellationTokenSource _cts = new();
     private AcmeDataModel? _data;
     private List<string> _domains = [];
     private Task? _orderTask;
@@ -36,7 +40,7 @@ internal class AcmeWorker(ConfigManager configManager) : IWorker
         if (!typedConfig.TosAccepted.HasValue)
             throw new Exception("tosAccepted is not set");
 
-        _acmeDirectoryUrl = typedConfig?.AcmeDirectoryUrl ?? throw new Exception("acmeUrl is not set");
+        _acmeDirectoryUrl = typedConfig.AcmeDirectoryUrl ?? throw new Exception("acmeUrl is not set");
         _accountName = typedConfig.AccountName;
         _tosAccepted = typedConfig.TosAccepted.Value;
         _data = site.GetComponentData<AcmeDataModel>();
@@ -50,6 +54,8 @@ internal class AcmeWorker(ConfigManager configManager) : IWorker
 
     public async Task Start()
     {
+        await LoadCertificates();
+
         _acmeContext = await GetContext();
         _orderTask = OrderLoop(_cts.Token);
     }
@@ -77,6 +83,35 @@ internal class AcmeWorker(ConfigManager configManager) : IWorker
         {
             // loop breaker
         }
+    }
+
+    private async Task LoadCertificates()
+    {
+        await Task.WhenAll(_domains
+            .Select(LoadCertificate)
+            .ToList());
+    }
+
+    private async Task LoadCertificate(string domain)
+    {
+        await Task.Run(() =>
+        {
+            try
+            {
+                var domainCertPath = Path.Join(configManager.DataPath, $"{domain}.pfx");
+                var cert = X509CertificateLoader.LoadPkcs12FromFile(domainCertPath, CertificatePassword);
+
+                certificateManager.Set(domain, cert);
+                Log.Information("Loaded certificate for '{Domain}'", domain);
+            }
+            catch (Exception e)
+            {
+                if (e is FileNotFoundException || e.InnerException is FileNotFoundException)
+                    return;
+
+                Log.Error(e, "Failed to load certificate for '{Domain}'", domain);
+            }
+        });
     }
 
     private async Task OrderCertificates(CancellationToken ct)
@@ -112,6 +147,8 @@ internal class AcmeWorker(ConfigManager configManager) : IWorker
             var pfx = pfxBuilder.Build(domain, CertificatePassword);
             var renewAfter = GetRenewalDate(pfx);
 
+            certificateManager.Set(domain, GetCertificateInstance(pfx));
+
             await File.WriteAllBytesAsync(domainCertPath, pfx, ct);
             Log.Information("Successfully created a certificate for '{Domain}', renewal after {RenewAfter}",
                 domain, renewAfter);
@@ -146,6 +183,17 @@ internal class AcmeWorker(ConfigManager configManager) : IWorker
 
         if (challenge.Status != ChallengeStatus.Valid)
             throw new Exception($"Failed to validate '{domain}'");
+    }
+
+    private static X509Certificate2 GetCertificateInstance(byte[] pfxBytes)
+    {
+        var coll = X509CertificateLoader.LoadPkcs12Collection(pfxBytes, CertificatePassword);
+        var leaf = coll.FirstOrDefault(c => c.HasPrivateKey)
+            ?? coll.OrderBy(c => c.NotAfter)
+                .FirstOrDefault()
+            ?? throw new Exception("Failed to find a suitable certificate in chain");
+
+        return leaf;
     }
 
     private static DateTime GetRenewalDate(byte[] pfxBytes)
