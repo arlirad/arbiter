@@ -11,6 +11,7 @@ internal class Site(
     HandleDelegate handleDelegate
 )
 {
+    private Dictionary<Type, object> _componentData = new();
     public string Path { get; set; } = path;
     public List<Uri> Bindings { get; } = [..bindings];
     public List<string> DefaultFiles { get; } = [];
@@ -37,5 +38,10 @@ internal class Site(
         {
             await worker.Stop();
         }
+    }
+
+    public T GetComponentData<T>() where T : new()
+    {
+        return (T)(_componentData.TryGetValue(typeof(T), out var value) ? value : _componentData[typeof(T)] = new T());
     }
 }

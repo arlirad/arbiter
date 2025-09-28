@@ -13,12 +13,12 @@ namespace Arbiter;
 
 internal class Server
 {
-    private readonly IOptionsMonitor<ServerConfigModel> _configMonitor;
     private readonly Acceptor _acceptor;
+    private readonly ConfigManager _configManager;
+    private readonly IOptionsMonitor<ServerConfigModel> _configMonitor;
+    private readonly Handler _handler;
     private readonly SessionFactory _sessionFactory;
     private readonly SiteManager _siteManager;
-    private readonly Handler _handler;
-    private readonly ConfigManager _configManager;
 
     public Server(
         IOptionsMonitor<ServerConfigModel> configMonitor,
@@ -40,6 +40,8 @@ internal class Server
 
     public async Task Run()
     {
+        await _configManager.CreateDirectories();
+
         ConfigChanged(_configMonitor.CurrentValue, null);
 
         while (true)
@@ -71,7 +73,7 @@ internal class Server
 
             await _siteManager.Update(serverConfig);
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Log.Error("Failed to reload config: {Exception}", e);
         }
@@ -82,7 +84,8 @@ internal class Server
     /// </summary>
     /// <param name="serverConfig">The configuration model containing binding information.</param>
     /// <returns>A tuple containing lists of IP addresses and ports, or null if listenOn or sites are not set.</returns>
-    private static (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings(ServerConfigModel serverConfig)
+    private static (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings(
+        ServerConfigModel serverConfig)
     {
         if (serverConfig.ListenOn is null || serverConfig.Sites is null)
             return (null, null);

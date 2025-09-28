@@ -14,10 +14,12 @@
     <PackageReference Include="Serilog" Version="4.3.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+      <PackageReference Include="Webprofusion.Certify.ACME.Anvil" Version="3.3.3"/>
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Exceptions\" />
+      <Folder Include="Infrastructure\Logging\"/>
   </ItemGroup>
 
 </Project>
