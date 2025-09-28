@@ -5,14 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Factories;
 
-internal class WorkerFactory(IServiceProvider services, ComponentTypeRegistry<IWorker> workerTypeRegistry)
+internal class WorkerFactory
 {
-    public IWorker Create(string name)
+    public IWorker Create(string name, IServiceScope scope)
     {
-        var type = workerTypeRegistry.Get(name);
-        if (type is null)
-            throw new Exception($"Worker '{name}' not found");
-
-        return (ActivatorUtilities.CreateInstance(services, type) as IWorker)!;
+        return scope.ServiceProvider.GetKeyedService<IWorker>(name) 
+            ?? throw new Exception($"Worker '{name}' not found");
     }
 }
