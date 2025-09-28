@@ -1,23 +1,21 @@
 using Arbiter.Models;
 using Arbiter.Models.Network;
 using Microsoft.Extensions.Configuration;
+using Serilog;
 
 namespace Arbiter.Middleware.Acme;
 
-internal class AcmeMiddleware : IMiddleware
+internal class AcmeMiddleware(HandleDelegate next) : IMiddleware
 {
     public Task Configure(Site site, IConfiguration config)
     {
         return Task.CompletedTask;
     }
 
-    public Task<bool> CanHandle(HttpRequestContext request)
+    public async Task Handle(HttpContext context)
     {
-        throw new NotImplementedException();
-    }
-
-    public Task Handle(HttpRequestContext request, HttpResponseContext response)
-    {
-        throw new NotImplementedException();
+        Log.Information("acme: Before next");
+        await next(context);
+        Log.Information("acme: After next");
     }
 }

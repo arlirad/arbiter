@@ -4,23 +4,24 @@ using Arbiter.Models;
 using Arbiter.Models.Config;
 using Arbiter.Models.Config.Sites;
 using Arbiter.Workers;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace Arbiter.Services;
 
 internal class SiteManager(
-    SiteFactory siteFactory
+    IServiceProvider serviceProvider
 )
 {
     private Dictionary<string, Site> _sites = new();
 
     public Site? Find(Uri uri)
     {
-        return _sites.FirstOrDefault(s => 
+        return _sites.FirstOrDefault(s =>
             s.Value.Bindings.Any(b => b.Host.Equals(uri.Host) && b.Port == uri.Port)
         ).Value;
     }
-    
+
     public async Task Update(ServerConfigModel serverConfig)
     {
         if (serverConfig.Sites is null)
@@ -42,11 +43,15 @@ internal class SiteManager(
 
         foreach (var siteToCreate in sitesToCreate)
         {
-            var site = await siteFactory.Create(siteToCreate.Value);
+            await using var scope = serviceProvider.CreateAsyncScope();
+
+            var factory = scope.ServiceProvider.GetRequiredService<SiteFactory>();
+            var site = await factory.Create(siteToCreate.Value);
+
             await site.Start();
-        
+
             Log.Information("Started site '{Key}'", siteToCreate.Key);
-            
+
             _sites[siteToCreate.Key] = site;
         }
     }
@@ -55,7 +60,7 @@ internal class SiteManager(
     {
         if (serverConfig.Sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
-        
+
         throw new NotImplementedException();
     }
 
@@ -75,7 +80,7 @@ internal class SiteManager(
         {
             var site = _sites[siteKey];
             _sites.Remove(siteKey);
-            
+
             stopTasks.Add(site.Stop());
         }
 
