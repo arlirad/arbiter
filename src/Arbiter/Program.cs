@@ -41,6 +41,7 @@ try
             services.AddSingleton<Handler>();
             services.AddSingleton<SiteManager>();
             services.AddSingleton<ConfigManager>();
+            services.AddSingleton<CertificateManager>();
             services.Configure<ServerConfigModel>(configuration);
             services.AddSingleton<IOptionsMonitor<ServerConfigModel>, OptionsMonitor<ServerConfigModel>>();
 
