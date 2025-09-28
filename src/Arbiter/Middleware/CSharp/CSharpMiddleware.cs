@@ -4,19 +4,14 @@ using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Middleware.CSharp;
 
-internal class CSharpMiddleware : IMiddleware
+internal class CSharpMiddleware(HandleDelegate next) : IMiddleware
 {
     public Task Configure(Site site, IConfiguration config)
     {
         return Task.CompletedTask;
     }
 
-    public Task<bool> CanHandle(HttpRequestContext request)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task Handle(HttpRequestContext request, HttpResponseContext response)
+    public Task Handle(HttpContext context)
     {
         throw new NotImplementedException();
     }

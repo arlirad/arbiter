@@ -33,21 +33,29 @@ try
         .CreateDefaultBuilder(args)
         .ConfigureServices((_, services) =>
         {
-            services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
-            services.AddKeyedScoped<IMiddleware, AcmeMiddleware>("acme");
-            services.AddKeyedScoped<IWorker, AcmeWorker>("acme");
-            
+
             services.AddSingleton<SessionFactory>();
             services.AddSingleton<SiteFactory>();
             services.AddSingleton<Server>();
             services.AddSingleton<Acceptor>();
             services.AddSingleton<Handler>();
-            services.AddSingleton<MiddlewareFactory>();
-            services.AddSingleton<WorkerFactory>();
             services.AddSingleton<SiteManager>();
             services.AddSingleton<ConfigManager>();
             services.Configure<ServerConfigModel>(configuration);
             services.AddSingleton<IOptionsMonitor<ServerConfigModel>, OptionsMonitor<ServerConfigModel>>();
+
+            services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
+            services.AddKeyedScoped<IMiddleware, AcmeMiddleware>("acme");
+            services.AddKeyedScoped<IWorker, AcmeWorker>("acme");
+            services.AddScoped<MiddlewareChainDelegateFactory>();
+            services.AddScoped<MiddlewareFactory>();
+            services.AddScoped<WorkerFactory>();
+
+            services.AddTransient<HandleDelegate>(sp =>
+            {
+                var factory = sp.GetRequiredService<MiddlewareChainDelegateFactory>();
+                return factory.GetNext();
+            });
         })
         .Build();
 
