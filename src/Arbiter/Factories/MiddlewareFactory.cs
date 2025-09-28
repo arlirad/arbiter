@@ -4,11 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Factories;
 
-internal class MiddlewareFactory
+internal class MiddlewareFactory(IServiceProvider serviceProvider)
 {
-    public IMiddleware Create(string name, IServiceScope scope)
+    public IMiddleware Create(string name)
     {
-        return scope.ServiceProvider.GetKeyedService<IMiddleware>(name) 
+        return serviceProvider.GetKeyedService<IMiddleware>(name)
             ?? throw new Exception($"Middleware '{name}' not found");
     }
 }
