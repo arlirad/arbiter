@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using Arbiter.DTOs;
 using Arbiter.Mappers;
+using Arbiter.Models.Network;
 using Arbiter.Services;
 
 namespace Arbiter.Infrastructure.Network;

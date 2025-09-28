@@ -1,3 +1,5 @@
+using HttpMethod = Arbiter.Enums.HttpMethod;
+
 namespace Arbiter.Mappers;
 
 internal static class HttpMethodMapper
