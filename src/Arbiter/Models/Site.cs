@@ -3,7 +3,13 @@ using Arbiter.Workers;
 
 namespace Arbiter.Models;
 
-internal class Site(string path, IEnumerable<Uri> bindings, IEnumerable<IMiddleware> middlewares, IEnumerable<IWorker> workers)
+internal class Site(
+    string path,
+    IEnumerable<Uri> bindings,
+    IEnumerable<IMiddleware> middlewares,
+    IEnumerable<IWorker> workers,
+    HandleDelegate handleDelegate
+)
 {
     public string Path { get; set; } = path;
     public List<Uri> Bindings { get; } = [..bindings];
@@ -12,6 +18,8 @@ internal class Site(string path, IEnumerable<Uri> bindings, IEnumerable<IMiddlew
     public List<IMiddleware> Middlewares { get; } = [..middlewares];
     public List<IWorker> Workers { get; } = [..workers];
 
+    public HandleDelegate HandleDelegate { get; } = handleDelegate;
+
     public async Task Start()
     {
         foreach (var worker in Workers)
@@ -19,12 +27,12 @@ internal class Site(string path, IEnumerable<Uri> bindings, IEnumerable<IMiddlew
             await worker.Start();
         }
     }
-    
+
     public async Task Stop()
     {
         var workersReversed = new List<IWorker>(Workers);
         workersReversed.Reverse();
-        
+
         foreach (var worker in workersReversed)
         {
             await worker.Stop();

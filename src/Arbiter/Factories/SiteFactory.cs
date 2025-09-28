@@ -27,11 +27,16 @@ internal class SiteFactory(
                 (Instance: workerFactory.Create(w.Name!), w.Config))
             .ToList();
 
+        var handleDelegate = (HandleDelegate)(middlewareChain.Count > 0
+            ? middlewareChain.First().Instance.Handle
+            : LastHandleDelegate);
+
         var site = new Site(
             siteConfig.Path!,
             siteConfig.Bindings!,
             middlewareChain.Select(m => m.Instance),
-            workers.Select(w => w.Instance)
+            workers.Select(w => w.Instance),
+            handleDelegate
         );
 
         foreach (var middleware in middlewareChain)

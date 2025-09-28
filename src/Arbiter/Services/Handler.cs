@@ -32,7 +32,7 @@ internal class Handler(SiteManager siteManager)
 
         try
         {
-            await site.Middlewares.First().Handle(context);
+            await site.HandleDelegate(context);
         }
         catch (Exception e)
         {
