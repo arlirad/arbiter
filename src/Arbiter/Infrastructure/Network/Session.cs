@@ -17,7 +17,10 @@ internal class Session(Socket socket, CertificateManager certificateManager)
     public async Task<SessionReceiveResult> Receive()
     {
         if (!_inSsl && await CheckForSsl(socket))
+        {
             _stream = await WrapInSsl(_stream);
+            _inSsl = true;
+        }
 
         using var reader = new StreamReader(_stream, leaveOpen: true);
 
