@@ -25,17 +25,6 @@ var configuration = new ConfigurationBuilder()
     .AddJsonFile(configPath, optional: false, reloadOnChange: true)
     .Build();
 
-var middlewareRegistry = new ComponentTypeRegistry<IMiddleware>(new Dictionary<string, Type>()
-{
-    ["static"] = typeof(StaticMiddleware),
-    ["acme"] = typeof(AcmeMiddleware),
-});
-
-var workerRegistry = new ComponentTypeRegistry<IWorker>(new Dictionary<string, Type>()
-{
-    ["acme"] = typeof(AcmeWorker),
-});
-
 Log.Information("Starting Arbiter");
 
 try
@@ -44,6 +33,10 @@ try
         .CreateDefaultBuilder(args)
         .ConfigureServices((_, services) =>
         {
+            services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
+            services.AddKeyedScoped<IMiddleware, AcmeMiddleware>("acme");
+            services.AddKeyedScoped<IWorker, AcmeWorker>("acme");
+            
             services.AddSingleton<SessionFactory>();
             services.AddSingleton<SiteFactory>();
             services.AddSingleton<Server>();
@@ -55,8 +48,6 @@ try
             services.AddSingleton<ConfigManager>();
             services.Configure<ServerConfigModel>(configuration);
             services.AddSingleton<IOptionsMonitor<ServerConfigModel>, OptionsMonitor<ServerConfigModel>>();
-            services.AddSingleton(middlewareRegistry);
-            services.AddSingleton(workerRegistry);
         })
         .Build();
 
