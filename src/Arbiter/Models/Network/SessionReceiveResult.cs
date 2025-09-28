@@ -1,17 +1,10 @@
 using Arbiter.DTOs;
+using Arbiter.Enums;
 
-namespace Arbiter.Infrastructure.Network;
+namespace Arbiter.Models.Network;
 
 internal class SessionReceiveResult
 {
-    public HttpRequest? Request { get; }
-    public bool IsBad { get; }
-    public bool IsClosed { get; }
-    public bool IsSecure { get; }
-    public Stream? Stream { get; }
-    public Uri? Uri { get; }
-    public int Port { get; }
-
     private SessionReceiveResult(
         HttpRequest? request = null,
         Stream? stream = null,
@@ -31,9 +24,17 @@ internal class SessionReceiveResult
         Port = port;
     }
 
-    public static SessionReceiveResult Ok(HttpRequest request, Stream stream, bool isSecure, int port) => 
+    public HttpRequest? Request { get; }
+    public bool IsBad { get; }
+    public bool IsClosed { get; }
+    public bool IsSecure { get; }
+    public Stream? Stream { get; }
+    public Uri? Uri { get; }
+    public int Port { get; }
+
+    public static SessionReceiveResult Ok(HttpRequest request, Stream stream, bool isSecure, int port) =>
         new(
-            request: request, 
+            request: request,
             stream: stream,
             isSecure: isSecure,
             port: port,
@@ -46,10 +47,10 @@ internal class SessionReceiveResult
 
     private static Uri ConstructUri(HttpRequest request, bool isSecure, int port)
     {
-        var host = request.Version == HttpVersion.Http11 
+        var host = request.Version == HttpVersion.Http11
             ? request.Headers["Host"]!.Split(':')[0]
             : "*";
-        
+
         return new Uri($"{(isSecure ? "https" : "http")}://{host}:{port}{request.Path}");
     }
 }

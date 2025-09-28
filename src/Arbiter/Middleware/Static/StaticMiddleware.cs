@@ -1,6 +1,7 @@
 using Arbiter.Enums;
 using Arbiter.Models;
 using Arbiter.Models.Config;
+using Arbiter.Models.Config.Middleware;
 using Arbiter.Models.Network;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;

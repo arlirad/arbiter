@@ -1,3 +1,5 @@
+namespace Arbiter.Enums;
+
 internal enum HttpMethod
 {
     Get,

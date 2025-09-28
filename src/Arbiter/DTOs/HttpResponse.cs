@@ -1,3 +1,5 @@
+using Arbiter.Enums;
+
 namespace Arbiter.DTOs;
 
 internal class HttpResponse(HttpVersion version)

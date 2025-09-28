@@ -1,4 +1,6 @@
 using Arbiter.DTOs;
+using Arbiter.Enums;
+using HttpMethod = Arbiter.Enums.HttpMethod;
 
 namespace Arbiter.Models.Network;
 

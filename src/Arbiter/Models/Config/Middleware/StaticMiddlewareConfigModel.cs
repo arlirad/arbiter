@@ -1,4 +1,4 @@
-namespace Arbiter.Middleware.Static;
+namespace Arbiter.Models.Config.Middleware;
 
 internal class StaticMiddlewareConfigModel
 {
