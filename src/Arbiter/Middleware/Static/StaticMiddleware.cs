@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Arbiter.Middleware.Static;
 
-internal class StaticMiddleware : IMiddleware
+internal class StaticMiddleware(HandleDelegate next) : IMiddleware
 {
     private List<string> _defaultFiles = [];
     private Dictionary<string, string> _mimeTypes = new();
@@ -15,39 +15,34 @@ internal class StaticMiddleware : IMiddleware
     public Task Configure(Site site, IConfiguration config)
     {
         var typedConfig = config.Get<StaticMiddlewareConfigModel>();
-        
+
         _defaultFiles = typedConfig?.DefaultFiles ?? [];
         _mimeTypes = typedConfig?.Mime ?? [];
-        
+
         return Task.CompletedTask;
     }
 
-    public Task<bool> CanHandle(HttpRequestContext request)
-    {
-        return Task.FromResult(true);
-    }
-
-    public async Task Handle(HttpRequestContext request, HttpResponseContext response)
+    public async Task Handle(HttpContext context)
     {
         try
         {
-            var queryPath = Path.Combine(request.Site.Path, request.Uri.PathAndQuery.TrimStart('/'));
+            var queryPath = Path.Combine(context.Request.Site.Path, context.Request.Uri.PathAndQuery.TrimStart('/'));
             var (path, stream) = GetFile(queryPath);
-            
+
             if (stream is null)
             {
-                await response.Send(HttpStatusCode.NotFound, Stream.Null);
+                await context.Response.Send(HttpStatusCode.NotFound, Stream.Null);
                 return;
             }
 
             if (_mimeTypes.TryGetValue(Path.GetExtension(path), out var mime))
-                response.Headers["Content-Type"] = mime;
+                context.Response.Headers["Content-Type"] = mime;
 
-            await response.Send(HttpStatusCode.Ok, stream);
+            await context.Response.Send(HttpStatusCode.Ok, stream);
         }
         catch (UnauthorizedAccessException e)
         {
-            await response.Send(HttpStatusCode.InternalServerError, Stream.Null);
+            await context.Response.Send(HttpStatusCode.InternalServerError, Stream.Null);
         }
     }
 
@@ -56,12 +51,12 @@ internal class StaticMiddleware : IMiddleware
         var stream = TryOpenRead(queryPath);
         if (stream is not null)
             return (queryPath, stream);
-        
+
         foreach (var defaultFile in _defaultFiles)
         {
             var fallbackPath = Path.Combine(queryPath, defaultFile);
             var fallbackStream = TryOpenRead(fallbackPath);
-            
+
             if (fallbackStream is not null)
                 return (fallbackPath, fallbackStream);
         }
