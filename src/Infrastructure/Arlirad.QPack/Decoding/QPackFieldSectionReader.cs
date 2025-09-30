@@ -6,12 +6,14 @@ using Arlirad.QPack.Streams;
 namespace Arlirad.QPack.Decoding;
 
 public class QPackFieldSectionReader(
+    long streamId,
     int requiredInsertCount,
     bool baseSign,
     int deltaBase,
     QPackStream stream
 ) : IEnumerable<QPackField>
 {
+    public long StreamId { get; } = streamId;
     public int RequiredInsertCount { get; } = requiredInsertCount;
     public bool BaseSign { get; } = baseSign;
     public int DeltaBase { get; } = deltaBase;
