@@ -1,6 +1,8 @@
 ﻿using System.Text;
+using Arlirad.QPack.Common;
+using Arlirad.QPack.Huffman;
 
-namespace Arlirad.QPack;
+namespace Arlirad.QPack.Streams;
 
 public class QPackStream(Stream inner) : Stream
 {

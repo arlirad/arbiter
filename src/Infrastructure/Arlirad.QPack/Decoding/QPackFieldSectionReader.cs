@@ -1,8 +1,11 @@
 using System.Collections;
+using Arlirad.QPack.Common;
+using Arlirad.QPack.Models;
+using Arlirad.QPack.Streams;
 
-namespace Arlirad.QPack;
+namespace Arlirad.QPack.Decoding;
 
-public class QPackFieldSection(
+public class QPackFieldSectionReader(
     int requiredInsertCount,
     bool baseSign,
     int deltaBase,

@@ -1,8 +1,11 @@
-namespace Arlirad.QPack;
+using Arlirad.QPack.Common;
+using Arlirad.QPack.Streams;
+
+namespace Arlirad.QPack.Decoding;
 
 public class QPackDecoder
 {
-    public async Task<QPackFieldSection> GetSection(byte[] buffer)
+    public async Task<QPackFieldSectionReader> GetSectionReader(byte[] buffer)
     {
         var stream = new QPackStream(new MemoryStream(buffer));
 
@@ -10,6 +13,6 @@ public class QPackDecoder
         var deltaBase = (int)stream.ReadVarInt(7, out var deltaBaseSign);
         var baseSign = (deltaBaseSign & QPackConsts.DeltaBaseSignMask) == QPackConsts.DeltaBaseSignMask;
 
-        return new QPackFieldSection(requiredInsertCount, baseSign, deltaBase, stream);
+        return new QPackFieldSectionReader(requiredInsertCount, baseSign, deltaBase, stream);
     }
 }

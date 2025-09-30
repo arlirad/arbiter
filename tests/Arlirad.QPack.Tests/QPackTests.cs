@@ -1,4 +1,6 @@
-﻿namespace Arlirad.QPack.Tests;
+﻿using Arlirad.QPack.Streams;
+
+namespace Arlirad.QPack.Tests;
 
 public class Tests
 {
