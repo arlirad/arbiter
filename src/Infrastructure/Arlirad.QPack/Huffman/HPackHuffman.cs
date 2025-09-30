@@ -1,6 +1,7 @@
-using System.Text;
+using Arlirad.QPack.Common;
+using Arlirad.QPack.Streams;
 
-namespace Arlirad.QPack;
+namespace Arlirad.QPack.Huffman;
 
 public static class HPackHuffman
 {

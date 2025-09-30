@@ -1,3 +1,5 @@
+using Arlirad.QPack.Streams;
+
 namespace Arlirad.QPack.Tests;
 
 public class BitStreamTests

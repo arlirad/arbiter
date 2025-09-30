@@ -1,4 +1,4 @@
-namespace Arlirad.QPack;
+namespace Arlirad.QPack.Streams;
 
 public class BitStream(byte[] buffer)
 {

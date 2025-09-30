@@ -1,4 +1,5 @@
 using System.Text;
+using Arlirad.QPack.Huffman;
 
 namespace Arlirad.QPack.Tests;
 

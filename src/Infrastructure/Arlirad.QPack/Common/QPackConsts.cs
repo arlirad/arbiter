@@ -1,4 +1,6 @@
-namespace Arlirad.QPack;
+using Arlirad.QPack.Models;
+
+namespace Arlirad.QPack.Common;
 
 public static class QPackConsts
 {

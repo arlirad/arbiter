@@ -1,4 +1,4 @@
-namespace Arlirad.QPack;
+namespace Arlirad.QPack.Common;
 
 public static class HPackConsts
 {

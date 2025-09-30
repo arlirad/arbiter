@@ -1,4 +1,4 @@
-namespace Arlirad.QPack;
+namespace Arlirad.QPack.Models;
 
 public class QPackField(string name, string? value = null)
 {
