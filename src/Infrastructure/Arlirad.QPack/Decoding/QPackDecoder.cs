@@ -35,7 +35,10 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
         _dynamicTable.Clear();
     }
 
-    public async Task<QPackFieldSectionReader> GetSectionReader(long streamId, byte[] buffer)
+    public async Task<QPackFieldSectionReader> GetSectionReader(
+        long streamId,
+        byte[] buffer,
+        CancellationToken ct = default)
     {
         var stream = new MemoryStream(buffer);
         var reader = new QPackReader(stream);
@@ -56,7 +59,14 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
             // TODO: Throw QPACK_ENCODER_STREAM_ERROR if requiredInsertCount is null
             throw new NotImplementedException();
 
-        await WaitForInsertCount(requiredInsertCount.Value);
+        try
+        {
+            await WaitForInsertCount(requiredInsertCount.Value, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            await CancelStream(streamId);
+        }
 
         var @base = !baseSign
             ? requiredInsertCount.Value + deltaBase
@@ -68,13 +78,18 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
     public async ValueTask AcknowledgeSection(QPackFieldSectionReader section, CancellationToken ct = default)
     {
         await _decoderOutgoingWriter.WritePrefixedIntAsync(section.StreamId, 7,
-            QPackConsts.DecoderInstructionSectionAcknowledgementMask, ct);
+            QPackConsts.DecoderInstructionSectionAcknowledgement, ct);
 
         lock (_waitersLock)
         {
             if (section.RequiredInsertCount > _ackedInsertCount)
                 _ackedInsertCount = section.RequiredInsertCount;
         }
+    }
+
+    public List<QPackField> GetDynamicTable()
+    {
+        return [.._dynamicTable];
     }
 
     public QPackField? GetField(long index, bool isDynamic)
@@ -84,7 +99,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
             : QPackConsts.StaticTable[(int)index];
     }
 
-    private async ValueTask WaitForInsertCount(long required)
+    private async ValueTask WaitForInsertCount(long required, CancellationToken ct)
     {
         Task task;
 
@@ -99,7 +114,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
             task = tcs.Task;
         }
 
-        await task;
+        await task.WaitAsync(ct);
     }
 
     private static int GetEntrySize(string name, string value)
@@ -146,7 +161,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
 
             var instruction = buffer[0];
 
-            if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionDynamicTableCapacityMask))
+            if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionDynamicTableCapacity))
             {
                 var capacity =
                     await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
@@ -154,17 +169,15 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
                 DynamicTableCapacity = (int)capacity;
                 _maxTableCapacityTcs.SetResult();
             }
-            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionInsertWithNameReferenceMask))
+            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionInsertWithNameReference))
             {
                 var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
                 var value = await _encoderIncomingReader.ReadStringAsync(buffer, ct);
 
-                var isDynamic = (buffer[0] & QPackConsts.EncoderInstructionInsertWithDynamicNameReferenceMask)
-                    == QPackConsts.EncoderInstructionInsertWithDynamicNameReferenceMask;
+                var isDynamic = (buffer[0] & QPackConsts.EncoderInstructionInsertWithDynamicNameReference)
+                    == QPackConsts.EncoderInstructionInsertWithDynamicNameReference;
 
-                var indexTransformed = (long)index;
-
-                var referredField = GetField(indexTransformed, isDynamic);
+                var referredField = GetField((long)index, isDynamic);
 
                 if (referredField is null)
                 {
@@ -175,18 +188,40 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
 
                 Insert(referredField.Name, value);
             }
-            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionInsertWithLiteralNameMask))
+            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionInsertWithLiteralName))
             {
                 var name = await _encoderIncomingReader.ReadStringAsync(buffer, 5, instruction, 5, ct);
                 var value = await _encoderIncomingReader.ReadStringAsync(buffer, ct);
 
                 Insert(name, value);
             }
+            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionDuplicate))
+            {
+                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
+                index = FromRelative(index);
+
+                var referredField = GetField((long)index, true);
+
+                if (referredField is null)
+                {
+                    // TODO: Throw QPACK_ENCODER_STREAM_ERROR if referredField is null
+                    ;
+                    throw new NotImplementedException();
+                }
+
+                Insert(referredField.Name, referredField.Value);
+            }
             else
             {
                 throw new NotImplementedException();
             }
         }
+    }
+
+    private ulong FromRelative(ulong index)
+    {
+        // We don't really need to worry about overflows, GetField is going to fail anyway if we overflow.
+        return (ulong)(_totalInsertCount - (long)index - 1);
     }
 
     private void Insert(string name, string value)
@@ -207,8 +242,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
                 _waiters.RemoveAt(i);
             }
 
-            if (_insertIncrementCountSendTask is null)
-                _insertIncrementCountSendTask = WaitToSendInsertIncrementCount();
+            _insertIncrementCountSendTask ??= WaitToSendInsertIncrementCount();
         }
 
         foreach (var taskCompletionSource in toRelease)
@@ -231,10 +265,17 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
                 return;
 
             increment = _totalInsertCount - _ackedInsertCount;
+            _ackedInsertCount = _totalInsertCount;
             _insertIncrementCountSendTask = null;
         }
 
         await _decoderOutgoingWriter.WritePrefixedIntAsync(increment, 6,
-            QPackConsts.DecoderInstructionInsertCountIncrementMask, CancellationToken.None);
+            QPackConsts.DecoderInstructionInsertCountIncrement, CancellationToken.None);
+    }
+
+    private async Task CancelStream(long streamId)
+    {
+        await _decoderOutgoingWriter.WritePrefixedIntAsync(streamId, 6,
+            QPackConsts.DecoderInstructionStreamCancellation, CancellationToken.None);
     }
 }

@@ -1,5 +1,6 @@
 using Arbiter.DTOs;
 using Arlirad.QPack.Decoding;
+using Arlirad.QPack.Models;
 using Arlirad.QPack.Tests.Helpers;
 using Arlirad.QPack.Tests.Streams;
 
@@ -30,16 +31,30 @@ public class QPackRfcTests
                                                              Size=0
                                """;
 
+        var timeouter = new CancellationTokenSource();
+        timeouter.CancelAfter(TimeSpan.FromMilliseconds(1000));
+
         var buffers = await RFCHelper.GetRfcExampleBuffers(example);
-        var buffer0Section = await decoder.GetSectionReader(streamId: 0, buffers[0]);
         var buffer0Headers = new HttpHeaders();
 
-        foreach (var field in buffer0Section)
+        await using (var buffer0Section = await decoder.GetSectionReader(streamId: 0, buffers[0], timeouter.Token))
         {
-            buffer0Headers[field.Name] = field.Value;
+            foreach (var field in buffer0Section)
+            {
+                buffer0Headers[field.Name] = field.Value;
+            }
         }
 
-        Assert.That(buffer0Headers[":path"], Is.EqualTo("/index.html"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(buffer0Headers[":path"], Is.EqualTo("/index.html"));
+            Assert.That(decoderInstructions.Length, Is.EqualTo(1));
+        });
+
+        var buffer = new byte[1];
+        var read = await decoderInstructions.ReadAsync(buffer, timeouter.Token);
+
+        Assert.That(read, Is.EqualTo(1));
     }
 
     /// <summary>
@@ -120,9 +135,16 @@ public class QPackRfcTests
             Assert.That(decoder.DynamicTableCapacity, Is.EqualTo(220));
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(106));
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(2));
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
+            {
+                new(":authority", "www.example.com"),
+                new(":path", "/sample/path"),
+            }));
+
             Assert.That(headers[":authority"], Is.EqualTo("www.example.com"));
             Assert.That(headers[":path"], Is.EqualTo("/sample/path"));
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
+            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
         });
     }
 
@@ -161,11 +183,7 @@ public class QPackRfcTests
                                """;
 
         var timeouter = new CancellationTokenSource();
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(1000, CancellationToken.None);
-            await timeouter.CancelAsync();
-        }, CancellationToken.None);
+        timeouter.CancelAfter(TimeSpan.FromMilliseconds(1000));
 
         var buffers = await RFCHelper.GetRfcExampleBuffers(example);
 
@@ -178,7 +196,120 @@ public class QPackRfcTests
         Assert.Multiple(() =>
         {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(3));
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
+            {
+                new(":authority", "www.example.com"),
+                new(":path", "/sample/path"),
+                new("custom-key", "custom-value"),
+            }));
+
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
+            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
+        });
+    }
+
+    /// <summary>
+    /// The encoder duplicates an existing entry in the dynamic table, then sends an encoded field section referencing
+    /// the dynamic table entries including the duplicated entry. The packet containing the encoder stream data is
+    /// delayed. Before the packet arrives, the decoder cancels the stream and notifies the encoder that the encoded
+    /// field section was not processed.
+    /// </summary>
+    public static async Task DuplicateInstructionStreamCancellation(
+        QueueStream encoderInstructions,
+        QueueStream decoderInstructions,
+        QPackDecoder decoder
+    )
+    {
+        const string example = """
+                               Stream: Encoder
+                               02                  | Duplicate (Relative Index = 2)
+                                                   |  Absolute Index =
+                                                   |   Insert Count(3) - Index(2) - 1 = 0
+
+                                                             Abs Ref Name        Value
+                                                              0   0  :authority  www.example.com
+                                                              1   0  :path       /sample/path
+                                                              2   0  custom-key  custom-value
+                                                             ^-- acknowledged --^
+                                                              3   0  :authority  www.example.com
+                                                             Size=217
+
+                               Stream: 8
+                               0500                | Required Insert Count = 4, Base = 4
+                               80                  | Indexed Field Line, Dynamic Table
+                                                   |  Absolute Index = Base(4) - Index(0) - 1 = 3
+                                                   |  (:authority=www.example.com)
+                               c1                  | Indexed Field Line, Static Table Index = 1
+                                                   |  (:path=/)
+                               81                  | Indexed Field Line, Dynamic Table
+                                                   |  Absolute Index = Base(4) - Index(1) - 1 = 2
+                                                   |  (custom-key=custom-value)
+
+                                                             Abs Ref Name        Value
+                                                              0   0  :authority  www.example.com
+                                                              1   0  :path       /sample/path
+                                                              2   1  custom-key  custom-value
+                                                             ^-- acknowledged --^
+                                                              3   1  :authority  www.example.com
+                                                             Size=217
+
+                               Stream: Decoder
+                               48                  | Stream Cancellation (Stream=8)
+                               01                  | Increment count ack (not in the RFC)
+
+                                                             Abs Ref Name        Value
+                                                              0   0  :authority  www.example.com
+                                                              1   0  :path       /sample/path
+                                                              2   0  custom-key  custom-value
+                                                             ^-- acknowledged --^
+                                                              3   0  :authority  www.example.com
+                                                             Size=217
+                               """;
+
+        var timeouter = new CancellationTokenSource();
+        timeouter.CancelAfter(TimeSpan.FromMilliseconds(1000));
+
+        var buffers = await RFCHelper.GetRfcExampleBuffers(example);
+        var cts = new CancellationTokenSource();
+
+        cts.CancelAfter(TimeSpan.FromMilliseconds(250));
+
+        var readerTask = decoder.GetSectionReader(8, buffers[8], cts.Token);
+
+        while (!cts.IsCancellationRequested)
+        {
+            await Task.Delay(25, CancellationToken.None);
+        }
+
+        try
+        {
+            await readerTask;
+        }
+        catch (Exception ex)
+        {
+            Assert.That(ex.GetType(), Is.EqualTo(typeof(OperationCanceledException)));
+        }
+
+        await encoderInstructions.WriteAsync(buffers[RFCHelper.EncoderStream], CancellationToken.None);
+
+        var buffer = new byte[2];
+
+        await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(decoder.TotalInsertCount, Is.EqualTo(4));
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
+            {
+                new(":authority", "www.example.com"),
+                new(":path", "/sample/path"),
+                new("custom-key", "custom-value"),
+                new(":authority", "www.example.com"),
+            }));
+
+            Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
+            Assert.That(buffer[1], Is.EqualTo(buffers[RFCHelper.DecoderStream][1]));
+            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
         });
     }
 }
