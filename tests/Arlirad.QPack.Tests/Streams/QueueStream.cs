@@ -31,7 +31,7 @@ public class QueueStream : Stream
     public async override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
         if (_queue.Count == 0)
-            await Wait();
+            await Wait().WaitAsync(cancellationToken);
 
         var read = 0;
 

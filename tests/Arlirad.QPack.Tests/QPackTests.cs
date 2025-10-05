@@ -76,5 +76,6 @@ public class QPackTests
 
         await QPackRfcTests.LiteralFieldLineWithNameReference(encoderInstructions, decoderInstructions, decoder);
         await QPackRfcTests.DynamicTable(encoderInstructions, decoderInstructions, decoder);
+        await QPackRfcTests.SpeculativeInsert(encoderInstructions, decoderInstructions, decoder);
     }
 }

@@ -20,7 +20,7 @@ public class QPackFieldSectionReader(
 
     public async ValueTask DisposeAsync()
     {
-        await parent.AcknowledgeSection(streamId);
+        await parent.AcknowledgeSection(this);
         await stream.DisposeAsync();
 
         GC.SuppressFinalize(this);

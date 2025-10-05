@@ -30,16 +30,16 @@ public class QPackRfcTests
                                                              Size=0
                                """;
 
-        var streams = await RFCHelper.GetRfcExampleStreams(example);
-        var stream0Section = await decoder.GetSectionReader(streamId: 0, streams[0]);
-        var stream0Headers = new HttpHeaders();
+        var buffers = await RFCHelper.GetRfcExampleBuffers(example);
+        var buffer0Section = await decoder.GetSectionReader(streamId: 0, buffers[0]);
+        var buffer0Headers = new HttpHeaders();
 
-        foreach (var field in stream0Section)
+        foreach (var field in buffer0Section)
         {
-            stream0Headers[field.Name] = field.Value;
+            buffer0Headers[field.Name] = field.Value;
         }
 
-        Assert.That(stream0Headers[":path"], Is.EqualTo("/index.html"));
+        Assert.That(buffer0Headers[":path"], Is.EqualTo("/index.html"));
     }
 
     /// <summary>
@@ -95,13 +95,13 @@ public class QPackRfcTests
                                                              Size=106
                                """;
 
-        var streams = await RFCHelper.GetRfcExampleStreams(example);
+        var buffers = await RFCHelper.GetRfcExampleBuffers(example);
 
-        await encoderInstructions.WriteAsync(streams[RFCHelper.EncoderStream].ToArray());
+        await encoderInstructions.WriteAsync(buffers[RFCHelper.EncoderStream].ToArray());
 
         var headers = new HttpHeaders();
 
-        await using (var stream4Section = await decoder.GetSectionReader(streamId: 4, streams[4]))
+        await using (var stream4Section = await decoder.GetSectionReader(streamId: 4, buffers[4]))
         {
             Assert.That(stream4Section.Base, Is.EqualTo(0));
 
@@ -119,9 +119,66 @@ public class QPackRfcTests
         {
             Assert.That(decoder.DynamicTableCapacity, Is.EqualTo(220));
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(106));
+            Assert.That(decoder.TotalInsertCount, Is.EqualTo(2));
             Assert.That(headers[":authority"], Is.EqualTo("www.example.com"));
             Assert.That(headers[":path"], Is.EqualTo("/sample/path"));
-            Assert.That(buffer[0], Is.EqualTo(0x84));
+            Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
+        });
+    }
+
+    /// <summary>
+    /// The encoder inserts a header into the dynamic table with a literal name. The decoder acknowledges receipt of the
+    /// entry. The encoder does not send any encoded field sections.
+    /// </summary>
+    public static async Task SpeculativeInsert(
+        QueueStream encoderInstructions,
+        QueueStream decoderInstructions,
+        QPackDecoder decoder
+    )
+    {
+        const string example = """
+                               Stream: Encoder
+                               4a63 7573 746f 6d2d | Insert With Literal Name
+                               6b65 790c 6375 7374 |  (custom-key=custom-value)
+                               6f6d 2d76 616c 7565 |
+
+                                                             Abs Ref Name        Value
+                                                              0   0  :authority  www.example.com
+                                                              1   0  :path       /sample/path
+                                                             ^-- acknowledged --^
+                                                              2   0  custom-key  custom-value
+                                                             Size=160
+
+                               Stream: Decoder
+                               01                  | Insert Count Increment (1)
+
+                                                             Abs Ref Name        Value
+                                                              0   0  :authority  www.example.com
+                                                              1   0  :path       /sample/path
+                                                              2   0  custom-key  custom-value
+                                                             ^-- acknowledged --^
+                                                             Size=160
+                               """;
+
+        var timeouter = new CancellationTokenSource();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1000, CancellationToken.None);
+            await timeouter.CancelAsync();
+        }, CancellationToken.None);
+
+        var buffers = await RFCHelper.GetRfcExampleBuffers(example);
+
+        await encoderInstructions.WriteAsync(buffers[RFCHelper.EncoderStream].ToArray(), timeouter.Token);
+
+        var buffer = new byte[1];
+
+        await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(decoder.TotalInsertCount, Is.EqualTo(3));
+            Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
         });
     }
 }
