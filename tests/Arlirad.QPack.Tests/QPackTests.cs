@@ -1,7 +1,6 @@
-﻿using Arbiter.DTOs;
-using Arlirad.QPack.Decoding;
+﻿using Arlirad.QPack.Decoding;
 using Arlirad.QPack.Streams;
-using Arlirad.QPack.Tests.Helpers;
+using Arlirad.QPack.Tests.Streams;
 
 namespace Arlirad.QPack.Tests;
 
@@ -20,48 +19,62 @@ public class QPackTests
     }
 
     [Test]
-    public void QPackVarIntReadTest()
+    public void VarIntReadTest()
     {
-        var stream10 = new QPackStream(new MemoryStream(_integers[10]));
+        var stream10 = new QPackReader(new MemoryStream(_integers[10]));
         Assert.That(stream10.ReadVarInt(5), Is.EqualTo(10));
 
-        var stream1337 = new QPackStream(new MemoryStream(_integers[1337]));
+        var stream1337 = new QPackReader(new MemoryStream(_integers[1337]));
         Assert.That(stream1337.ReadVarInt(5), Is.EqualTo(1337));
 
-        var stream42 = new QPackStream(new MemoryStream(_integers[42]));
+        var stream42 = new QPackReader(new MemoryStream(_integers[42]));
         Assert.That(stream42.ReadVarInt(8), Is.EqualTo(42));
     }
 
-    /// <summary>
-    /// B.1. Literal Field Line with Name Reference
-    /// The encoder sends an encoded field section containing a literal representation of a field with a static name
-    /// reference.
-    /// </summary>
     [Test]
-    public void QPackLiteralFieldLineWithNameReferenceTest()
+    public async Task VarIntWriteTest()
     {
-        var reader = new QPackDecoder();
-        const string example = """
-                               Stream: 0
-                               0000                | Required Insert Count = 0, Base = 0
-                               510b 2f69 6e64 6578 | Literal Field Line with Name Reference
-                               2e68 746d 6c        |  Static Table, Index=1
-                                                   |  (:path=/index.html)
+        var stream10 = new MemoryStream();
+        await (new QPackWriter(stream10)).WritePrefixedInt(10, 5, 0b1110_0000, CancellationToken.None);
+        Assert.That(stream10.ToArray(), Is.EqualTo(_integers[10]));
 
-                                                             Abs Ref Name        Value
-                                                             ^-- acknowledged --^
-                                                             Size=0
-                               """;
+        var stream1337 = new MemoryStream();
+        await (new QPackWriter(stream1337)).WritePrefixedInt(1337, 5, 0b1110_0000, CancellationToken.None);
+        Assert.That(stream1337.ToArray(), Is.EqualTo(_integers[1337]));
 
-        var streams = RFCHelper.GetRfcExampleBytes(example);
-        var stream0Section = reader.GetSectionReader(streamId: 0, streams[0]).GetAwaiter().GetResult();
-        var stream0Headers = new HttpHeaders();
+        var stream42 = new MemoryStream();
+        await (new QPackWriter(stream42)).WritePrefixedInt(42, 8, 0b0000_0000, CancellationToken.None);
+        Assert.That(stream42.ToArray(), Is.EqualTo(_integers[42]));
+    }
 
-        foreach (var field in stream0Section)
+    [Test]
+    public async Task BackToBackWriteReadTest()
+    {
+        for (var i = 0; i < 65556; i++)
         {
-            stream0Headers[field.Name] = field.Value;
-        }
+            var prefix = i % 8 + 1;
+            var stream = new MemoryStream();
+            var reader = new QPackReader(stream);
+            var writer = new QPackWriter(stream);
 
-        Assert.That(stream0Headers[":path"], Is.EqualTo("/index.html"));
+            await writer.WritePrefixedInt(i, prefix, 0b0000_0000, CancellationToken.None);
+
+            stream.Position = 0;
+
+            Assert.That(reader.ReadVarInt(prefix), Is.EqualTo(i));
+        }
+    }
+
+    [Test]
+    public async Task RfcTests()
+    {
+        var encoderInstructions = new QueueStream();
+        var decoderInstructions = new QueueStream();
+        var decoder = new QPackDecoder(encoderInstructions, decoderInstructions);
+
+        await decoder.Start();
+
+        await QPackRfcTests.LiteralFieldLineWithNameReference(encoderInstructions, decoderInstructions, decoder);
+        await QPackRfcTests.DynamicTable(encoderInstructions, decoderInstructions, decoder);
     }
 }

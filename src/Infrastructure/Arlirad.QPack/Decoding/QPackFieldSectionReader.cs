@@ -7,16 +7,24 @@ namespace Arlirad.QPack.Decoding;
 
 public class QPackFieldSectionReader(
     long streamId,
-    int requiredInsertCount,
-    bool baseSign,
-    int deltaBase,
-    QPackStream stream
-) : IEnumerable<QPackField>
+    long requiredInsertCount,
+    long @base,
+    Stream stream,
+    QPackReader reader,
+    QPackDecoder parent
+) : IEnumerable<QPackField>, IAsyncDisposable
 {
     public long StreamId { get; } = streamId;
-    public int RequiredInsertCount { get; } = requiredInsertCount;
-    public bool BaseSign { get; } = baseSign;
-    public int DeltaBase { get; } = deltaBase;
+    public long RequiredInsertCount { get; } = requiredInsertCount;
+    public long Base { get; } = @base;
+
+    public async ValueTask DisposeAsync()
+    {
+        await parent.AcknowledgeSection(streamId);
+        await stream.DisposeAsync();
+
+        GC.SuppressFinalize(this);
+    }
 
     public IEnumerator<QPackField> GetEnumerator()
     {
@@ -28,7 +36,7 @@ public class QPackFieldSectionReader(
 
             if ((entry & QPackConsts.IndexedFieldLineMask) == QPackConsts.IndexedFieldLineMask)
             {
-                var index = stream.ReadVarIntFromProvidedByte(6, entry);
+                var index = reader.ReadVarIntFromProvidedByte(6, entry);
                 yield return (entry & QPackConsts.IndexedStaticFieldLineMask) == QPackConsts.IndexedStaticFieldLineMask
                     ? QPackConsts.StaticTable[(int)index]
                     : throw new NotImplementedException("Dynamic tables are not yet implemented");
@@ -36,15 +44,22 @@ public class QPackFieldSectionReader(
             else if ((entry & QPackConsts.LiteralFieldLineWithNameReferenceMask)
                 == QPackConsts.LiteralFieldLineWithNameReferenceMask)
             {
-                var index = stream.ReadVarIntFromProvidedByte(4, entry);
+                var index = reader.ReadVarIntFromProvidedByte(4, entry);
                 var nameTableEntry = (entry & QPackConsts.LiteralStaticFieldLineWithNameReferenceMask)
                     == QPackConsts.LiteralStaticFieldLineWithNameReferenceMask
                         ? QPackConsts.StaticTable[(int)index]
                         : throw new NotImplementedException("Dynamic tables are not yet implemented");
 
-                var value = stream.ReadString();
+                var value = reader.ReadString();
 
                 yield return new QPackField(nameTableEntry.Name, value);
+            }
+            else if ((entry & QPackConsts.IndexedPostBaseFieldLineMask) == QPackConsts.IndexedPostBaseFieldLineMask)
+            {
+                var index = (long)reader.ReadVarIntFromProvidedByte(4, entry) + Base;
+
+                yield return parent.GetField(index, true)
+                    ?? throw new NotImplementedException("QPACK_DECOMPRESSION_FAILED");
             }
             else
             {

@@ -5,7 +5,7 @@ public class RFCHelper
     public const long EncoderStream = 0x7FFF_FFFF_FFFF_FFFF;
     public const long DecoderStream = 0x7FFF_FFFF_FFFF_FFFE;
 
-    public static Dictionary<long, byte[]> GetRfcExampleBytes(string input)
+    public static async Task<Dictionary<long, byte[]>> GetRfcExampleStreams(string input)
     {
         using var reader = new StringReader(input);
         var streams = new Dictionary<long, MemoryStream>();
@@ -13,7 +13,7 @@ public class RFCHelper
 
         while (true)
         {
-            var line = reader.ReadLine();
+            var line = await reader.ReadLineAsync();
             if (line is null)
                 break;
 
@@ -41,7 +41,7 @@ public class RFCHelper
             if (string.IsNullOrWhiteSpace(left))
                 continue;
 
-            current?.Write(StringToByteArray(left));
+            await current!.WriteAsync(StringToByteArray(left));
         }
 
         return streams
