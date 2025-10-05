@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Arbiter.Models.Config;
+using Arbiter.Services.Configurators;
+using Microsoft.Extensions.Options;
+using Serilog;
 
 namespace Arbiter.Services;
 
@@ -27,13 +31,37 @@ internal class AcceptorSocket(Socket socket)
     }
 }
 
-internal class Acceptor
+internal class TcpAcceptor : IAcceptor
 {
     private const int Backlog = 128;
-
-    private readonly Dictionary<IPEndPoint, AcceptorSocket> _sockets = [];
     private readonly Dictionary<AcceptorSocket, Task<Socket>> _acceptTasks = [];
     private readonly SemaphoreSlim _interrupter = new(1, 1);
+
+    private readonly Dictionary<IPEndPoint, AcceptorSocket> _sockets = [];
+
+    public async Task<Socket> Accept()
+    {
+        while (true)
+        {
+            try
+            {
+                var completedTask = await Task.WhenAny(_acceptTasks.Select(kvp => kvp.Value));
+                var acceptKvp = _acceptTasks
+                    .FirstOrDefault(kvp => kvp.Value == completedTask);
+
+                if (acceptKvp.Key is null)
+                    continue;
+
+                _acceptTasks[acceptKvp.Key] = acceptKvp.Key.Accept();
+
+                return await completedTask;
+            }
+            catch (OperationCanceledException)
+            {
+                continue;
+            }
+        }
+    }
 
     public async Task Bind(IEnumerable<IPAddress> addresses, IEnumerable<int> ports)
     {
@@ -104,30 +132,6 @@ internal class Acceptor
         foreach (var prunedSocket in pruned)
         {
             prunedSocket.Value.Close();
-        }
-    }
-
-    public async Task<Socket> Accept()
-    {
-        while (true)
-        {
-            try
-            {
-                var completedTask = await Task.WhenAny(_acceptTasks.Select(kvp => kvp.Value));
-                var acceptKvp = _acceptTasks
-                    .FirstOrDefault(kvp => kvp.Value == completedTask);
-
-                if (acceptKvp.Key is null)
-                    continue;
-
-                _acceptTasks[acceptKvp.Key] = acceptKvp.Key.Accept();
-
-                return await completedTask;
-            }
-            catch (OperationCanceledException)
-            {
-                continue;
-            }
         }
     }
 }
