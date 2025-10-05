@@ -15,14 +15,16 @@ public static class QPackConsts
     public const int LiteralStaticFieldLineWithNameReferenceMask = 0b0101_0000;
     public const int HuffmanStringMask = 0b1000_0000;
 
-    public const int EncoderInstructionDynamicTableCapacityMask = 0b0010_0000;
-    public const int EncoderInstructionInsertWithNameReferenceMask = 0b1000_0000;
-    public const int EncoderInstructionInsertWithDynamicNameReferenceMask = 0b1000_0000;
-    public const int EncoderInstructionInsertWithStaticNameReferenceMask = 0b1100_0000;
-    public const int EncoderInstructionInsertWithLiteralNameMask = 0b0100_0000;
+    public const int EncoderInstructionDynamicTableCapacity = 0b0010_0000;
+    public const int EncoderInstructionInsertWithNameReference = 0b1000_0000;
+    public const int EncoderInstructionInsertWithDynamicNameReference = 0b1000_0000;
+    public const int EncoderInstructionInsertWithStaticNameReference = 0b1100_0000;
+    public const int EncoderInstructionInsertWithLiteralName = 0b0100_0000;
+    public const int EncoderInstructionDuplicate = 0b0000_0000;
 
-    public const int DecoderInstructionSectionAcknowledgementMask = 0b1000_0000;
-    public const int DecoderInstructionInsertCountIncrementMask = 0b0000_0000;
+    public const int DecoderInstructionSectionAcknowledgement = 0b1000_0000;
+    public const int DecoderInstructionStreamCancellation = 0b0100_0000;
+    public const int DecoderInstructionInsertCountIncrement = 0b0000_0000;
 
     public const int EntryAdditionalByteCount = 32;
 
@@ -130,4 +132,5 @@ public static class QPackConsts
     };
 
     public static bool Is(byte b, int mask) => (b & mask) == mask;
+    public static bool Is(int b, int mask) => (b & mask) == mask;
 }
