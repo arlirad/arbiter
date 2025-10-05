@@ -6,9 +6,9 @@ namespace Arlirad.QPack.Streams;
 
 public class QPackReader(Stream inner)
 {
-    public ulong ReadVarInt(int prefix) => ReadVarInt(prefix, out _);
+    public ulong ReadPrefixedInt(int prefix) => ReadPrefixedInt(prefix, out _);
 
-    public ulong ReadVarInt(int prefix, out byte firstByte)
+    public ulong ReadPrefixedInt(int prefix, out byte firstByte)
     {
         var shiftAmount = 8 - prefix;
         var firstByteInt = inner.ReadByte();
@@ -21,10 +21,10 @@ public class QPackReader(Stream inner)
 
         return firstByteInt < (1 << prefix) - 1
             ? (ulong)firstByteInt
-            : (ulong)firstByteInt + ReadVarIntVariablePart();
+            : (ulong)firstByteInt + ReadPrefixedIntVariablePart();
     }
 
-    public ulong ReadVarIntFromProvidedByte(int prefix, in int firstByte)
+    public ulong ReadPrefixedIntFromProvidedByte(int prefix, in int firstByte)
     {
         var shiftAmount = 8 - prefix;
         var firstByteInt = firstByte & (0xFF >> shiftAmount);
@@ -32,10 +32,10 @@ public class QPackReader(Stream inner)
         if (firstByteInt < (1 << prefix) - 1)
             return (ulong)firstByteInt;
 
-        return (ulong)firstByteInt + ReadVarIntVariablePart();
+        return (ulong)firstByteInt + ReadPrefixedIntVariablePart();
     }
 
-    public async ValueTask<(ulong Value, byte FirstByte)> ReadVarIntAsync(
+    public async ValueTask<(ulong Value, byte FirstByte)> ReadPrefixedIntAsync(
         int prefix,
         byte[] buffer,
         CancellationToken ct = default
@@ -53,10 +53,10 @@ public class QPackReader(Stream inner)
 
         return firstByteInt < (1 << prefix) - 1
             ? ((ulong)firstByteInt, firstByte)
-            : ((ulong)firstByteInt + await ReadVarIntVariablePartAsync(buffer, ct), firstByte);
+            : ((ulong)firstByteInt + await ReadPrefixedIntVariablePartAsync(buffer, ct), firstByte);
     }
 
-    public async ValueTask<ulong> ReadVarIntFromProvidedByteAsync(
+    public async ValueTask<ulong> ReadPrefixedIntFromProvidedByteAsync(
         int prefix,
         byte firstByte,
         byte[] buffer,
@@ -70,12 +70,12 @@ public class QPackReader(Stream inner)
 
         return firstByteInt < (1 << prefix) - 1
             ? (ulong)firstByteInt
-            : (ulong)firstByteInt + await ReadVarIntVariablePartAsync(buffer, ct);
+            : (ulong)firstByteInt + await ReadPrefixedIntVariablePartAsync(buffer, ct);
     }
 
     public string ReadString()
     {
-        var length = (int)ReadVarInt(7, out var firstByte);
+        var length = (int)ReadPrefixedInt(7, out var firstByte);
         var isHuffman = (firstByte & QPackConsts.HuffmanStringMask) == QPackConsts.HuffmanStringMask;
 
         if (length > inner.Length - inner.Position)
@@ -91,7 +91,7 @@ public class QPackReader(Stream inner)
 
     public async ValueTask<string> ReadStringAsync(byte[] varIntBuffer, CancellationToken ct)
     {
-        var (length, firstByte) = await ReadVarIntAsync(7, varIntBuffer, ct);
+        var (length, firstByte) = await ReadPrefixedIntAsync(7, varIntBuffer, ct);
         var isHuffman = (firstByte & QPackConsts.HuffmanStringMask) == QPackConsts.HuffmanStringMask;
         var buffer = new byte[length];
 
@@ -102,7 +102,7 @@ public class QPackReader(Stream inner)
             : buffer);
     }
 
-    private ulong ReadVarIntVariablePart()
+    private ulong ReadPrefixedIntVariablePart()
     {
         var result = 0ul;
         var nextShiftAmount = 0;
@@ -122,7 +122,7 @@ public class QPackReader(Stream inner)
         return result;
     }
 
-    private async ValueTask<ulong> ReadVarIntVariablePartAsync(byte[] buffer, CancellationToken ct)
+    private async ValueTask<ulong> ReadPrefixedIntVariablePartAsync(byte[] buffer, CancellationToken ct)
     {
         var memory = new Memory<byte>(buffer);
         var result = 0ul;

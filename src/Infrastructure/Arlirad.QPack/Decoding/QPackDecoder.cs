@@ -34,8 +34,8 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
         var stream = new MemoryStream(buffer);
         var reader = new QPackReader(stream);
 
-        var encodedInsertCount = (long)reader.ReadVarInt(8);
-        var deltaBase = (long)reader.ReadVarInt(7, out var deltaBaseSign);
+        var encodedInsertCount = (long)reader.ReadPrefixedInt(8);
+        var deltaBase = (long)reader.ReadPrefixedInt(7, out var deltaBaseSign);
         var baseSign = (deltaBaseSign & QPackConsts.DeltaBaseSignMask) == QPackConsts.DeltaBaseSignMask;
 
         if (encodedInsertCount != 0)
@@ -61,7 +61,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
 
     public async ValueTask AcknowledgeSection(long streamId, CancellationToken ct = default)
     {
-        await _decoderOutgoingWriter.WritePrefixedInt(streamId, 7,
+        await _decoderOutgoingWriter.WritePrefixedIntAsync(streamId, 7,
             QPackConsts.DecoderInstructionSectionAcknowledgementMask, ct);
     }
 
@@ -135,7 +135,8 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
             if ((buffer[0] & QPackConsts.EncoderInstructionDynamicTableCapacityMask)
                 == QPackConsts.EncoderInstructionDynamicTableCapacityMask)
             {
-                var capacity = await _encoderIncomingReader.ReadVarIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
+                var capacity =
+                    await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
 
                 DynamicTableCapacity = (int)capacity;
                 _maxTableCapacityTcs.SetResult();
@@ -143,7 +144,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
             else if ((buffer[0] & QPackConsts.EncoderInstructionInsertWithNameReferenceMask)
                 == QPackConsts.EncoderInstructionInsertWithNameReferenceMask)
             {
-                var index = await _encoderIncomingReader.ReadVarIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
+                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
                 var value = await _encoderIncomingReader.ReadStringAsync(buffer, ct);
 
                 var isDynamic = (buffer[0] & QPackConsts.EncoderInstructionInsertWithDynamicNameReferenceMask)

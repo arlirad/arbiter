@@ -4,7 +4,7 @@ public class QPackWriter(Stream inner)
 {
     private readonly byte[] _buffer = new byte[16];
 
-    public async ValueTask WritePrefixedInt(long value, int prefix, byte firstByte, CancellationToken ct)
+    public async ValueTask WritePrefixedIntAsync(long value, int prefix, byte firstByte, CancellationToken ct)
     {
         if (value < ((1 << prefix) - 1))
         {
