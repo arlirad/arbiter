@@ -102,6 +102,25 @@ public class QPackReader(Stream inner)
             : buffer);
     }
 
+    public async ValueTask<string> ReadStringAsync(
+        byte[] varIntBuffer,
+        int prefix,
+        byte firstByte,
+        int huffmanBit,
+        CancellationToken ct)
+    {
+        var mask = 1 << huffmanBit;
+        var length = await ReadPrefixedIntFromProvidedByteAsync(prefix, firstByte, varIntBuffer, ct);
+        var isHuffman = (firstByte & mask) == mask;
+        var buffer = new byte[length];
+
+        await inner.ReadExactlyAsync(buffer, 0, (int)length, ct);
+
+        return Encoding.UTF8.GetString(isHuffman
+            ? HPackHuffman.Decode(buffer)
+            : buffer);
+    }
+
     private ulong ReadPrefixedIntVariablePart()
     {
         var result = 0ul;

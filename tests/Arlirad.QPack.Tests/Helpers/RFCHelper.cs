@@ -5,7 +5,7 @@ public class RFCHelper
     public const long EncoderStream = 0x7FFF_FFFF_FFFF_FFFF;
     public const long DecoderStream = 0x7FFF_FFFF_FFFF_FFFE;
 
-    public static async Task<Dictionary<long, byte[]>> GetRfcExampleStreams(string input)
+    public static async Task<Dictionary<long, byte[]>> GetRfcExampleBuffers(string input)
     {
         using var reader = new StringReader(input);
         var streams = new Dictionary<long, MemoryStream>();
