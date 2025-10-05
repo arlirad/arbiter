@@ -5,6 +5,7 @@ using Arbiter.Middleware.Acme;
 using Arbiter.Middleware.Static;
 using Arbiter.Models.Config;
 using Arbiter.Services;
+using Arbiter.Services.Configurators;
 using Arbiter.Workers;
 using Arbiter.Workers.Acme;
 using Microsoft.Extensions.Configuration;
@@ -33,11 +34,12 @@ try
         .CreateDefaultBuilder(args)
         .ConfigureServices((_, services) =>
         {
-
+            services.AddSingleton<IConfigurator, SiteManagerConfigurator>();
+            services.AddSingleton<IConfigurator, TcpAcceptorConfigurator>();
+            services.AddSingleton<IAcceptor, TcpAcceptor>();
             services.AddSingleton<SessionFactory>();
             services.AddSingleton<SiteFactory>();
             services.AddSingleton<Server>();
-            services.AddSingleton<Acceptor>();
             services.AddSingleton<Handler>();
             services.AddSingleton<SiteManager>();
             services.AddSingleton<ConfigManager>();
