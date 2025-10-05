@@ -312,4 +312,58 @@ public class QPackRfcTests
             Assert.That(decoderInstructions.Length, Is.EqualTo(0));
         });
     }
+
+    public static async Task DynamicTableInsertEviction(
+        QueueStream encoderInstructions,
+        QueueStream decoderInstructions,
+        QPackDecoder decoder
+    )
+    {
+        const string example = """
+                               Stream: Encoder
+                               810d 6375 7374 6f6d | Insert With Name Reference
+                               2d76 616c 7565 32   |  Dynamic Table, Relative Index = 1
+                                                   |  Absolute Index =
+                                                   |   Insert Count(4) - Index(1) - 1 = 2
+                                                   |  (custom-key=custom-value2)
+
+                                                             Abs Ref Name        Value
+                                                              1   0  :path       /sample/path
+                                                              2   0  custom-key  custom-value
+                                                             ^-- acknowledged --^
+                                                              3   0  :authority  www.example.com
+                                                              4   0  custom-key  custom-value2
+                                                             Size=215
+                                                             
+                               Stream: Decoder
+                               01                  | Insert Count Increment (1) (not in the RFC)
+                               """;
+
+        var timeouter = new CancellationTokenSource();
+        timeouter.CancelAfter(TimeSpan.FromMilliseconds(1000));
+
+        var buffers = await RFCHelper.GetRfcExampleBuffers(example);
+
+        await encoderInstructions.WriteAsync(buffers[RFCHelper.EncoderStream].ToArray(), timeouter.Token);
+
+        var buffer = new byte[1];
+
+        await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(decoder.TotalInsertCount, Is.EqualTo(5));
+            Assert.That(decoder.DynamicTableSize, Is.EqualTo(215));
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
+            {
+                new(":path", "/sample/path"),
+                new("custom-key", "custom-value"),
+                new(":authority", "www.example.com"),
+                new("custom-key", "custom-value2"),
+            }));
+
+            Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
+            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
+        });
+    }
 }
