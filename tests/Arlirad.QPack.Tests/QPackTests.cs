@@ -78,5 +78,6 @@ public class QPackTests
         await QPackRfcTests.DynamicTable(encoderInstructions, decoderInstructions, decoder);
         await QPackRfcTests.SpeculativeInsert(encoderInstructions, decoderInstructions, decoder);
         await QPackRfcTests.DuplicateInstructionStreamCancellation(encoderInstructions, decoderInstructions, decoder);
+        await QPackRfcTests.DynamicTableInsertEviction(encoderInstructions, decoderInstructions, decoder);
     }
 }

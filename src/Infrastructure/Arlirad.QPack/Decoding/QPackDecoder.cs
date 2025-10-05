@@ -117,9 +117,9 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
         await task.WaitAsync(ct);
     }
 
-    private static int GetEntrySize(string name, string value)
+    private static int GetEntrySize(string name, string? value)
     {
-        return name.Length + value.Length + QPackConsts.EntryAdditionalByteCount;
+        return name.Length + (value?.Length ?? 0) + QPackConsts.EntryAdditionalByteCount;
     }
 
     private long? CalculateRequiredInsertCount(long encodedInsertCount, long dynamicTableCapacity)
@@ -164,18 +164,23 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
             if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionDynamicTableCapacity))
             {
                 var capacity =
-                    await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
+                    await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer, ct);
 
                 DynamicTableCapacity = (int)capacity;
                 _maxTableCapacityTcs.SetResult();
             }
             else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionInsertWithNameReference))
             {
-                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
+                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer,
+                    ct);
+
                 var value = await _encoderIncomingReader.ReadStringAsync(buffer, ct);
 
-                var isDynamic = (buffer[0] & QPackConsts.EncoderInstructionInsertWithDynamicNameReference)
-                    == QPackConsts.EncoderInstructionInsertWithDynamicNameReference;
+                var isDynamic = !QPackConsts.Is(instruction,
+                    QPackConsts.EncoderInstructionInsertWithStaticNameReference);
+
+                if (isDynamic)
+                    index = FromRelative(index);
 
                 var referredField = GetField((long)index, isDynamic);
 
@@ -197,7 +202,9 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
             }
             else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionDuplicate))
             {
-                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, buffer[0], buffer, ct);
+                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer,
+                    ct);
+
                 index = FromRelative(index);
 
                 var referredField = GetField((long)index, true);
@@ -227,6 +234,20 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
     private void Insert(string name, string value)
     {
         var entrySize = GetEntrySize(name, value);
+
+        if (entrySize > DynamicTableCapacity)
+            // TODO: QPACK_ENCODER_STREAM_ERROR
+            throw new NotImplementedException();
+
+        while (DynamicTableSize + entrySize > DynamicTableCapacity)
+        {
+            var first = _dynamicTable.First();
+
+            _dynamicTable.Remove(first);
+            _totalEvictionCount++;
+
+            DynamicTableSize -= GetEntrySize(first.Name, first.Value);
+        }
 
         _dynamicTable.Add(new QPackField(name, value));
 
