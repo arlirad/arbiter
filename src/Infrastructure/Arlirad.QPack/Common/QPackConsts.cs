@@ -8,11 +8,19 @@ public static class QPackConsts
     public const int IndexedFieldLineMask = 0b1000_0000;
     public const int IndexedDynamicFieldLineMask = 0b1000_0000;
     public const int IndexedStaticFieldLineMask = 0b1100_0000;
+    public const int IndexedPostBaseFieldLineMask = 0b0001_0000;
     public const int LiteralFieldLineWithNameReferenceMask = 0b0100_0000;
     public const int LiteralIntermediaryFieldLineWithNameReferenceMask = 0b0110_0000;
     public const int LiteralDynamicFieldLineWithNameReferenceMask = 0b0100_0000;
     public const int LiteralStaticFieldLineWithNameReferenceMask = 0b0101_0000;
     public const int HuffmanStringMask = 0b1000_0000;
+    public const int EncoderInstructionDynamicTableCapacityMask = 0b0010_0000;
+    public const int EncoderInstructionInsertWithNameReferenceMask = 0b1000_0000;
+    public const int EncoderInstructionInsertWithDynamicNameReferenceMask = 0b1000_0000;
+    public const int EncoderInstructionInsertWithStaticNameReferenceMask = 0b1100_0000;
+    public const int DecoderInstructionSectionAcknowledgementMask = 0b1000_0000;
+
+    public const int EntryAdditionalByteCount = 32;
 
     public static readonly Dictionary<int, QPackField> StaticTable = new()
     {
