@@ -22,22 +22,19 @@ internal class SiteManager(
         ).Value;
     }
 
-    public async Task Update(ServerConfigModel serverConfig)
+    public async Task Update(Dictionary<string, SiteConfigModel> sites)
     {
-        if (serverConfig.Sites is null)
-            return;
-
-        await CreateSites(serverConfig);
+        await CreateSites(sites);
         // await RecreateSites(config);
-        await PruneSites(serverConfig);
+        await PruneSites(sites);
     }
 
-    private async Task CreateSites(ServerConfigModel serverConfig)
+    private async Task CreateSites(Dictionary<string, SiteConfigModel> sites)
     {
-        if (serverConfig.Sites is null)
+        if (sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
 
-        var sitesToCreate = serverConfig.Sites
+        var sitesToCreate = sites
             .Where(s => !_sites.ContainsKey(s.Key))
             .ToList();
 
@@ -56,21 +53,21 @@ internal class SiteManager(
         }
     }
 
-    private async Task RecreateSites(ServerConfigModel serverConfig)
+    private async Task RecreateSites(Dictionary<string, SiteConfigModel> sites)
     {
-        if (serverConfig.Sites is null)
+        if (sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
 
         throw new NotImplementedException();
     }
 
-    private async Task PruneSites(ServerConfigModel serverConfig)
+    private async Task PruneSites(Dictionary<string, SiteConfigModel> sites)
     {
-        if (serverConfig.Sites is null)
+        if (sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
 
         var sitesToPrune = _sites
-            .Where(site => !serverConfig.Sites.ContainsKey(site.Key))
+            .Where(site => !sites.ContainsKey(site.Key))
             .Select(kvp => kvp.Key)
             .ToList();
 

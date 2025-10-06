@@ -7,6 +7,7 @@ using Arbiter.Factories;
 using Arbiter.Infrastructure.Network;
 using Arbiter.Models.Config;
 using Arbiter.Services;
+using Arbiter.Transport.Abstractions;
 using Microsoft.Extensions.Options;
 using Serilog;
 
