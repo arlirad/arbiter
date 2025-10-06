@@ -4,43 +4,77 @@ using Arlirad.QPack.Streams;
 
 namespace Arlirad.QPack.Decoding;
 
-public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
+public class QPackDecoder
 {
     private static readonly TimeSpan InsertIncrementCountWaitTime = TimeSpan.FromMilliseconds(100);
-
-    private readonly QPackWriter _decoderOutgoingWriter = new(decoderOutgoing);
+    private readonly Task _decoderOutgoingTask;
+    private readonly TaskCompletionSource _decoderOutgoingTcs = new();
 
     private readonly List<QPackField> _dynamicTable = [];
-    private readonly QPackReader _encoderIncomingReader = new(encoderIncoming);
+    private readonly TaskCompletionSource _maxTableCapacityTcs = new();
     private readonly List<(long Required, TaskCompletionSource Tcs)> _waiters = [];
-    private readonly object _waitersLock = new();
-    private long _ackedInsertCount = 0;
+    private readonly Lock _waitersLock = new();
+
+    private long _ackedInsertCount;
     private CancellationTokenSource? _cts;
+    private Stream? _decoderOutgoing;
+    private QPackWriter? _decoderOutgoingWriter;
+
+    private Stream? _encoderIncoming;
+    private QPackReader? _encoderIncomingReader;
     private Task? _encoderReadTask;
     private Task? _insertIncrementCountSendTask;
+    private bool _started;
 
-    private TaskCompletionSource _maxTableCapacityTcs = new();
+    private long _totalEvictionCount;
+    private long _totalInsertCount;
 
-    private long _totalEvictionCount = 0;
-    private long _totalInsertCount = 0;
+    public QPackDecoder()
+    {
+        _decoderOutgoingTask = _decoderOutgoingTcs.Task;
+    }
 
     public long DynamicTableCapacity { get; private set; }
     public long DynamicTableSize { get; private set; }
     public long TotalInsertCount { get => _totalInsertCount; }
 
-    public async ValueTask Start()
+    public ValueTask Start()
     {
         _cts = new CancellationTokenSource();
-        _encoderReadTask = EncoderInstructionsRead();
         _dynamicTable.Clear();
+
+        _started = true;
+
+        return ValueTask.CompletedTask;
+    }
+
+    public void SetIncomingStream(Stream stream)
+    {
+        if (!_started)
+            throw new Exception("Attempt to set incoming stream before starting the decoder");
+
+        _encoderIncoming = stream;
+        _encoderIncomingReader = new QPackReader(_encoderIncoming);
+        _encoderReadTask = EncoderInstructionsRead();
+    }
+
+    public void SetOutgoingStream(Stream stream)
+    {
+        if (!_started)
+            throw new Exception("Attempt to set incoming stream before starting the decoder");
+
+        _decoderOutgoing = stream;
+        _decoderOutgoingWriter = new QPackWriter(_decoderOutgoing);
+        _decoderOutgoingTcs.SetResult();
     }
 
     public async Task<QPackFieldSectionReader> GetSectionReader(
         long streamId,
         byte[] buffer,
+        int length,
         CancellationToken ct = default)
     {
-        var stream = new MemoryStream(buffer);
+        var stream = new MemoryStream(buffer, 0, length);
         var reader = new QPackReader(stream);
 
         var encodedInsertCount = (long)reader.ReadPrefixedInt(8);
@@ -65,7 +99,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
         }
         catch (OperationCanceledException)
         {
-            await CancelStream(streamId);
+            await CancelStream(streamId, ct);
         }
 
         var @base = !baseSign
@@ -77,7 +111,8 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
 
     public async ValueTask AcknowledgeSection(QPackFieldSectionReader section, CancellationToken ct = default)
     {
-        await _decoderOutgoingWriter.WritePrefixedIntAsync(section.StreamId, 7,
+        await _decoderOutgoingTask.WaitAsync(ct);
+        await _decoderOutgoingWriter!.WritePrefixedIntAsync(section.StreamId, 7,
             QPackConsts.DecoderInstructionSectionAcknowledgement, ct);
 
         lock (_waitersLock)
@@ -157,26 +192,28 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
 
         while (!_cts.IsCancellationRequested)
         {
-            await encoderIncoming.ReadExactlyAsync(buffer, ct);
+            await _encoderIncoming!.ReadExactlyAsync(buffer, ct);
 
             var instruction = buffer[0];
 
-            if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionDynamicTableCapacity))
+            if (QPackConsts.Is(instruction, 0b1110_0000, QPackConsts.EncoderInstructionDynamicTableCapacity))
             {
                 var capacity =
-                    await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer, ct);
+                    await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer, ct);
 
                 DynamicTableCapacity = (int)capacity;
                 _maxTableCapacityTcs.SetResult();
             }
-            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionInsertWithNameReference))
+            else if (QPackConsts.Is(instruction, 0b1000_0000,
+                QPackConsts.EncoderInstructionInsertWithNameReference))
             {
-                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer,
+                var index = await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(6, instruction,
+                    buffer,
                     ct);
 
-                var value = await _encoderIncomingReader.ReadStringAsync(buffer, ct);
+                var value = await _encoderIncomingReader!.ReadStringAsync(buffer, ct);
 
-                var isDynamic = !QPackConsts.Is(instruction,
+                var isDynamic = !QPackConsts.Is(instruction, 0b1100_0000,
                     QPackConsts.EncoderInstructionInsertWithStaticNameReference);
 
                 if (isDynamic)
@@ -191,18 +228,19 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
                     throw new NotImplementedException();
                 }
 
-                Insert(referredField.Name, value);
+                Insert(referredField.Name, value, ct);
             }
-            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionInsertWithLiteralName))
+            else if (QPackConsts.Is(instruction, 0b1100_0000, QPackConsts.EncoderInstructionInsertWithLiteralName))
             {
-                var name = await _encoderIncomingReader.ReadStringAsync(buffer, 5, instruction, 5, ct);
-                var value = await _encoderIncomingReader.ReadStringAsync(buffer, ct);
+                var name = await _encoderIncomingReader!.ReadStringAsync(buffer, 5, instruction, 5, ct);
+                var value = await _encoderIncomingReader!.ReadStringAsync(buffer, ct);
 
-                Insert(name, value);
+                Insert(name, value, ct);
             }
-            else if (QPackConsts.Is(instruction, QPackConsts.EncoderInstructionDuplicate))
+            else if (QPackConsts.Is(instruction, 0b1110_0000, QPackConsts.EncoderInstructionDuplicate))
             {
-                var index = await _encoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer,
+                var index = await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(5, instruction,
+                    buffer,
                     ct);
 
                 index = FromRelative(index);
@@ -216,7 +254,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
                     throw new NotImplementedException();
                 }
 
-                Insert(referredField.Name, referredField.Value);
+                Insert(referredField.Name, referredField.Value, ct);
             }
             else
             {
@@ -231,7 +269,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
         return (ulong)(_totalInsertCount - (long)index - 1);
     }
 
-    private void Insert(string name, string value)
+    private void Insert(string name, string value, CancellationToken ct)
     {
         var entrySize = GetEntrySize(name, value);
 
@@ -263,7 +301,7 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
                 _waiters.RemoveAt(i);
             }
 
-            _insertIncrementCountSendTask ??= WaitToSendInsertIncrementCount();
+            _insertIncrementCountSendTask ??= WaitToSendInsertIncrementCount(ct);
         }
 
         foreach (var taskCompletionSource in toRelease)
@@ -274,29 +312,40 @@ public class QPackDecoder(Stream encoderIncoming, Stream decoderOutgoing)
         DynamicTableSize += entrySize;
     }
 
-    private async Task WaitToSendInsertIncrementCount()
+    private async Task WaitToSendInsertIncrementCount(CancellationToken ct)
     {
-        await Task.Delay(InsertIncrementCountWaitTime);
-
-        long increment;
-
-        lock (_waitersLock)
+        try
         {
-            if (_ackedInsertCount == _totalInsertCount)
-                return;
+            await Task.Delay(InsertIncrementCountWaitTime, ct);
 
-            increment = _totalInsertCount - _ackedInsertCount;
-            _ackedInsertCount = _totalInsertCount;
-            _insertIncrementCountSendTask = null;
+            long increment;
+
+            lock (_waitersLock)
+            {
+                if (_ackedInsertCount == _totalInsertCount)
+                    return;
+
+                increment = _totalInsertCount - _ackedInsertCount;
+                _ackedInsertCount = _totalInsertCount;
+                _insertIncrementCountSendTask = null;
+            }
+
+            await _decoderOutgoingTask.WaitAsync(ct);
+            await _decoderOutgoingWriter!.WritePrefixedIntAsync(increment, 6,
+                QPackConsts.DecoderInstructionInsertCountIncrement, CancellationToken.None);
+
+            await _decoderOutgoing!.FlushAsync(ct);
         }
-
-        await _decoderOutgoingWriter.WritePrefixedIntAsync(increment, 6,
-            QPackConsts.DecoderInstructionInsertCountIncrement, CancellationToken.None);
+        catch (OperationCanceledException)
+        {
+            // ignored
+        }
     }
 
-    private async Task CancelStream(long streamId)
+    private async Task CancelStream(long streamId, CancellationToken ct)
     {
-        await _decoderOutgoingWriter.WritePrefixedIntAsync(streamId, 6,
+        await _decoderOutgoingTask.WaitAsync(ct);
+        await _decoderOutgoingWriter!.WritePrefixedIntAsync(streamId, 6,
             QPackConsts.DecoderInstructionStreamCancellation, CancellationToken.None);
     }
 }
