@@ -1,4 +1,3 @@
-using System.Text;
 using Arlirad.QPack.Huffman;
 
 namespace Arlirad.QPack.Tests;
@@ -19,7 +18,7 @@ public class HPackHuffmanTests
             0xe0, 0x84, 0xa6, 0x2d, 0x1b, 0xff,
         };
 
-        var decoded = Encoding.UTF8.GetString(HPackHuffman.Decode(data));
+        var decoded = System.Text.Encoding.UTF8.GetString(HPackHuffman.Decode(data));
         Assert.That(decoded, Is.EqualTo("Mon, 21 Oct 2013 20:13:22 GMT"));
 
         var data2 = new byte[]

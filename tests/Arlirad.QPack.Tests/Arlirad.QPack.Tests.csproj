@@ -22,7 +22,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Arbiter\Arbiter.csproj"/>
-        <ProjectReference Include="..\..\src\Infrastructure\Arlirad.QPack\Arlirad.QPack.csproj"/>
+        <ProjectReference Include="..\..\src\Arlirad.QPack\Arlirad.QPack.csproj"/>
     </ItemGroup>
 
 </Project>
