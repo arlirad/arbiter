@@ -37,7 +37,8 @@ public class QPackRfcTests
         var buffers = await RFCHelper.GetRfcExampleBuffers(example);
         var buffer0Headers = new HttpHeaders();
 
-        await using (var buffer0Section = await decoder.GetSectionReader(streamId: 0, buffers[0], timeouter.Token))
+        await using (var buffer0Section = await decoder.GetSectionReader(streamId: 0, buffers[0], buffers[0].Length,
+            timeouter.Token))
         {
             foreach (var field in buffer0Section)
             {
@@ -48,13 +49,8 @@ public class QPackRfcTests
         Assert.Multiple(() =>
         {
             Assert.That(buffer0Headers[":path"], Is.EqualTo("/index.html"));
-            Assert.That(decoderInstructions.Length, Is.EqualTo(1));
+            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
         });
-
-        var buffer = new byte[1];
-        var read = await decoderInstructions.ReadAsync(buffer, timeouter.Token);
-
-        Assert.That(read, Is.EqualTo(1));
     }
 
     /// <summary>
@@ -116,7 +112,8 @@ public class QPackRfcTests
 
         var headers = new HttpHeaders();
 
-        await using (var stream4Section = await decoder.GetSectionReader(streamId: 4, buffers[4]))
+        await using (var stream4Section = await decoder.GetSectionReader(streamId: 4, buffers[4],
+            length: buffers[4].Length))
         {
             Assert.That(stream4Section.Base, Is.EqualTo(0));
 
@@ -274,7 +271,7 @@ public class QPackRfcTests
 
         cts.CancelAfter(TimeSpan.FromMilliseconds(250));
 
-        var readerTask = decoder.GetSectionReader(8, buffers[8], cts.Token);
+        var readerTask = decoder.GetSectionReader(8, buffers[8], buffers[8].Length, cts.Token);
 
         while (!cts.IsCancellationRequested)
         {

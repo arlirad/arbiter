@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Arlirad.QPack.Common;
+﻿using Arlirad.QPack.Common;
 using Arlirad.QPack.Huffman;
 
 namespace Arlirad.QPack.Streams;
@@ -24,7 +23,7 @@ public class QPackReader(Stream inner)
             : (ulong)firstByteInt + ReadPrefixedIntVariablePart();
     }
 
-    public ulong ReadPrefixedIntFromProvidedByte(int prefix, in int firstByte)
+    public ulong ReadPrefixedIntFromProvidedByte(int prefix, int firstByte)
     {
         var shiftAmount = 8 - prefix;
         var firstByteInt = firstByte & (0xFF >> shiftAmount);
@@ -75,16 +74,21 @@ public class QPackReader(Stream inner)
 
     public string ReadString()
     {
-        var length = (int)ReadPrefixedInt(7, out var firstByte);
-        var isHuffman = (firstByte & QPackConsts.HuffmanStringMask) == QPackConsts.HuffmanStringMask;
+        var firstByte = inner.ReadByte();
 
-        if (length > inner.Length - inner.Position)
-            throw new EndOfStreamException();
+        return ReadString(7, (byte)firstByte, 7);
+    }
 
+    public string ReadString(int prefix, int firstByte, int huffmanBit)
+    {
+        var mask = 1 << huffmanBit;
+        var length = ReadPrefixedIntFromProvidedByte(prefix, firstByte);
+        var isHuffman = (firstByte & mask) == mask;
         var buffer = new byte[length];
-        inner.ReadExactly(buffer, 0, length);
 
-        return Encoding.UTF8.GetString(isHuffman
+        inner.ReadExactly(buffer, 0, (int)length);
+
+        return System.Text.Encoding.UTF8.GetString(isHuffman
             ? HPackHuffman.Decode(buffer)
             : buffer);
     }
@@ -97,7 +101,7 @@ public class QPackReader(Stream inner)
 
         await inner.ReadExactlyAsync(buffer, 0, (int)length, ct);
 
-        return Encoding.UTF8.GetString(isHuffman
+        return System.Text.Encoding.UTF8.GetString(isHuffman
             ? HPackHuffman.Decode(buffer)
             : buffer);
     }
@@ -116,7 +120,7 @@ public class QPackReader(Stream inner)
 
         await inner.ReadExactlyAsync(buffer, 0, (int)length, ct);
 
-        return Encoding.UTF8.GetString(isHuffman
+        return System.Text.Encoding.UTF8.GetString(isHuffman
             ? HPackHuffman.Decode(buffer)
             : buffer);
     }

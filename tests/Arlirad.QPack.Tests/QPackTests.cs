@@ -70,9 +70,12 @@ public class QPackTests
     {
         var encoderInstructions = new QueueStream();
         var decoderInstructions = new QueueStream();
-        var decoder = new QPackDecoder(encoderInstructions, decoderInstructions);
+        var decoder = new QPackDecoder();
 
         await decoder.Start();
+
+        decoder.SetIncomingStream(encoderInstructions);
+        decoder.SetOutgoingStream(decoderInstructions);
 
         await QPackRfcTests.LiteralFieldLineWithNameReference(encoderInstructions, decoderInstructions, decoder);
         await QPackRfcTests.DynamicTable(encoderInstructions, decoderInstructions, decoder);

@@ -7,12 +7,14 @@ public static class QPackConsts
     public const int DeltaBaseSignMask = 0b1000_0000;
     public const int IndexedFieldLineMask = 0b1000_0000;
     public const int IndexedDynamicFieldLineMask = 0b1000_0000;
-    public const int IndexedStaticFieldLineMask = 0b1100_0000;
-    public const int IndexedPostBaseFieldLineMask = 0b0001_0000;
-    public const int LiteralFieldLineWithNameReferenceMask = 0b0100_0000;
-    public const int LiteralIntermediaryFieldLineWithNameReferenceMask = 0b0110_0000;
-    public const int LiteralDynamicFieldLineWithNameReferenceMask = 0b0100_0000;
-    public const int LiteralStaticFieldLineWithNameReferenceMask = 0b0101_0000;
+    public const int IndexedStaticFieldLine = 0b1100_0000;
+    public const int IndexedFieldLinePostBaseIndex = 0b0001_0000;
+    public const int LiteralFieldLineWithNameReference = 0b0100_0000;
+    public const int LiteralIntermediaryFieldLineWithNameReference = 0b0110_0000;
+    public const int LiteralDynamicFieldLineWithNameReference = 0b0100_0000;
+    public const int LiteralStaticFieldLineWithNameReference = 0b0101_0000;
+    public const int LiteralFieldLineWithPostBaseNameReference = 0b0000_0000;
+    public const int LiteralFieldLineWithLiteralName = 0b0010_0000;
     public const int HuffmanStringMask = 0b1000_0000;
 
     public const int EncoderInstructionDynamicTableCapacity = 0b0010_0000;
@@ -131,6 +133,6 @@ public static class QPackConsts
         [98] = new QPackField("x-frame-options", "sameorigin"),
     };
 
-    public static bool Is(byte b, int mask) => (b & mask) == mask;
-    public static bool Is(int b, int mask) => (b & mask) == mask;
+    public static bool Is(byte b, int mask, int instruction) => (b & mask) == instruction;
+    public static bool Is(int b, int mask, int instruction) => (b & mask) == instruction;
 }
