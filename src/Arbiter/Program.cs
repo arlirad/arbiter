@@ -6,6 +6,8 @@ using Arbiter.Middleware.Static;
 using Arbiter.Models.Config;
 using Arbiter.Services;
 using Arbiter.Services.Configurators;
+using Arbiter.Transport.Abstractions;
+using Arbiter.Transport.Tcp;
 using Arbiter.Workers;
 using Arbiter.Workers.Acme;
 using Microsoft.Extensions.Configuration;
@@ -44,8 +46,7 @@ try
             services.AddSingleton<SiteManager>();
             services.AddSingleton<ConfigManager>();
             services.AddSingleton<CertificateManager>();
-            services.Configure<ServerConfigModel>(configuration);
-            services.AddSingleton<IOptionsMonitor<ServerConfigModel>, OptionsMonitor<ServerConfigModel>>();
+            services.AddSingleton<IConfiguration>(configuration);
 
             services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
             services.AddKeyedScoped<IMiddleware, AcmeMiddleware>("acme");

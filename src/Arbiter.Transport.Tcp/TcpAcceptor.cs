@@ -1,43 +1,17 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Threading.Tasks;
-using Arbiter.Models.Config;
-using Arbiter.Services.Configurators;
-using Microsoft.Extensions.Options;
-using Serilog;
+using Arbiter.Services;
+using Arbiter.Transport.Abstractions;
 
-namespace Arbiter.Services;
+namespace Arbiter.Transport.Tcp;
 
-internal class AcceptorSocket(Socket socket)
-{
-    private CancellationTokenSource _cts = new();
-
-    public async Task<Socket> Accept()
-    {
-        return await socket.AcceptAsync(_cts.Token);
-    }
-
-    public async Task Stop()
-    {
-        var oldCts = _cts;
-        _cts = new CancellationTokenSource();
-        await oldCts.CancelAsync();
-    }
-
-    public void Close()
-    {
-        socket.Close();
-        socket.Dispose();
-    }
-}
-
-internal class TcpAcceptor : IAcceptor
+public class TcpAcceptor : IAcceptor
 {
     private const int Backlog = 128;
-    private readonly Dictionary<AcceptorSocket, Task<Socket>> _acceptTasks = [];
+    private readonly Dictionary<TcpAcceptorSocket, Task<Socket>> _acceptTasks = [];
     private readonly SemaphoreSlim _interrupter = new(1, 1);
 
-    private readonly Dictionary<IPEndPoint, AcceptorSocket> _sockets = [];
+    private readonly Dictionary<IPEndPoint, TcpAcceptorSocket> _sockets = [];
 
     public async Task<Socket> Accept()
     {
@@ -99,7 +73,7 @@ internal class TcpAcceptor : IAcceptor
             socket.Bind(endPoint);
             socket.Listen(Backlog);
 
-            var acceptorSocket = new AcceptorSocket(socket);
+            var acceptorSocket = new TcpAcceptorSocket(socket);
 
             _sockets[endPoint] = acceptorSocket;
             _acceptTasks[acceptorSocket] = acceptorSocket.Accept();
@@ -111,7 +85,7 @@ internal class TcpAcceptor : IAcceptor
     private async Task PruneSockets(IEnumerable<IPEndPoint> endPoints)
     {
         var cancellationTasks = new List<Task>();
-        var pruned = new Dictionary<IPEndPoint, AcceptorSocket>();
+        var pruned = new Dictionary<IPEndPoint, TcpAcceptorSocket>();
 
         foreach (var socket in _sockets
             .Where(s => !endPoints.Any(e => e.Equals(s.Key))))

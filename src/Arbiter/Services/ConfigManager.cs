@@ -2,6 +2,7 @@ using Arbiter.Models.Config;
 using Arbiter.Services.Configurators;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 
 namespace Arbiter.Services;
 
@@ -9,23 +10,26 @@ internal class ConfigManager
 {
     private readonly List<Func<ServerConfigModel, Task>> _callbacks = [];
 
-    private readonly IOptionsMonitor<ServerConfigModel> _configMonitor;
+    private readonly IConfiguration _configuration;
     private readonly IEnumerable<IConfigurator> _configurators;
     private readonly SemaphoreSlim _sem = new(1);
 
-    public ConfigManager(IOptionsMonitor<ServerConfigModel> configMonitor, IEnumerable<IConfigurator> configurators)
+    public ConfigManager(IConfiguration configuration, IEnumerable<IConfigurator> configurators)
     {
-        _configMonitor = configMonitor;
+        _configuration = configuration;
         _configurators = configurators;
 
-        _configMonitor.OnChange(ReloadConfig);
+        ChangeToken.OnChange(configuration.GetReloadToken, () => Task.Run(async () => await Configure(configuration)));
     }
 
     public string DataPath { get; } = "./data/";
 
     public IConfigurationSection? GetDefaultMiddlewareConfig(string name)
     {
-        return _configMonitor.CurrentValue.Default?.Middleware?.GetValueOrDefault(name)?.Config;
+        return _configuration
+            .GetSection("Default")?
+            .Get<DefaultConfigModel>()?.Middleware?
+            .GetValueOrDefault(name)?.Config;
     }
 
     public async Task CreateDirectories()
@@ -35,10 +39,10 @@ internal class ConfigManager
 
     public async Task InitialConfigure()
     {
-        await Configure(_configMonitor.CurrentValue);
+        await Configure(_configuration);
     }
 
-    private async Task Configure(ServerConfigModel config)
+    private async Task Configure(IConfiguration config)
     {
         await _sem.WaitAsync();
 
@@ -50,10 +54,5 @@ internal class ConfigManager
         {
             _sem.Release();
         }
-    }
-
-    private void ReloadConfig(ServerConfigModel config, string? ignored)
-    {
-        _ = Configure(config);
     }
 }
