@@ -7,12 +7,7 @@ namespace Arbiter.Services;
 internal class CertificateManager
 {
     private readonly ConcurrentDictionary<string, X509Certificate2> _certificates = [];
-    private readonly X509Certificate2 _fallbackCertificate;
-
-    public CertificateManager(ConfigManager configManager)
-    {
-        _fallbackCertificate = CreateFallback();
-    }
+    private readonly X509Certificate2 _fallbackCertificate = CreateFallback();
 
     public void Set(string hostName, X509Certificate2 certificate)
     {
