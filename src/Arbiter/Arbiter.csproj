@@ -17,16 +17,11 @@
       <PackageReference Include="Webprofusion.Certify.ACME.Anvil" Version="3.3.3"/>
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Exceptions\" />
-      <Folder Include="Infrastructure\Logging\"/>
-      <Folder Include="Models\Config\Sites\"/>
-  </ItemGroup>
-
     <ItemGroup>
+        <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
+        <ProjectReference Include="..\Arbiter.Domain\Arbiter.Domain.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
         <ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>
-        <ProjectReference Include="..\Arbiter.Transport.Abstractions\Arbiter.Transport.Abstractions.csproj"/>
-        <ProjectReference Include="..\Temporary\Temporary.csproj"/>
   </ItemGroup>
 
 </Project>

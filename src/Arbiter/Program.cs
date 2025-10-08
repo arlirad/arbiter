@@ -1,19 +1,10 @@
-﻿using Arbiter;
-using Arbiter.Factories;
-using Arbiter.Middleware;
-using Arbiter.Middleware.Acme;
-using Arbiter.Middleware.Static;
-using Arbiter.Models.Config;
-using Arbiter.Services;
-using Arbiter.Services.Configurators;
-using Arbiter.Transport.Abstractions;
+﻿using Arbiter.Application;
+using Arbiter.Application.Interfaces;
+using Arbiter.Infrastructure;
 using Arbiter.Transport.Tcp;
-using Arbiter.Workers;
-using Arbiter.Workers.Acme;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -36,35 +27,16 @@ try
         .CreateDefaultBuilder(args)
         .ConfigureServices((_, services) =>
         {
-            services.AddSingleton<IConfigurator, SiteManagerConfigurator>();
-            services.AddSingleton<IConfigurator, TcpAcceptorConfigurator>();
-            services.AddSingleton<IAcceptor, TcpAcceptor>();
-            services.AddSingleton<SessionFactory>();
-            services.AddSingleton<SiteFactory>();
-            services.AddSingleton<Server>();
-            services.AddSingleton<Handler>();
-            services.AddSingleton<SiteManager>();
-            services.AddSingleton<ConfigManager>();
-            services.AddSingleton<CertificateManager>();
             services.AddSingleton<IConfiguration>(configuration);
 
-            services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
-            services.AddKeyedScoped<IMiddleware, AcmeMiddleware>("acme");
-            services.AddKeyedScoped<IWorker, AcmeWorker>("acme");
-            services.AddScoped<MiddlewareChainDelegateFactory>();
-            services.AddScoped<MiddlewareFactory>();
-            services.AddScoped<WorkerFactory>();
-
-            services.AddTransient<HandleDelegate>(sp =>
-            {
-                var factory = sp.GetRequiredService<MiddlewareChainDelegateFactory>();
-                return factory.GetNext();
-            });
+            services.AddTcpTransport();
+            services.AddInfrastructure();
+            services.AddApplication();
         })
         .Build();
 
-    var server = host.Services.GetRequiredService<Server>();
-    await server.Run();
+    var server = host.Services.GetRequiredService<IServer>();
+    await server.Run(CancellationToken.None);
 }
 catch (Exception ex)
 {

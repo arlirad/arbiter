@@ -1,39 +1,27 @@
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
-using Arbiter.Services;
-using Arbiter.Transport.Abstractions;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Channels;
+using Arbiter.Application.Interfaces;
 
 namespace Arbiter.Transport.Tcp;
 
-public class TcpAcceptor : IAcceptor
+public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
 {
     private const int Backlog = 128;
-    private readonly Dictionary<TcpAcceptorSocket, Task<Socket>> _acceptTasks = [];
-    private readonly SemaphoreSlim _interrupter = new(1, 1);
 
     private readonly Dictionary<IPEndPoint, TcpAcceptorSocket> _sockets = [];
 
-    public async Task<Socket> Accept()
+    private readonly Channel<TcpTransaction> _transactions =
+        Channel.CreateBounded<TcpTransaction>(new BoundedChannelOptions(4096));
+
+    public async Task<ITransaction> Accept(CancellationToken ct)
     {
         while (true)
         {
-            try
-            {
-                var completedTask = await Task.WhenAny(_acceptTasks.Select(kvp => kvp.Value));
-                var acceptKvp = _acceptTasks
-                    .FirstOrDefault(kvp => kvp.Value == completedTask);
-
-                if (acceptKvp.Key is null)
-                    continue;
-
-                _acceptTasks[acceptKvp.Key] = acceptKvp.Key.Accept();
-
-                return await completedTask;
-            }
-            catch (OperationCanceledException)
-            {
-                continue;
-            }
+            return await _transactions.Reader.ReadAsync(ct);
         }
     }
 
@@ -51,14 +39,87 @@ public class TcpAcceptor : IAcceptor
 
         await CreateSocket(endPoints);
         await PruneSockets(endPoints);
-        await RestartAccepts();
     }
 
-    private async Task RestartAccepts()
+    private async Task AcceptLoop(Socket socket, CancellationToken ct)
     {
-        var tasks = _sockets.Select(socket => socket.Value.Stop()).ToList();
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var connection = await socket.AcceptAsync(ct);
+                _ = ConnectionLoop(connection, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // ignored
+        }
+    }
 
-        await Task.WhenAll(tasks);
+    private async Task ConnectionLoop(Socket socket, CancellationToken ct)
+    {
+        try
+        {
+            Stream stream = new NetworkStream(socket);
+
+            var secure = await CheckForSsl(socket);
+            var port = (socket.LocalEndPoint as IPEndPoint)?.Port ?? 0;
+
+            if (secure)
+                stream = await WrapInSsl(stream);
+
+            while (true)
+            {
+                var transaction = new TcpTransaction(stream, secure, port);
+
+                await _transactions.Writer.WriteAsync(transaction, ct);
+                await transaction.ResponseSet.WaitAsync(ct);
+                await transaction.Finalize();
+
+                if (transaction is { Finished: false, Faulted: false })
+                    continue;
+
+                socket.Dispose();
+                break;
+            }
+        }
+        catch (Exception _)
+        {
+            socket.Dispose();
+        }
+    }
+
+    private static async Task<bool> CheckForSsl(Socket socket)
+    {
+        var buffer = new byte[1];
+        var length = await socket.ReceiveAsync(buffer, SocketFlags.Peek);
+
+        if (length == 0)
+            return false;
+
+        return buffer[0] == 22;
+    }
+
+    private async Task<Stream> WrapInSsl(Stream stream)
+    {
+        var ssl = new SslStream(stream, false);
+
+        await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+        {
+            ServerCertificateSelectionCallback = CertificateSelectionCallback,
+            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+        });
+
+        return ssl;
+    }
+
+    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName)
+    {
+        if (hostName is null)
+            return certificateManager.GetFallback();
+
+        return certificateManager.Get(hostName) ?? certificateManager.GetFallback();
     }
 
     private Task CreateSocket(List<IPEndPoint> endPoints)
@@ -76,7 +137,7 @@ public class TcpAcceptor : IAcceptor
             var acceptorSocket = new TcpAcceptorSocket(socket);
 
             _sockets[endPoint] = acceptorSocket;
-            _acceptTasks[acceptorSocket] = acceptorSocket.Accept();
+            _ = AcceptLoop(socket, acceptorSocket.CancellationToken);
         }
 
         return Task.CompletedTask;
@@ -97,7 +158,6 @@ public class TcpAcceptor : IAcceptor
         foreach (var prunedSocket in pruned)
         {
             _sockets.Remove(prunedSocket.Key);
-            _acceptTasks.Remove(prunedSocket.Value);
         }
 
         if (cancellationTasks.Count > 0)

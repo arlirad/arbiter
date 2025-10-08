@@ -1,8 +1,11 @@
 bin
 obj
-/test
-.vscode/launch.json
+
+.vscode/**
+.idea/**
+
 global.json
-arbiter.code-workspace
-.vscode/tasks.json
+
+*.code-workspace
 *.user
+*.tmp

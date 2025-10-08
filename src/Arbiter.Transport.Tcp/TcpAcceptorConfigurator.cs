@@ -1,9 +1,6 @@
 using System.Net;
-using Arbiter.Models.Config;
-using Arbiter.Models.Config.Sites;
-using Arbiter.Services;
-using Arbiter.Services.Configurators;
-using Arbiter.Transport.Abstractions;
+using Arbiter.Application.Configuration;
+using Arbiter.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -36,7 +33,7 @@ public class TcpAcceptorConfigurator(IEnumerable<IAcceptor> acceptors) : IConfig
         IConfiguration serverConfig)
     {
         var listenOn = serverConfig.GetSection("ListenOn").Get<List<string>>();
-        var sites = serverConfig.GetSection("Sites").Get<Dictionary<string, SiteConfigModel>>();
+        var sites = serverConfig.GetSection("Sites").Get<Dictionary<string, SiteConfig>>();
 
         if (listenOn is null || sites is null)
             return (null, null);
