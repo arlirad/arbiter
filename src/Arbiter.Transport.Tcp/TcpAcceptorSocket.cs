@@ -5,11 +5,7 @@ namespace Arbiter.Transport.Tcp;
 internal class TcpAcceptorSocket(Socket socket)
 {
     private CancellationTokenSource _cts = new();
-
-    public async Task<Socket> Accept()
-    {
-        return await socket.AcceptAsync(_cts.Token);
-    }
+    public CancellationToken CancellationToken { get => _cts.Token; }
 
     public async Task Stop()
     {
