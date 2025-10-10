@@ -19,9 +19,12 @@ public class ClampedStreamTests
         var read = clamped.Read(buffer, 0, buffer.Length);
 
         // Assert
-        Assert.That(read, Is.EqualTo(10));
-        Assert.That(buffer.Take(10).ToArray(), Is.EqualTo(data.Take(10).ToArray()));
-        Assert.That(buffer.Skip(10).Take(10).ToArray(), Is.EqualTo(new byte[10]));
+        Assert.Multiple(() =>
+        {
+            Assert.That(read, Is.EqualTo(10));
+            Assert.That(buffer.Take(10).ToArray(), Is.EqualTo(data.Take(10).ToArray()));
+            Assert.That(buffer.Skip(10).Take(10).ToArray(), Is.EqualTo(new byte[10]));
+        });
     }
 
     [Test]
@@ -43,14 +46,17 @@ public class ClampedStreamTests
         var r4 = clamped.Read(b3, 0, b3.Length); // 0 (exhausted)
 
         // Assert
-        Assert.That(r1, Is.EqualTo(7));
-        Assert.That(r2, Is.EqualTo(7));
-        Assert.That(r3, Is.EqualTo(1));
-        Assert.That(r4, Is.EqualTo(0));
+        Assert.Multiple(() =>
+        {
+            Assert.That(r1, Is.EqualTo(7));
+            Assert.That(r2, Is.EqualTo(7));
+            Assert.That(r3, Is.EqualTo(1));
+            Assert.That(r4, Is.EqualTo(0));
 
-        Assert.That(b1, Is.EqualTo(data.Take(7).ToArray()));
-        Assert.That(b2, Is.EqualTo(data.Skip(7).Take(7).ToArray()));
-        Assert.That(b3, Is.EqualTo(data.Skip(14).Take(1).Concat(new byte[6]).ToArray()));
+            Assert.That(b1, Is.EqualTo(data.Take(7).ToArray()));
+            Assert.That(b2, Is.EqualTo(data.Skip(7).Take(7).ToArray()));
+            Assert.That(b3, Is.EqualTo(data.Skip(14).Take(1).Concat(new byte[6]).ToArray()));
+        });
     }
 
     [Test]
@@ -69,9 +75,12 @@ public class ClampedStreamTests
         var r2 = await clamped.ReadAsync(buffer, CancellationToken.None);
 
         // Assert
-        Assert.That(r1, Is.EqualTo(12));
-        Assert.That(r2, Is.EqualTo(0));
-        Assert.That(buffer.Take(12).ToArray(), Is.EqualTo(data.Take(12).ToArray()));
+        Assert.Multiple(() =>
+        {
+            Assert.That(r1, Is.EqualTo(12));
+            Assert.That(r2, Is.EqualTo(0));
+            Assert.That(buffer.Take(12).ToArray(), Is.EqualTo(data.Take(12).ToArray()));
+        });
     }
 
     [Test]
@@ -95,12 +104,18 @@ public class ClampedStreamTests
 
         var buffer = new byte[3];
         var r1 = clamped.Read(buffer, 0, buffer.Length);
-        Assert.That(r1, Is.EqualTo(3));
-        Assert.That(clamped.Position, Is.EqualTo(inner.Position));
+        Assert.Multiple(() =>
+        {
+            Assert.That(r1, Is.EqualTo(3));
+            Assert.That(clamped.Position, Is.EqualTo(inner.Position));
+        });
 
         var r2 = clamped.Read(buffer, 0, buffer.Length);
-        Assert.That(r2, Is.EqualTo(2));
-        Assert.That(clamped.Position, Is.EqualTo(inner.Position));
+        Assert.Multiple(() =>
+        {
+            Assert.That(r2, Is.EqualTo(2));
+            Assert.That(clamped.Position, Is.EqualTo(inner.Position));
+        });
 
         var r3 = clamped.Read(buffer, 0, buffer.Length);
         Assert.That(r3, Is.EqualTo(0));
