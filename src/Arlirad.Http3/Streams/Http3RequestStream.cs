@@ -86,6 +86,12 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         await inner.WriteAsync(buffer, ct);
     }
 
+    public async Task CopyFromInSingleFrame(Stream stream, CancellationToken ct = default)
+    {
+        await _writer.WriteFrameHeader(FrameType.Data, (ulong)(stream.Length - stream.Position), ct);
+        await stream.CopyToAsync(inner, ct);
+    }
+
     public override void Flush()
     {
         throw new NotSupportedException();

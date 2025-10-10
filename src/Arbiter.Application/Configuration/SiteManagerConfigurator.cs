@@ -1,10 +1,9 @@
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
-namespace Arbiter.Application.Configurators;
+namespace Arbiter.Application.Configuration;
 
 internal class SiteManagerConfigurator(SiteManager siteManager) : IConfigurator
 {
