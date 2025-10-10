@@ -77,7 +77,11 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
     {
         if (response.Stream is not null)
         {
-            await response.Stream.CopyToAsync(requestStream);
+            if (response.Stream.CanSeek)
+                await requestStream.CopyFromInSingleFrame(response.Stream);
+            else
+                await response.Stream.CopyToAsync(requestStream);
+
             await response.Stream.FlushAsync();
         }
 
