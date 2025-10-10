@@ -1,8 +1,8 @@
 using Arbiter.Domain.Enums;
 
-namespace Arbiter.Transport.Tcp.Mappers;
+namespace Arbiter.Infrastructure.Mappers;
 
-internal static class MethodMapper
+public static class MethodMapper
 {
     public static Method? ToEnum(string method)
     {

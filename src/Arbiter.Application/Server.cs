@@ -14,19 +14,22 @@ internal class Server(
         await configManager.CreateDirectories();
         await configManager.InitialConfigure();
 
-        var acceptor = acceptors.First();
-
-        try
+        var tasks = acceptors.Select<IAcceptor, Func<Task>>(acceptor => async Task () =>
         {
-            while (!ct.IsCancellationRequested)
+            try
             {
-                var transaction = await acceptor.Accept(ct);
-                _ = handler.Handle(transaction);
+                while (!ct.IsCancellationRequested)
+                {
+                    var transaction = await acceptor.Accept(ct);
+                    _ = handler.Handle(transaction);
+                }
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // ignored
-        }
+            catch (OperationCanceledException)
+            {
+                // ignored
+            }
+        });
+
+        await Task.WhenAny(tasks.Select(t => t()));
     }
 }
