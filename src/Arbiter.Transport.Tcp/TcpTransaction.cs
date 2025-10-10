@@ -2,6 +2,7 @@ using Arbiter.Infrastructure.Enums;
 using Arbiter.Infrastructure.Mappers;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
+using Arbiter.Domain.Enums;
 using Arbiter.Domain.ValueObjects;
 
 namespace Arbiter.Transport.Tcp;
@@ -11,6 +12,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
     private const string NewLine = "\r\n";
 
     private readonly TaskCompletionSource _tcs = new();
+    private Method _requestMethod;
     private Stream? _responseStream;
     private HttpVersion _version = HttpVersion.Http11;
 
@@ -53,6 +55,8 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
         _version = version.Value;
         headers["host"] = null;
 
+        _requestMethod = method.Value;
+
         return new RequestDto
         {
             Method = method.Value,
@@ -92,11 +96,26 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
                 if (_responseStream.CanSeek)
                     await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
             }
+            else if (ShouldSendZeroContentLength(response.Status))
+            {
+                await writer.WriteLineAsync("Content-Length: 0");
+            }
 
             await writer.WriteLineAsync();
         }
 
         _ = Finish();
+    }
+
+    private bool ShouldSendZeroContentLength(Status status)
+    {
+        return (int)status switch
+        {
+            >= 100 and <= 199 => false,
+            204 => false,
+            >= 200 and <= 299 => _requestMethod != Method.Connect,
+            _ => true,
+        };
     }
 
     private async Task Finish()
