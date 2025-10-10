@@ -1,8 +1,9 @@
-using Arbiter.Application.Configurators;
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
 using Arbiter.Application.Mappers;
+using Arbiter.Application.Middleware;
 using Arbiter.Application.Orchestrators;
 using Arbiter.Domain.Factories;
 using Arbiter.Domain.Interfaces;
@@ -26,10 +27,17 @@ public static class DependencyInjection
         services.AddScoped<MiddlewareChainDelegateOrchestrator>();
         services.AddScoped<SiteOrchestrator>();
 
-        services.AddTransient<HandleDelegate>(sp =>
+        services.AddSingleton(GlobalMiddlewareInjection.GetHandleDelegate);
+
+        services.AddTransient<Domain.Interfaces.HandleDelegate>(sp =>
         {
             var factory = sp.GetRequiredService<MiddlewareChainDelegateOrchestrator>();
             return factory.GetNext();
         });
+    }
+
+    public static void AddApplicationGlobalMiddleware(this IServiceCollection services)
+    {
+        services.AddGlobalMiddleware<NullSiteGlobalMiddleware>();
     }
 }

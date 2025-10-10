@@ -36,6 +36,9 @@ try
             services.AddInfrastructure();
             services.AddAcmeInfrastructure();
             services.AddApplication();
+
+            services.AddApplicationGlobalMiddleware();
+            services.AddQuicGlobalMiddleware();
         })
         .Build();
 

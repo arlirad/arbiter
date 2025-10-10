@@ -19,7 +19,7 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
                 (Instance: InstanceWorker(w.Name!), w.Config))
             .ToList();
 
-        var handleDelegate = (HandleDelegate)(middlewareChain.Count > 0
+        var handleDelegate = (Arbiter.Domain.Interfaces.HandleDelegate)(middlewareChain.Count > 0
             ? middlewareChain.First().Instance.Handle
             : LastHandleDelegate);
 
