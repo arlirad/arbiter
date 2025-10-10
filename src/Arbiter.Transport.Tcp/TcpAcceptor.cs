@@ -108,6 +108,7 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
         {
             ServerCertificateSelectionCallback = CertificateSelectionCallback,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+            ApplicationProtocols = [SslApplicationProtocol.Http11],
         });
 
         return ssl;
