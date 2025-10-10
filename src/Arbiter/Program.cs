@@ -2,6 +2,7 @@
 using Arbiter.Application.Interfaces;
 using Arbiter.Infrastructure;
 using Arbiter.Infrastructure.Acme;
+using Arbiter.Transport.Quic;
 using Arbiter.Transport.Tcp;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +32,7 @@ try
             services.AddSingleton<IConfiguration>(configuration);
 
             services.AddTcpTransport();
+            services.AddQuicTransport();
             services.AddInfrastructure();
             services.AddAcmeInfrastructure();
             services.AddApplication();

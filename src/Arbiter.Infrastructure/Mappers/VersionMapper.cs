@@ -1,8 +1,8 @@
-using Arbiter.Transport.Tcp.Enums;
+using Arbiter.Infrastructure.Enums;
 
-namespace Arbiter.Transport.Tcp.Mappers;
+namespace Arbiter.Infrastructure.Mappers;
 
-internal static class VersionMapper
+public static class VersionMapper
 {
     public static HttpVersion? ToEnum(string version)
     {

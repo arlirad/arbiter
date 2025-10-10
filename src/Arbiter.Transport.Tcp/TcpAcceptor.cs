@@ -75,7 +75,6 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
 
                 await _transactions.Writer.WriteAsync(transaction, ct);
                 await transaction.ResponseSet.WaitAsync(ct);
-                await transaction.Finalize();
 
                 if (transaction is { Finished: false, Faulted: false })
                     continue;

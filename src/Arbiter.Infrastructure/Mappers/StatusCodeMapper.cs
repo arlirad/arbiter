@@ -1,8 +1,8 @@
 using Arbiter.Domain.Enums;
 
-namespace Arbiter.Transport.Tcp.Mappers;
+namespace Arbiter.Infrastructure.Mappers;
 
-internal static class StatusCodeMapper
+public static class StatusCodeMapper
 {
     private static readonly Dictionary<Status, string> ReasonPhrases = new()
     {

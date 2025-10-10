@@ -1,8 +1,8 @@
+using Arbiter.Infrastructure.Enums;
+using Arbiter.Infrastructure.Mappers;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Domain.ValueObjects;
-using Arbiter.Transport.Tcp.Enums;
-using Arbiter.Transport.Tcp.Mappers;
 
 namespace Arbiter.Transport.Tcp;
 
@@ -96,16 +96,18 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
             await writer.WriteLineAsync();
         }
 
-        _tcs.SetResult();
+        _ = Finish();
     }
 
-    public async Task Finalize()
+    private async Task Finish()
     {
         if (_responseStream is not null)
         {
             await _responseStream.CopyToAsync(stream);
-            await stream.FlushAsync();
+            await _responseStream.FlushAsync();
         }
+
+        _tcs.SetResult();
     }
 
     private static async Task<Headers?> GetHeaders(StreamReader reader)
