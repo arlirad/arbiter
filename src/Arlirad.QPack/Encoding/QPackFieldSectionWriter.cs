@@ -11,6 +11,7 @@ public class QPackFieldSectionWriter(
     QPackEncoder parent
 ) : IAsyncDisposable
 {
+    private bool _prefixWritten;
     public long StreamId { get; } = streamId;
 
     public async ValueTask DisposeAsync()
@@ -20,8 +21,21 @@ public class QPackFieldSectionWriter(
         GC.SuppressFinalize(this);
     }
 
+    public async Task WritePrefix(CancellationToken ct)
+    {
+        // TODO: Use proper compression
+
+        await writer.WritePrefixedIntAsync(0, 8, 0b0000_0000, ct);
+        await writer.WritePrefixedIntAsync(0, 7, 0b0000_0000, ct);
+
+        _prefixWritten = true;
+    }
+
     public async ValueTask Write(string name, string value, CancellationToken ct)
     {
+        if (!_prefixWritten)
+            throw new InvalidOperationException("WritePrefix must be called before writing any field sections");
+
         var staticEntryExact = QPackConsts.StaticTable
             .FirstOrDefault(kvp => kvp.Value.Name.Equals(name, StringComparison.OrdinalIgnoreCase)
                 && kvp.Value.Value == value);
@@ -48,7 +62,7 @@ public class QPackFieldSectionWriter(
             return;
         }
 
-        var nameBytes = Encoding.UTF8.GetBytes(name);
+        var nameBytes = Encoding.UTF8.GetBytes(name.ToLowerInvariant());
 
         await writer.WritePrefixedIntAsync(nameBytes.Length, 3, QPackConsts.LiteralFieldLineWithLiteralName, ct);
         await stream.WriteAsync(nameBytes, ct);

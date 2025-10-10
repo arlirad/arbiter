@@ -34,6 +34,7 @@ public class QPackDecoder
         _decoderOutgoingTask = _decoderOutgoingTcs.Task;
     }
 
+    public long MaxTableCapacity { get; set; }
     public long DynamicTableCapacity { get; private set; }
     public long DynamicTableSize { get; private set; }
     public long TotalInsertCount { get => _totalInsertCount; }
@@ -75,6 +76,11 @@ public class QPackDecoder
         CancellationToken ct = default)
     {
         var stream = new MemoryStream(buffer, 0, length);
+        return await GetSectionReader(streamId, stream, ct);
+    }
+
+    public async Task<QPackFieldSectionReader> GetSectionReader(long streamId, Stream stream, CancellationToken ct)
+    {
         var reader = new QPackReader(stream);
 
         var encodedInsertCount = (long)reader.ReadPrefixedInt(8);
@@ -201,7 +207,7 @@ public class QPackDecoder
                 var capacity =
                     await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer, ct);
 
-                DynamicTableCapacity = (int)capacity;
+                Resize(capacity);
                 _maxTableCapacityTcs.SetResult();
             }
             else if (QPackConsts.Is(instruction, 0b1000_0000,
@@ -261,6 +267,17 @@ public class QPackDecoder
                 throw new NotImplementedException();
             }
         }
+    }
+
+    private void Resize(ulong capacity)
+    {
+        if (DynamicTableCapacity == 0)
+        {
+            DynamicTableCapacity = (int)capacity;
+            return;
+        }
+
+        throw new NotImplementedException();
     }
 
     private ulong FromRelative(ulong index)
