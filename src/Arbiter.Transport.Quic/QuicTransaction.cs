@@ -67,12 +67,6 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
             [":status"] = ((int)response.Status).ToString(),
         }.AsEnumerable();
 
-        if (response.Stream is not null)
-            headers = headers.Concat(new Dictionary<string, string>()
-            {
-                ["content-length"] = response.Stream.Length.ToString(),
-            });
-
         headers = headers.Concat(response.Headers);
 
         await requestStream.WriteHeaders(headers);
