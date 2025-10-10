@@ -1,6 +1,5 @@
 using Arbiter.Application.Interfaces;
 using Arbiter.Domain.Interfaces;
-using Arbiter.Infrastructure.Acme;
 using Arbiter.Infrastructure.Configuration;
 using Arbiter.Infrastructure.Middleware;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +12,5 @@ public static class DependencyInjection
     {
         services.AddSingleton<IConfigManager, ConfigManager>();
         services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
-        services.AddAcmeInfrastructure();
     }
 }
