@@ -3,7 +3,7 @@ using Arbiter.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
-namespace Arbiter.Transport.Quic;
+namespace Arbiter.Transport.Quic.Configuration;
 
 internal class QuicAcceptorConfigurator(IEnumerable<IAcceptor> acceptors) : IConfigurator
 {

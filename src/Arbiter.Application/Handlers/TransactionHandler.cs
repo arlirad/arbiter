@@ -2,15 +2,14 @@ using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
 using Arbiter.Application.Mappers;
+using Arbiter.Application.Orchestrators;
 using Arbiter.Domain.Aggregates;
 using Arbiter.Domain.Enums;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Application.Handlers;
 
-internal class TransactionHandler(
-    SiteManager siteManager,
-    ContextMapper contextMapper
-)
+internal class TransactionHandler(SiteManager siteManager, ContextMapper contextMapper, HandleDelegate handleDelegate)
 {
     public async Task Handle(ITransaction transaction)
     {
@@ -20,17 +19,13 @@ internal class TransactionHandler(
             return;
 
         var context = contextMapper.ToDomain(request);
+
+        if (context is null)
+            return;
+
         var site = siteManager.Find(request.Authority, transaction.Port);
 
-        if (site is null)
-        {
-            await context.Response.Set(Status.NotFound);
-            await SendResponse(transaction, context);
-
-            return;
-        }
-
-        await site.HandleDelegate(context);
+        await handleDelegate(transaction, site, context);
         await SendResponse(transaction, context);
     }
 
