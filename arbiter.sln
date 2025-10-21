@@ -30,6 +30,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Http3", "src\Arlira
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Http3.Tests", "tests\Arbiter.Http3.Tests\Arbiter.Http3.Tests.csproj", "{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Mediator", "src\Arlirad.Mediator\Arlirad.Mediator.csproj", "{7249FC8F-6B90-41B3-AFDB-E89C410B3583}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Mediator.Tests", "tests\Arlirad.Mediator.Tests\Arlirad.Mediator.Tests.csproj", "{058EEFE7-7217-4EB4-BF7E-873F319E0D13}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -84,6 +88,14 @@ Global
 		{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7249FC8F-6B90-41B3-AFDB-E89C410B3583}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7249FC8F-6B90-41B3-AFDB-E89C410B3583}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7249FC8F-6B90-41B3-AFDB-E89C410B3583}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7249FC8F-6B90-41B3-AFDB-E89C410B3583}.Release|Any CPU.Build.0 = Release|Any CPU
+		{058EEFE7-7217-4EB4-BF7E-873F319E0D13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{058EEFE7-7217-4EB4-BF7E-873F319E0D13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{058EEFE7-7217-4EB4-BF7E-873F319E0D13}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{058EEFE7-7217-4EB4-BF7E-873F319E0D13}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -101,6 +113,8 @@ Global
 		{0F45D988-EC32-4500-A7DC-A3265DC6B73C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{BE0DBEE6-0E80-4589-B9A4-4E84A068F944} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{7249FC8F-6B90-41B3-AFDB-E89C410B3583} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{058EEFE7-7217-4EB4-BF7E-873F319E0D13} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BD80FAFF-D323-48A3-B127-7D7C9EB39A7B}
