@@ -20,7 +20,7 @@ public class MediatorTests
     public async Task Send_Request_Returns_Response_From_Handler()
     {
         var mediator = new ReflectionMediator(new ServiceCollection().BuildServiceProvider(), typeof(TestRoot));
-        var sum = await mediator.Send<AddNumbers, int>(new AddNumbers { A = 2, B = 3 }, CancellationToken.None);
+        var sum = await mediator.Send(new AddNumbers { A = 2, B = 3 }, CancellationToken.None);
         Assert.That(sum, Is.EqualTo(5));
     }
 
@@ -30,7 +30,7 @@ public class MediatorTests
         var mediator = new ReflectionMediator(new ServiceCollection().BuildServiceProvider(), typeof(TestRoot));
         // No handler for a different request type
         Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.Send<UnregisteredRequest, int>(new UnregisteredRequest(), CancellationToken.None));
+            await mediator.Send(new UnregisteredRequest(), CancellationToken.None));
     }
 
     [Test]
@@ -40,7 +40,7 @@ public class MediatorTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
         Assert.ThrowsAsync<TaskCanceledException>(async () =>
-            await mediator.Send<AddNumbers, int>(new AddNumbers { A = 1, B = 1 }, cts.Token));
+            await mediator.Send(new AddNumbers { A = 1, B = 1 }, cts.Token));
     }
 
     [Test]
@@ -82,14 +82,14 @@ public class MediatorTests
 
         // Ensure initial behavior uses default (non-alternate)
         _useAlternateHandler = false;
-        var result1 = await mediator.Send<AddNumbers, int>(new AddNumbers { A = 1, B = 1 }, CancellationToken.None);
+        var result1 = await mediator.Send(new AddNumbers { A = 1, B = 1 }, CancellationToken.None);
         Assert.That(result1, Is.EqualTo(2));
 
         // Switch behavior and flush handler cache so a new handler instance is constructed
         _useAlternateHandler = true;
         await mediator.FlushHandler(typeof(AddNumbersHandler));
 
-        var result2 = await mediator.Send<AddNumbers, int>(new AddNumbers { A = 1, B = 2 }, CancellationToken.None);
+        var result2 = await mediator.Send(new AddNumbers { A = 1, B = 2 }, CancellationToken.None);
         Assert.That(result2, Is.EqualTo(100));
     }
 

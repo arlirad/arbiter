@@ -12,13 +12,16 @@ public class ReflectionMediator(IServiceProvider serviceProvider, Type root) : I
     private readonly Assembly _rootAssembly = root.Assembly;
     private readonly SemaphoreSlim _sem = new(1);
 
-    public async ValueTask<TResponse> Send<TRequest, TResponse>(TRequest request, CancellationToken ct)
-        where TRequest : IRequest<TResponse>
+    public async ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct)
     {
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var handler = await InstanceHandler<TRequest, TResponse>(scope);
+        var expectedInterface = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));
 
-        return await handler.Handle(request, ct);
+        await using var scope = serviceProvider.CreateAsyncScope();
+
+        var handler = await InstanceHandler<IRequest<TResponse>, TResponse>(scope, request.GetType());
+        var handleMethod = expectedInterface.GetMethod("Handle")!;
+
+        return await (ValueTask<TResponse>)handleMethod.Invoke(handler, [request, ct])!;
     }
 
     public async ValueTask Publish<TNotification>(TNotification notification, CancellationToken ct)
@@ -37,15 +40,12 @@ public class ReflectionMediator(IServiceProvider serviceProvider, Type root) : I
     {
         await _sem.WaitAsync();
 
-        var requestHandlerEntry = _cachedRequestHandlers.FirstOrDefault(kvp => kvp.Value == handler
-        );
-
+        var requestHandlerEntry = _cachedRequestHandlers.FirstOrDefault(kvp => kvp.Value == handler);
         if (requestHandlerEntry.Value is not null)
             _cachedRequestHandlers.TryRemove(requestHandlerEntry.Key, out _);
 
         var notificationHandlerEntry =
-            _cachedNotificationHandlers.FirstOrDefault(kvp => kvp.Value.Any(v => v == handler)
-            );
+            _cachedNotificationHandlers.FirstOrDefault(kvp => kvp.Value.Any(v => v == handler));
 
         if (notificationHandlerEntry.Value is not null)
             _cachedNotificationHandlers.TryRemove(notificationHandlerEntry.Key, out _);
@@ -53,12 +53,13 @@ public class ReflectionMediator(IServiceProvider serviceProvider, Type root) : I
         _sem.Release();
     }
 
-    private async ValueTask<IRequestHandler<TRequest, TResponse>>
-        InstanceHandler<TRequest, TResponse>(AsyncServiceScope scope) where TRequest : IRequest<TResponse>
+    private async ValueTask<object>
+        InstanceHandler<TRequest, TResponse>(AsyncServiceScope scope, Type requestType)
+        where TRequest : IRequest<TResponse>
     {
-        var handlerType = await FindHandler<TRequest, TResponse>();
+        var handlerType = await FindHandler(requestType, typeof(TResponse));
 
-        return (IRequestHandler<TRequest, TResponse>)ActivatorUtilities.CreateInstance(scope.ServiceProvider,
+        return ActivatorUtilities.CreateInstance(scope.ServiceProvider,
             handlerType);
     }
 
@@ -70,9 +71,9 @@ public class ReflectionMediator(IServiceProvider serviceProvider, Type root) : I
         );
     }
 
-    private async ValueTask<Type> FindHandler<TRequest, TResponse>() where TRequest : IRequest<TResponse>
+    private async ValueTask<Type> FindHandler(Type requestType, Type responseType)
     {
-        var handlerType = typeof(IRequestHandler<TRequest, TResponse>);
+        var handlerType = typeof(IRequestHandler<,>).MakeGenericType(requestType, responseType);
 
         if (_cachedRequestHandlers.TryGetValue(handlerType, out var cachedType))
             return cachedType;
@@ -93,7 +94,7 @@ public class ReflectionMediator(IServiceProvider serviceProvider, Type root) : I
         ));
 
         var handler = types
-            .Where(t => t is { IsClass: true, IsAbstract: false })
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsInterface: false })
             .FirstOrDefault(t => handlerType.IsAssignableFrom(t));
 
         if (handler is null)
@@ -101,7 +102,7 @@ public class ReflectionMediator(IServiceProvider serviceProvider, Type root) : I
             _sem.Release();
 
             throw new InvalidOperationException(
-                $"Failed to find a IRequestHandler<{typeof(TRequest).FullName}, {typeof(TResponse).FullName}>"
+                $"Failed to find a IRequestHandler<{requestType.FullName}, {responseType.FullName}>"
             );
         }
 
