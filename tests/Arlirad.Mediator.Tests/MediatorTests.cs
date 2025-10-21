@@ -47,7 +47,7 @@ public class MediatorTests
     public async Task Send_Notification_Invokes_All_Notification_Handlers()
     {
         var mediator = new ReflectionMediator(new ServiceCollection().BuildServiceProvider(), typeof(TestRoot));
-        await mediator.Send(new Pinged(), CancellationToken.None);
+        await mediator.Publish(new Pinged(), CancellationToken.None);
         Assert.That(PingHandlerA.Called, Is.EqualTo(1));
         Assert.That(PingHandlerB.Called, Is.EqualTo(1));
     }
@@ -57,7 +57,7 @@ public class MediatorTests
     {
         var mediator = new ReflectionMediator(new ServiceCollection().BuildServiceProvider(), typeof(TestRoot));
         // another notification with no handlers in this assembly
-        await mediator.Send(new UnhandledNotification(), CancellationToken.None);
+        await mediator.Publish(new UnhandledNotification(), CancellationToken.None);
         Assert.Pass();
     }
 

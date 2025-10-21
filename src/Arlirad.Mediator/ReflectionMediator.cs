@@ -21,7 +21,7 @@ public class ReflectionMediator(IServiceProvider serviceProvider, Type root) : I
         return await handler.Handle(request, ct);
     }
 
-    public async ValueTask Send<TNotification>(TNotification notification, CancellationToken ct)
+    public async ValueTask Publish<TNotification>(TNotification notification, CancellationToken ct)
         where TNotification : INotification
     {
         await using var scope = serviceProvider.CreateAsyncScope();
