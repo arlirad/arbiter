@@ -1,5 +1,5 @@
 namespace Arlirad.Mediator.Interfaces;
 
-public interface IRequest<TResponse>
+public interface IRequest<out TResponse>
 {
 }
