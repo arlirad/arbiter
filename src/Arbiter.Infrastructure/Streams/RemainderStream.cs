@@ -1,43 +1,43 @@
 namespace Arbiter.Infrastructure.Streams;
 
-public class ClampedStream(Stream inner, long length) : Stream
+public class RemainderStream(Stream inner, Stream? remainder = null) : Stream
 {
-    private long _position;
     public override bool CanRead { get => true; }
     public override bool CanSeek { get => true; }
     public override bool CanWrite { get => false; }
-    public override long Length { get => length; }
-    public override long Position { get => _position; set => throw new NotSupportedException(); }
+    public override long Length { get => throw new NotSupportedException(); }
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        ArgumentNullException.ThrowIfNull(buffer);
-
-        if ((uint)offset > buffer.Length)
-            throw new ArgumentOutOfRangeException(nameof(offset));
-
-        if (count < 0 || count > buffer.Length - offset)
-            throw new ArgumentOutOfRangeException(nameof(count));
-
-        var remainingLength = (int)Math.Max(0, Math.Min(int.MaxValue, Length - Position));
-        var actualReadLength = inner.Read(buffer, offset, Math.Min(remainingLength, count));
-
-        _position += actualReadLength;
-
-        return remainingLength != 0 ? actualReadLength : 0;
+        throw new NotSupportedException();
     }
 
     public async override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        var remainingLength = (int)Math.Max(0, Math.Min(int.MaxValue, Length - Position));
+        var actualReadLength = 0;
 
-        if (remainingLength == 0)
-            return 0;
+        if (remainder is not null && remainder.Position != remainder.Length)
+        {
+            var maxReadLength = Math.Min(remainder.Length - remainder.Position, buffer.Length);
+            var remainderReadLength = (int)Math.Max(0, Math.Min(int.MaxValue, maxReadLength));
 
-        var actualReadLength =
-            await inner.ReadAsync(buffer[..Math.Min(remainingLength, buffer.Length)], cancellationToken);
+            if (remainderReadLength == 0)
+                return actualReadLength;
 
-        _position += actualReadLength;
+            var remainderBuffer = buffer[..remainderReadLength];
+
+            buffer = buffer[remainderReadLength..];
+
+            actualReadLength += await remainder.ReadAsync(remainderBuffer, cancellationToken);
+        }
+
+        if (buffer.Length > 0)
+            actualReadLength += await inner.ReadAsync(buffer, cancellationToken);
 
         return actualReadLength;
     }

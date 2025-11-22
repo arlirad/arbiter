@@ -56,7 +56,7 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
             Authority = authority,
             Path = path,
             Headers = new ReadOnlyHeaders(headers),
-            Stream = requestStream,
+            Stream = await requestStream.ReadFrame(CancellationToken.None) ? requestStream : null,
         };
     }
 

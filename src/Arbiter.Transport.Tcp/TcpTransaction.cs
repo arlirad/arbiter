@@ -5,6 +5,7 @@ using Arbiter.Application.Interfaces;
 using Arbiter.Domain.Enums;
 using Arbiter.Domain.ValueObjects;
 using Arbiter.Infrastructure.Streams;
+using Arbiter.Transport.Tcp.Streams;
 
 namespace Arbiter.Transport.Tcp;
 
@@ -26,14 +27,17 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
 
     public async Task<RequestDto?> GetRequest()
     {
-        var reader = new StreamReader(stream, leaveOpen: true);
+        var (headerStream, remainder) = await HeadersFinder.GetHeadersClampedStream(stream);
+        if (headerStream is null)
+            return null;
+
+        var reader = new StreamReader(headerStream);
 
         var requestLine = await reader.ReadLineAsync();
         if (requestLine is null)
             return null;
 
         var headerSplit = requestLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
         if (headerSplit.Length < 3)
             return null;
 
@@ -56,6 +60,20 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
         _version = version.Value;
         headers["host"] = null;
 
+        Stream? requestBodyStream = null;
+        var contentLengthString = headers["content-length"];
+
+        if (!string.IsNullOrWhiteSpace(contentLengthString))
+        {
+            if (!int.TryParse(contentLengthString, out var length))
+                return null;
+
+            var remainderStream = new RemainderStream(stream, remainder);
+            requestBodyStream = new ClampedStream(remainderStream, length);
+        }
+
+        headers["content-length"] = null;
+
         _requestMethod = method.Value;
 
         return new RequestDto
@@ -64,7 +82,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
             Authority = host,
             Path = path,
             Headers = new ReadOnlyHeaders(headers),
-            Stream = null,
+            Stream = requestBodyStream,
         };
     }
 
