@@ -34,6 +34,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Mediator", "src\Arl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Mediator.Tests", "tests\Arlirad.Mediator.Tests\Arlirad.Mediator.Tests.csproj", "{058EEFE7-7217-4EB4-BF7E-873F319E0D13}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Infrastructure.Proxy", "src\Arbiter.Infrastructure.Proxy\Arbiter.Infrastructure.Proxy.csproj", "{E2172B5B-E5B8-4922-A746-F34863C59C24}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -96,6 +98,10 @@ Global
 		{058EEFE7-7217-4EB4-BF7E-873F319E0D13}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{058EEFE7-7217-4EB4-BF7E-873F319E0D13}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{058EEFE7-7217-4EB4-BF7E-873F319E0D13}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E2172B5B-E5B8-4922-A746-F34863C59C24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2172B5B-E5B8-4922-A746-F34863C59C24}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2172B5B-E5B8-4922-A746-F34863C59C24}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2172B5B-E5B8-4922-A746-F34863C59C24}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -115,6 +121,7 @@ Global
 		{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{7249FC8F-6B90-41B3-AFDB-E89C410B3583} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{058EEFE7-7217-4EB4-BF7E-873F319E0D13} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{E2172B5B-E5B8-4922-A746-F34863C59C24} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BD80FAFF-D323-48A3-B127-7D7C9EB39A7B}

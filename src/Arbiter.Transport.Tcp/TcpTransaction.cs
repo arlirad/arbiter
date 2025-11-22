@@ -4,6 +4,7 @@ using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Domain.Enums;
 using Arbiter.Domain.ValueObjects;
+using Arbiter.Infrastructure.Streams;
 
 namespace Arbiter.Transport.Tcp;
 
@@ -93,7 +94,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
             {
                 _responseStream = response.Stream;
 
-                if (_responseStream.CanSeek)
+                if (_responseStream.CanSeek || _responseStream is ClampedStream)
                     await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
             }
             else if (ShouldSendZeroContentLength(response.Status))
