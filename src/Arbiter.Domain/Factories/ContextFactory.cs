@@ -6,9 +6,13 @@ namespace Arbiter.Domain.Factories;
 
 public class ContextFactory : IContextFactory
 {
-    public Context? Create(Method method, string path, IEnumerable<KeyValuePair<string, string>> headers)
+    public Context? Create(
+        Method method,
+        string path,
+        IEnumerable<KeyValuePair<string, string>> headers,
+        Stream? stream)
     {
-        var request = RequestContextFactory.Create(method, path, headers);
+        var request = RequestContextFactory.Create(method, path, headers, stream);
         var response = ResponseContextFactory.Create();
 
         if (request is null || response is null)

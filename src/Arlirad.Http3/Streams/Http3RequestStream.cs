@@ -59,10 +59,10 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
 
     public async override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
     {
-        if (_currentDataFrame is null || _currentDataFrame.Stream.Position == _currentDataFrame.Stream.Length)
-            _currentDataFrame = await _reader.ReadFrame(ct);
+        if (!await ReadFrame(ct))
+            return 0;
 
-        return await _currentDataFrame.Stream.ReadAsync(buffer, ct);
+        return await _currentDataFrame!.Stream.ReadAsync(buffer, ct);
     }
 
     public override long Seek(long offset, SeekOrigin origin)
@@ -100,5 +100,20 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
     public void Finish()
     {
         inner.CompleteWrites();
+    }
+
+    public async Task<bool> ReadFrame(CancellationToken ct)
+    {
+        try
+        {
+            if (_currentDataFrame is null || _currentDataFrame.Stream.Position == _currentDataFrame.Stream.Length)
+                _currentDataFrame = await _reader.ReadFrame(ct);
+        }
+        catch (EndOfStreamException)
+        {
+            return false;
+        }
+
+        return true;
     }
 }

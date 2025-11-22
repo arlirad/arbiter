@@ -11,6 +11,19 @@ namespace Arbiter.Infrastructure.Proxy;
 
 public class ProxyMiddleware : IMiddleware
 {
+    private readonly List<string> _disallowedHeaders =
+    [
+        "accept-encoding",
+        "content-encoding",
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+    ];
+
     private HttpClient _client = null!;
     private Uri _target = null!;
 
@@ -45,11 +58,19 @@ public class ProxyMiddleware : IMiddleware
         var targetPath = _target.AbsolutePath.TrimEnd('/') + '/' + context.Request.Path.TrimStart('/');
         var targetUri = new Uri(_target, targetPath);
         var method = MethodMapper.ToHttpMethod(context.Request.Method);
-        var targetRequest = new HttpRequestMessage(method, targetUri);
+        var targetRequest = new HttpRequestMessage(method, targetUri)
+        {
+            Content = context.Request.Stream is not null ? new StreamContent(context.Request.Stream) : null,
+        };
+
+        List<string>? connectionHeaders = null;
 
         foreach (var header in context.Request.Headers)
         {
             var values = new string[1] { header.Value };
+
+            if (ShouldIgnoreHeader(header.Key, values, ref connectionHeaders))
+                continue;
 
             if (!targetRequest.Headers.TryAddWithoutValidation(header.Key, values))
                 targetRequest.Content?.Headers.TryAddWithoutValidation(header.Key, values);
@@ -79,28 +100,64 @@ public class ProxyMiddleware : IMiddleware
             return;
         }
 
-        foreach (var header in response.Headers)
-        {
-            context.Response.Headers[header.Key] = header.Value.First();
-        }
-
-        if (response.Content.Headers.ContentType != null)
-        {
-            var segments = new List<string>();
-
-            if (!string.IsNullOrWhiteSpace(response.Content.Headers.ContentType.MediaType))
-                segments.Add(response.Content.Headers.ContentType.MediaType);
-
-            if (!string.IsNullOrWhiteSpace(response.Content.Headers.ContentType.CharSet))
-                segments.Add($"charset={response.Content.Headers.ContentType.CharSet}");
-
-            if (segments.Count > 0)
-                context.Response.Headers["content-type"] = string.Join("; ", segments);
-        }
+        CopyHeaders(context, response);
 
         if (response.Content.Headers.ContentLength.HasValue)
             responseStream = new ClampedStream(responseStream, response.Content.Headers.ContentLength.Value);
 
         await context.Response.Set(status.Value, responseStream);
+    }
+
+    private void CopyHeaders(Context context, HttpResponseMessage response)
+    {
+        List<string>? connectionHeaders = null;
+
+        foreach (var header in response.Headers)
+        {
+            if (ShouldIgnoreHeader(header.Key, header.Value.ToArray(), ref connectionHeaders))
+                continue;
+
+            context.Response.Headers[header.Key] = header.Value.First();
+        }
+
+        if (response.Content.Headers.ContentType == null)
+            return;
+
+        var segments = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(response.Content.Headers.ContentType.MediaType))
+            segments.Add(response.Content.Headers.ContentType.MediaType);
+
+        if (!string.IsNullOrWhiteSpace(response.Content.Headers.ContentType.CharSet))
+            segments.Add($"charset={response.Content.Headers.ContentType.CharSet}");
+
+        if (segments.Count > 0)
+            context.Response.Headers["content-type"] = string.Join("; ", segments);
+    }
+
+    private bool ShouldIgnoreHeader(string key, string[] value, ref List<string>? connectionHeaders)
+    {
+        if (key.Equals("te", StringComparison.OrdinalIgnoreCase))
+            if (value.First() != "trailers")
+                return true;
+
+        if (key.Equals("connection", StringComparison.OrdinalIgnoreCase))
+        {
+            connectionHeaders ??= value.First().Split(',')
+                .Where(h => h.Equals("keep-alive", StringComparison.OrdinalIgnoreCase)
+                    && !h.Equals("close", StringComparison.OrdinalIgnoreCase))
+                .Select(h => h.Trim())
+                .ToList();
+
+            return true;
+        }
+
+        if (connectionHeaders != null && connectionHeaders.Contains(key, StringComparer.OrdinalIgnoreCase))
+            return true;
+
+        if (_disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase))
+            return true;
+
+        return false;
     }
 }
