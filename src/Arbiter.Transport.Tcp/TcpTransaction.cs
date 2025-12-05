@@ -6,6 +6,7 @@ using Arbiter.Domain.Enums;
 using Arbiter.Domain.ValueObjects;
 using Arbiter.Infrastructure.Streams;
 using Arbiter.Transport.Tcp.Streams;
+using Arlirad.Net.Http;
 
 namespace Arbiter.Transport.Tcp;
 
@@ -14,6 +15,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
     private const string NewLine = "\r\n";
 
     private readonly TaskCompletionSource _tcs = new();
+    private bool _chunked;
     private Method _requestMethod;
     private Stream? _responseStream;
     private HttpVersion _version = HttpVersion.Http11;
@@ -116,7 +118,14 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
                 _responseStream = response.Stream;
 
                 if (_responseStream.CanSeek || _responseStream is ClampedStream)
+                {
                     await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
+                }
+                else
+                {
+                    await writer.WriteLineAsync($"Transfer-Encoding: chunked");
+                    _chunked = true;
+                }
             }
             else if (ShouldSendZeroContentLength(response.Status))
             {
@@ -144,8 +153,17 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
     {
         if (_responseStream is not null)
         {
-            await _responseStream.CopyToAsync(stream);
-            await _responseStream.FlushAsync();
+            if (_chunked)
+            {
+                await using var wrapped = new HttpChunkedStream(stream);
+                await _responseStream.CopyToAsync(wrapped);
+            }
+            else
+            {
+                await _responseStream.CopyToAsync(stream);
+            }
+
+            await stream.FlushAsync();
         }
 
         _tcs.SetResult();
