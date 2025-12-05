@@ -52,16 +52,16 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
         if (headers is null)
             return null;
 
-        var host = headers["host"];
+        var host = headers.Host;
 
         if (version == HttpVersion.Http11 && host is null)
             return null;
 
         _version = version.Value;
-        headers["host"] = null;
+        headers.Host = null;
 
         Stream? requestBodyStream = null;
-        var contentLengthString = headers["content-length"];
+        var contentLengthString = headers.ContentLength;
 
         if (!string.IsNullOrWhiteSpace(contentLengthString))
         {
@@ -72,7 +72,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
             requestBodyStream = new ClampedStream(remainderStream, length);
         }
 
-        headers["content-length"] = null;
+        headers.ContentLength = null;
 
         _requestMethod = method.Value;
 
@@ -105,7 +105,10 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
                     && response.Stream is not null)
                     continue;
 
-                await writer.WriteLineAsync($"{header.Key}: {header.Value}");
+                foreach (var instance in header.Value)
+                {
+                    await writer.WriteLineAsync($"{header.Key}: {instance}");
+                }
             }
 
             if (response.Stream is not null)
@@ -164,7 +167,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
 
             var keyValueSeparatorIndex = line.IndexOf(": ", StringComparison.Ordinal);
 
-            headers[line[0..keyValueSeparatorIndex]] = line[(keyValueSeparatorIndex + 2)..];
+            headers.Add(line[0..keyValueSeparatorIndex], line[(keyValueSeparatorIndex + 2)..]);
         }
 
         return headers;

@@ -37,7 +37,7 @@ internal class StaticMiddleware(HandleDelegate next) : IMiddleware
             }
 
             if (_mimeTypes.TryGetValue(Path.GetExtension(path), out var mime))
-                context.Response.Headers["Content-Type"] = mime;
+                context.Response.Headers.ContentType = mime;
 
             await context.Response.Set(Status.Ok, stream);
         }
