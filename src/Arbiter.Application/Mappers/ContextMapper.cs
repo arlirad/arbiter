@@ -9,7 +9,7 @@ internal class ContextMapper(IContextFactory contextFactory)
 {
     public Context? ToDomain(RequestDto request)
     {
-        var context = contextFactory.Create(request.Method, request.Path, request.Headers);
+        var context = contextFactory.Create(request.Method, request.Path, request.Headers, request.Stream);
         return context;
     }
 
