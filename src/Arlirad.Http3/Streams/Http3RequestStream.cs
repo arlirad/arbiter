@@ -35,7 +35,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
     }
 
     public async ValueTask WriteHeaders(
-        IEnumerable<KeyValuePair<string, string>> headers,
+        IEnumerable<KeyValuePair<string, List<string>>> headers,
         CancellationToken ct = default)
     {
         using var ms = new MemoryStream();
@@ -45,7 +45,10 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
 
         foreach (var header in headers)
         {
-            await writer.Write(header.Key, header.Value, ct);
+            foreach (var instance in header.Value)
+            {
+                await writer.Write(header.Key, instance, ct);
+            }
         }
 
         await _writer.WriteFrameHeader(FrameType.Headers, (ulong)ms.Length, ct);

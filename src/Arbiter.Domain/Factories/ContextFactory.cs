@@ -9,7 +9,7 @@ public class ContextFactory : IContextFactory
     public Context? Create(
         Method method,
         string path,
-        IEnumerable<KeyValuePair<string, string>> headers,
+        IEnumerable<KeyValuePair<string, List<string>>> headers,
         Stream? stream)
     {
         var request = RequestContextFactory.Create(method, path, headers, stream);

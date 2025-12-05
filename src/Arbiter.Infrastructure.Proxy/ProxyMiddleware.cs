@@ -67,13 +67,11 @@ public class ProxyMiddleware : IMiddleware
 
         foreach (var header in context.Request.Headers)
         {
-            var values = new string[1] { header.Value };
-
-            if (ShouldIgnoreHeader(header.Key, values, ref connectionHeaders))
+            if (ShouldIgnoreHeader(header.Key, header.Value, ref connectionHeaders))
                 continue;
 
-            if (!targetRequest.Headers.TryAddWithoutValidation(header.Key, values))
-                targetRequest.Content?.Headers.TryAddWithoutValidation(header.Key, values);
+            if (!targetRequest.Headers.TryAddWithoutValidation(header.Key, header.Value))
+                targetRequest.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
 
         try
@@ -83,7 +81,6 @@ public class ProxyMiddleware : IMiddleware
         catch (HttpRequestException)
         {
             await context.Response.Set(Status.BadGateway);
-            return;
         }
     }
 
@@ -114,10 +111,12 @@ public class ProxyMiddleware : IMiddleware
 
         foreach (var header in response.Headers)
         {
-            if (ShouldIgnoreHeader(header.Key, header.Value.ToArray(), ref connectionHeaders))
+            var valueList = header.Value.ToList();
+
+            if (ShouldIgnoreHeader(header.Key, valueList, ref connectionHeaders))
                 continue;
 
-            context.Response.Headers[header.Key] = header.Value.First();
+            context.Response.Headers[header.Key] = valueList;
         }
 
         if (response.Content.Headers.ContentType == null)
@@ -132,22 +131,27 @@ public class ProxyMiddleware : IMiddleware
             segments.Add($"charset={response.Content.Headers.ContentType.CharSet}");
 
         if (segments.Count > 0)
-            context.Response.Headers["content-type"] = string.Join("; ", segments);
+            context.Response.Headers.ContentType = string.Join("; ", segments);
     }
 
-    private bool ShouldIgnoreHeader(string key, string[] value, ref List<string>? connectionHeaders)
+    private bool ShouldIgnoreHeader(string key, List<string> values, ref List<string>? connectionHeaders)
     {
         if (key.Equals("te", StringComparison.OrdinalIgnoreCase))
-            if (value.First() != "trailers")
+            if (values.Any(v => v == "trailers"))
                 return true;
 
         if (key.Equals("connection", StringComparison.OrdinalIgnoreCase))
         {
-            connectionHeaders ??= value.First().Split(',')
-                .Where(h => h.Equals("keep-alive", StringComparison.OrdinalIgnoreCase)
-                    && !h.Equals("close", StringComparison.OrdinalIgnoreCase))
-                .Select(h => h.Trim())
-                .ToList();
+            foreach (var value in values)
+            {
+                var headers = value.Split(',')
+                    .Where(h => h.Equals("keep-alive", StringComparison.OrdinalIgnoreCase)
+                        && !h.Equals("close", StringComparison.OrdinalIgnoreCase))
+                    .Select(h => h.Trim())
+                    .ToList();
+
+                (connectionHeaders ??= []).AddRange(headers);
+            }
 
             return true;
         }
@@ -155,9 +159,6 @@ public class ProxyMiddleware : IMiddleware
         if (connectionHeaders != null && connectionHeaders.Contains(key, StringComparer.OrdinalIgnoreCase))
             return true;
 
-        if (_disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase))
-            return true;
-
-        return false;
+        return _disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase);
     }
 }

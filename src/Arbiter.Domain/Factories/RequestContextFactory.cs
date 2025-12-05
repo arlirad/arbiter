@@ -8,7 +8,7 @@ public class RequestContextFactory
     public static RequestContext? Create(
         Method method,
         string path,
-        IEnumerable<KeyValuePair<string, string>> headers,
+        IEnumerable<KeyValuePair<string, List<string>>> headers,
         Stream? stream)
     {
         var headersConcrete = new Headers();
