@@ -2,29 +2,50 @@ using System.Collections;
 
 namespace Arbiter.Domain.ValueObjects;
 
-public class Headers : IEnumerable<KeyValuePair<string, string>>
+public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
 {
-    private readonly Dictionary<string, string> _headers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<string>> _headers = new(StringComparer.OrdinalIgnoreCase);
 
-    public string? this[string name]
+    public List<string>? this[string name]
     {
         get => Get(name);
         set => Set(name, value);
     }
 
-    public IEnumerator<KeyValuePair<string, string>> GetEnumerator()
+    public string? AltSvc
+    {
+        get => Get("alt-svc")?.FirstOrDefault() ?? null;
+        set => Set("alt-svc", value is not null ? [value] : null);
+    }
+    public string? ContentType
+    {
+        get => Get("content-type")?.FirstOrDefault() ?? null;
+        set => Set("content-type", value is not null ? [value] : null);
+    }
+    public string? ContentLength
+    {
+        get => Get("content-length")?.FirstOrDefault() ?? null;
+        set => Set("content-length", value is not null ? [value] : null);
+    }
+    public string? Host
+    {
+        get => Get("host")?.FirstOrDefault() ?? null;
+        set => Set("host", value is not null ? [value] : null);
+    }
+
+    public IEnumerator<KeyValuePair<string, List<string>>> GetEnumerator()
     {
         return _headers.GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    private string? Get(string name)
+    private List<string>? Get(string name)
     {
         return _headers.GetValueOrDefault(name);
     }
 
-    private void Set(string name, string? value)
+    private void Set(string name, List<string>? value)
     {
         if (value is null)
         {
@@ -33,5 +54,10 @@ public class Headers : IEnumerable<KeyValuePair<string, string>>
         }
 
         _headers[name] = value;
+    }
+
+    public void Add(string headerKey, string headerValue)
+    {
+        _headers[headerKey] = _headers.GetValueOrDefault(headerKey) ?? [headerValue];
     }
 }

@@ -19,14 +19,24 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
 
         await foreach (var header in requestStream.ReadHeaders())
         {
-            _ = header.Key switch
+            switch (header.Key)
             {
-                ":method" => method = header.Value,
-                ":scheme" => scheme = header.Value,
-                ":authority" => authority = header.Value,
-                ":path" => path = header.Value,
-                _ => headers[header.Key] = header.Value,
-            };
+                case ":method":
+                    method = header.Value;
+                    break;
+                case ":scheme":
+                    scheme = header.Value;
+                    break;
+                case ":authority":
+                    authority = header.Value;
+                    break;
+                case ":path":
+                    path = header.Value;
+                    break;
+                default:
+                    headers.Add(header.Key, header.Value ?? string.Empty);
+                    break;
+            }
         }
 
         if (method is null || scheme is null || authority is null || path is null)
@@ -56,15 +66,15 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
             Authority = authority,
             Path = path,
             Headers = new ReadOnlyHeaders(headers),
-            Stream = requestStream,
+            Stream = await requestStream.ReadFrame(CancellationToken.None) ? requestStream : null,
         };
     }
 
     public async Task SetResponse(ResponseDto response)
     {
-        var headers = new Dictionary<string, string>()
+        var headers = new Dictionary<string, List<string>>()
         {
-            [":status"] = ((int)response.Status).ToString(),
+            [":status"] = [((int)response.Status).ToString()],
         }.AsEnumerable();
 
         headers = headers.Concat(response.Headers);

@@ -38,6 +38,7 @@ public static class DependencyInjection
 
     public static void AddApplicationGlobalMiddleware(this IServiceCollection services)
     {
+        services.AddGlobalMiddleware<ExceptionCatcherGlobalMiddleware>();
         services.AddGlobalMiddleware<NullSiteGlobalMiddleware>();
     }
 }

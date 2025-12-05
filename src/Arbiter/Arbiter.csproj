@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.9" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.9" />
     <PackageReference Include="Serilog" Version="4.3.0" />
@@ -21,6 +20,7 @@
         <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
         <ProjectReference Include="..\Arbiter.Domain\Arbiter.Domain.csproj"/>
         <ProjectReference Include="..\Arbiter.Infrastructure.Acme\Arbiter.Infrastructure.Acme.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure.Proxy\Arbiter.Infrastructure.Proxy.csproj"/>
         <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
         <ProjectReference Include="..\Arbiter.Transport.Quic\Arbiter.Transport.Quic.csproj"/>
         <ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>

@@ -21,7 +21,7 @@ internal class QuicAltSvcGlobalMiddleware(HandleDelegate next) : IGlobalMiddlewa
         if (port.Count == 0)
             return next(transaction, site, context);
 
-        context.Response.Headers["Alt-Svc"] = $"h3=\":{port.First()}\"; ma=86400";
+        context.Response.Headers.AltSvc = $"h3=\":{port.First()}\"; ma=86400";
         return next(transaction, site, context);
     }
 

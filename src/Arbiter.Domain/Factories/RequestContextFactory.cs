@@ -5,7 +5,11 @@ namespace Arbiter.Domain.Factories;
 
 public class RequestContextFactory
 {
-    public static RequestContext? Create(Method method, string path, IEnumerable<KeyValuePair<string, string>> headers)
+    public static RequestContext? Create(
+        Method method,
+        string path,
+        IEnumerable<KeyValuePair<string, List<string>>> headers,
+        Stream? stream)
     {
         var headersConcrete = new Headers();
 
@@ -14,6 +18,6 @@ public class RequestContextFactory
             headersConcrete[header.Key] = header.Value;
         }
 
-        return new RequestContext(method, path, headersConcrete);
+        return new RequestContext(method, path, headersConcrete, stream);
     }
 }

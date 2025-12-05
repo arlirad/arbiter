@@ -2,16 +2,21 @@ using System.Collections;
 
 namespace Arbiter.Domain.ValueObjects;
 
-public class ReadOnlyHeaders(Headers headers) : IEnumerable<KeyValuePair<string, string>>
+public class ReadOnlyHeaders(Headers headers) : IEnumerable<KeyValuePair<string, List<string>>>
 {
-    public string? this[string name]
+    public List<string>? this[string name]
     {
         get => Get(name);
     }
 
-    public IEnumerator<KeyValuePair<string, string>> GetEnumerator() => headers.GetEnumerator();
+    public string? AltSvc { get => Get("alt-svc")?.FirstOrDefault() ?? null; }
+    public string? ContentType { get => Get("content-type")?.FirstOrDefault() ?? null; }
+    public string? ContentLength { get => Get("content-length")?.FirstOrDefault() ?? null; }
+    public string? Host { get => Get("host")?.FirstOrDefault() ?? null; }
+
+    public IEnumerator<KeyValuePair<string, List<string>>> GetEnumerator() => headers.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    private string? Get(string name) => headers[name];
+    private List<string>? Get(string name) => headers[name];
 }
