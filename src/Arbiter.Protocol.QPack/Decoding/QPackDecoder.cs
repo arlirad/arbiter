@@ -130,7 +130,7 @@ public class QPackDecoder
 
     public List<QPackField> GetDynamicTable()
     {
-        return [.._dynamicTable];
+        return [.. _dynamicTable];
     }
 
     public QPackField? GetField(long index, bool isDynamic)

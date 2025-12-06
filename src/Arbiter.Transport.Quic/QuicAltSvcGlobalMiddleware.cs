@@ -27,6 +27,6 @@ internal class QuicAltSvcGlobalMiddleware(HandleDelegate next) : IGlobalMiddlewa
 
     public void SetPorts(List<int> quicPorts)
     {
-        _quicPorts = [..quicPorts];
+        _quicPorts = [.. quicPorts];
     }
 }
