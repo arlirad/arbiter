@@ -12,10 +12,4 @@
         <ProjectReference Include="..\Arbiter.Protocol.Http3\Arbiter.Protocol.Http3.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <Reference Include="Serilog">
-            <HintPath>..\..\..\..\..\.nuget\packages\serilog\4.3.0\lib\net9.0\Serilog.dll</HintPath>
-        </Reference>
-    </ItemGroup>
-
 </Project>
