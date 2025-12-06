@@ -83,7 +83,7 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
                 break;
             }
         }
-        catch (Exception _)
+        catch (Exception)
         {
             socket.Dispose();
         }
