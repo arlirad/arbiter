@@ -9,7 +9,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
         <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
-        <ProjectReference Include="..\Arlirad.Net.Http.Http3\Arlirad.Net.Http.Http3.csproj"/>
+        <ProjectReference Include="..\Arbiter.Protocol.Http3\Arbiter.Protocol.Http3.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

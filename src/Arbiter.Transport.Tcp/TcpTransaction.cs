@@ -6,7 +6,7 @@ using Arbiter.Domain.Enums;
 using Arbiter.Domain.ValueObjects;
 using Arbiter.Infrastructure.Streams;
 using Arbiter.Transport.Tcp.Streams;
-using Arlirad.Net.Http;
+using Arlirad.Ervi.Net.Http;
 
 namespace Arbiter.Transport.Tcp;
 
