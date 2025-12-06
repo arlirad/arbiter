@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Domain.ValueObjects;
@@ -6,6 +7,9 @@ using Arlirad.Http3.Streams;
 
 namespace Arbiter.Transport.Quic;
 
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macOS")]
+[SupportedOSPlatform("windows")]
 public class QuicTransaction(Http3RequestStream requestStream, int port) : ITransaction
 {
     public bool IsSecure { get => true; }

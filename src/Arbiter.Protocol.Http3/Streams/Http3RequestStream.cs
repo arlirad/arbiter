@@ -1,12 +1,14 @@
 using System.Net.Quic;
 using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
 using Arlirad.Http3.Enums;
 using Arlirad.Http3.Framing;
 
 namespace Arlirad.Http3.Streams;
 
-#pragma warning disable CA1416
-
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macOS")]
+[SupportedOSPlatform("windows")]
 public class Http3RequestStream(Http3Connection connection, long streamId, QuicStream inner) : Stream
 {
     private readonly Http3FrameReader _reader = new(inner);

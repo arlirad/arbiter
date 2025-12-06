@@ -1,7 +1,11 @@
 using System.Net.Quic;
+using System.Runtime.Versioning;
 
 namespace Arbiter.Transport.Quic;
 
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macOS")]
+[SupportedOSPlatform("windows")]
 internal class QuicAcceptorListener(QuicListener listener)
 {
     private CancellationTokenSource _cts = new();

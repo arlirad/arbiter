@@ -1,10 +1,14 @@
 using System.Net;
+using System.Runtime.Versioning;
 using Arbiter.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
 namespace Arbiter.Transport.Quic.Configuration;
 
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macOS")]
+[SupportedOSPlatform("windows")]
 internal class QuicAcceptorConfigurator(IEnumerable<IAcceptor> acceptors) : IConfigurator
 {
     public async Task Configure(IConfiguration serverConfig)
