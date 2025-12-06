@@ -1,9 +1,8 @@
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
-using System.Net.Sockets;
+using System.Runtime.Versioning;
 using System.Security.Authentication;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
 using Arbiter.Application.Interfaces;
 using Arlirad.Http3;
@@ -11,8 +10,9 @@ using Arlirad.Http3.Enums;
 
 namespace Arbiter.Transport.Quic;
 
-#pragma warning disable CA1416
-
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macOS")]
+[SupportedOSPlatform("windows")]
 public class QuicAcceptor(ICertificateManager certificateManager) : IAcceptor
 {
     private const int Backlog = 128;

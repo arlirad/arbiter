@@ -17,9 +17,9 @@ public class Site
         HandleDelegate handleDelegate)
     {
         Path = path;
-        Bindings = [..bindings];
-        _middleware = [..middlewares];
-        _workers = [..workers];
+        Bindings = [.. bindings];
+        _middleware = [.. middlewares];
+        _workers = [.. workers];
         HandleDelegate = handleDelegate;
     }
 

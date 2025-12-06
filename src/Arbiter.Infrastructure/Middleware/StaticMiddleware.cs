@@ -10,7 +10,7 @@ internal class StaticMiddleware(HandleDelegate next) : IMiddleware
 {
     private List<string> _defaultFiles = [];
     private Dictionary<string, string> _mimeTypes = new();
-    private string _root;
+    private string _root = null!;
 
     public Task Configure(Site site, IConfiguration config)
     {
@@ -41,7 +41,7 @@ internal class StaticMiddleware(HandleDelegate next) : IMiddleware
 
             await context.Response.Set(Status.Ok, stream);
         }
-        catch (UnauthorizedAccessException e)
+        catch (UnauthorizedAccessException)
         {
             await context.Response.Set(Status.InternalServerError, Stream.Null);
         }

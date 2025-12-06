@@ -1,3 +1,4 @@
+using System.Net.Quic;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Middleware;
 using Arbiter.Transport.Quic.Configuration;
@@ -9,6 +10,9 @@ public static class DependencyInjection
 {
     public static void AddQuicTransport(this IServiceCollection services)
     {
+        if (!QuicListener.IsSupported)
+            return;
+
         services.AddSingleton<IConfigurator, QuicAcceptorConfigurator>();
         services.AddSingleton<IConfigurator, QuicAltSvcGlobalMiddlewareConfigurator>();
         services.AddSingleton<IAcceptor, QuicAcceptor>();
