@@ -1,11 +1,11 @@
 pkgname=arbiter
 pkgver=3.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc=""
 arch=('x86_64')
 license=('MIT')
-depends=('opencv' 'lua')
-makedepends=('dotnet-sdk-preview-bin' 'dotnet-runtime-preview-bin')
+depends=('dotnet-runtime-preview-bin')
+makedepends=('dotnet-sdk-preview-bin')
 source=("git+https://github.com/arlirad/arbiter")
 sha256sums=('SKIP')
 options=(!strip !debug)
