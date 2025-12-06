@@ -1,4 +1,5 @@
 ﻿using System.Net.Quic;
+using System.Runtime.Versioning;
 using System.Threading.Channels;
 using Arlirad.Http3.Enums;
 using Arlirad.Http3.Framing;
@@ -8,8 +9,9 @@ using Arlirad.Infrastructure.QPack.Encoding;
 
 namespace Arlirad.Http3;
 
-#pragma warning disable CA1416
-
+[SupportedOSPlatform("linux")]
+[SupportedOSPlatform("macOS")]
+[SupportedOSPlatform("windows")]
 public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 {
     private const int MaxWaitingStreams = 64;
