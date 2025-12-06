@@ -4,10 +4,11 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <RootNamespace>Arlirad.QPack</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Arlirad.QPack\Arlirad.QPack.csproj"/>
+        <Folder Include="Enums\"/>
     </ItemGroup>
 
 </Project>
