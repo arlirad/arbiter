@@ -10,7 +10,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Tests", "tests\Arbi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter", "src\Arbiter\Arbiter.csproj", "{6E2A037A-F173-76D7-C6EE-C6548F036C4C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.QPack", "src\Arlirad.QPack\Arlirad.QPack.csproj", "{FDE2628D-62F0-46EC-9C8E-8AF16DB7C3F9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Net.Http.QPack", "src\Arlirad.Net.Http.QPack\Arlirad.Net.Http.QPack.csproj", "{FDE2628D-62F0-46EC-9C8E-8AF16DB7C3F9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.QPack.Tests", "tests\Arlirad.QPack.Tests\Arlirad.QPack.Tests.csproj", "{B419093C-FD16-4F45-AF1C-EAD02DBA056E}"
 EndProject
@@ -26,7 +26,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Infrastructure.Acme
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Transport.Quic", "src\Arbiter.Transport.Quic\Arbiter.Transport.Quic.csproj", "{0F45D988-EC32-4500-A7DC-A3265DC6B73C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Http3", "src\Arlirad.Http3\Arlirad.Http3.csproj", "{BE0DBEE6-0E80-4589-B9A4-4E84A068F944}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arlirad.Net.Http.Http3", "src\Arlirad.Net.Http.Http3\Arlirad.Net.Http.Http3.csproj", "{BE0DBEE6-0E80-4589-B9A4-4E84A068F944}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Http3.Tests", "tests\Arbiter.Http3.Tests\Arbiter.Http3.Tests.csproj", "{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9}"
 EndProject
