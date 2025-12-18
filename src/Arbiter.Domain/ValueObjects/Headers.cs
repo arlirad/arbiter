@@ -60,4 +60,9 @@ public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
     {
         _headers[headerKey] = _headers.GetValueOrDefault(headerKey) ?? [headerValue];
     }
+
+    public void Replace(string headerKey, string headerValue)
+    {
+        _headers[headerKey] = [headerValue];
+    }
 }
