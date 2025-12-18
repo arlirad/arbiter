@@ -16,7 +16,8 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
         var middlewareChain = CreateMiddlewareChain(siteConfig);
         var workers = siteConfig.Workers
             .Select<SiteComponentConfig, (IWorker Instance, IConfiguration Config)>(w =>
-                (Instance: InstanceWorker(w.Name!), w.Config))
+                (Instance: InstanceWorker(w.Name!),
+                    MergeConfigs(configManager.GetDefaultWorkerConfig(w.Name!), w.Config)))
             .ToList();
 
         var handleDelegate = (Arbiter.Domain.Interfaces.HandleDelegate)(middlewareChain.Count > 0
