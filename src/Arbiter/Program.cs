@@ -2,6 +2,7 @@
 using Arbiter.Application.Interfaces;
 using Arbiter.Infrastructure;
 using Arbiter.Infrastructure.Acme;
+using Arbiter.Infrastructure.Cors;
 using Arbiter.Infrastructure.Proxy;
 using Arbiter.Transport.Quic;
 using Arbiter.Transport.Tcp;
@@ -26,6 +27,7 @@ try
             services.AddQuicTransport();
             services.AddInfrastructure();
             services.AddAcmeInfrastructure();
+            services.AddCorsInfrastructure();
             services.AddProxyInfrastructure();
             services.AddApplication();
 
