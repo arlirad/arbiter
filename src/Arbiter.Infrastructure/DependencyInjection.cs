@@ -17,14 +17,22 @@ public static class DependencyInjection
 
     public static void AddConfiguration(this IServiceCollection services, string[] args)
     {
-        var configPath = args.Any(s => s == "--local-config")
-            ? Path.Combine(Directory.GetCurrentDirectory(), "./cfg/arbiter.json")
-            : "/etc/arbiter/arbiter.json";
+        var basePath = args.Any(s => s == "--local-config")
+            ? Path.Combine(Directory.GetCurrentDirectory(), "./cfg/arbiter")
+            : "/etc/arbiter/arbiter";
 
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile(configPath, optional: false, reloadOnChange: true)
-            .Build();
+        var yamlPath = $"{basePath}.yaml";
+        var jsonPath = $"{basePath}.json";
 
-        services.AddSingleton<IConfiguration>(configuration);
+        var builder = new ConfigurationBuilder();
+
+        if (File.Exists(yamlPath))
+            builder.AddYamlFile(yamlPath, optional: false, reloadOnChange: true);
+        else if (File.Exists(jsonPath))
+            builder.AddJsonFile(jsonPath, optional: false, reloadOnChange: true);
+        else
+            builder.AddYamlFile(yamlPath, optional: false, reloadOnChange: true);
+
+        services.AddSingleton<IConfiguration>(builder.Build());
     }
 }
