@@ -28,6 +28,14 @@ internal class ConfigManager : IConfigManager
             .GetValueOrDefault(name)?.Config;
     }
 
+    public IConfigurationSection? GetDefaultWorkerConfig(string name)
+    {
+        return _configuration
+            .GetSection("Default")?
+            .Get<DefaultConfig>()?.Workers?
+            .GetValueOrDefault(name)?.Config;
+    }
+
     public async Task CreateDirectories()
     {
         await Task.Run(() => { Directory.CreateDirectory(DataPath); });
