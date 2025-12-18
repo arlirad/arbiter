@@ -32,6 +32,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Infrastructure.Prox
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Infrastructure.Tests", "tests\Arbiter.Infrastructure.Tests\Arbiter.Infrastructure.Tests.csproj", "{ED14BE14-B4D0-4DAF-888A-5C1DDF442CF6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Infrastructure.Cors", "src\Arbiter.Infrastructure.Cors\Arbiter.Infrastructure.Cors.csproj", "{87B925CD-B966-4841-8769-44C7FBFA41E8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -90,6 +92,10 @@ Global
 		{ED14BE14-B4D0-4DAF-888A-5C1DDF442CF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ED14BE14-B4D0-4DAF-888A-5C1DDF442CF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ED14BE14-B4D0-4DAF-888A-5C1DDF442CF6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87B925CD-B966-4841-8769-44C7FBFA41E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87B925CD-B966-4841-8769-44C7FBFA41E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87B925CD-B966-4841-8769-44C7FBFA41E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87B925CD-B966-4841-8769-44C7FBFA41E8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -108,6 +114,7 @@ Global
 		{DFE24D60-9716-4A7A-BD67-AE7D09AC4EB9} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{E2172B5B-E5B8-4922-A746-F34863C59C24} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{ED14BE14-B4D0-4DAF-888A-5C1DDF442CF6} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{87B925CD-B966-4841-8769-44C7FBFA41E8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BD80FAFF-D323-48A3-B127-7D7C9EB39A7B}
