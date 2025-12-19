@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
+using Arbiter.Domain.Enums;
 using Arbiter.Domain.ValueObjects;
 using Arbiter.Infrastructure.Mappers;
 using Arlirad.Http3.Streams;
@@ -44,17 +45,26 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
         }
 
         if (method is null || scheme is null || authority is null || path is null)
+        {
+            await EarlyAbort(Status.BadRequest);
             return null;
+        }
 
         if (authority.Contains(':'))
         {
             var parts = authority.Split(':');
 
             if (parts.Length > 2)
+            {
+                await EarlyAbort(Status.BadRequest);
                 return null;
+            }
 
             if (!int.TryParse(parts[1], out var authorityPort) || authorityPort != port)
+            {
+                await EarlyAbort(Status.MisdirectedRequest);
                 return null;
+            }
 
             authority = parts[0];
         }
@@ -62,7 +72,10 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
         var mappedEnum = MethodMapper.ToEnum(method);
 
         if (!mappedEnum.HasValue)
+        {
+            await EarlyAbort(Status.BadRequest);
             return null;
+        }
 
         return new RequestDto
         {
@@ -76,15 +89,27 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
 
     public async Task SetResponse(ResponseDto response)
     {
+        await WriteStatusAndHeaders((int)response.Status, response.Headers);
+        _ = Finish(response);
+    }
+
+    private async Task EarlyAbort(Status status)
+    {
+        await WriteStatusAndHeaders(StatusCodeMapper.ToCode(status));
+        requestStream.Finish();
+    }
+
+    private async Task WriteStatusAndHeaders(int status, ReadOnlyHeaders? responseHeaders = null)
+    {
         var headers = new Dictionary<string, List<string>>()
         {
-            [":status"] = [((int)response.Status).ToString()],
+            [":status"] = [status.ToString()],
         }.AsEnumerable();
 
-        headers = headers.Concat(response.Headers);
+        if (responseHeaders is not null)
+            headers = headers.Concat(responseHeaders);
 
         await requestStream.WriteHeaders(headers);
-        _ = Finish(response);
     }
 
     private async Task Finish(ResponseDto response)
