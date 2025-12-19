@@ -13,7 +13,7 @@ public class RequestContext
     }
 
     public Method Method { get; }
-    public string Path { get; }
+    public string Path { get; set; }
     public ReadOnlyHeaders Headers { get; }
     public Stream? Stream { get; private set; }
 }

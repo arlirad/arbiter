@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Arbiter.Infrastructure.Acme\Arbiter.Infrastructure.Acme.csproj"/>
     <ProjectReference Include="..\Arbiter.Infrastructure.Cors\Arbiter.Infrastructure.Cors.csproj"/>
     <ProjectReference Include="..\Arbiter.Infrastructure.Proxy\Arbiter.Infrastructure.Proxy.csproj"/>
+    <ProjectReference Include="..\Arbiter.Infrastructure.Rewriting\Arbiter.Infrastructure.Rewriting.csproj"/>
     <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
     <ProjectReference Include="..\Arbiter.Transport.Quic\Arbiter.Transport.Quic.csproj"/>
     <ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>
