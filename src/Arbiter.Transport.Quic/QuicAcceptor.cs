@@ -48,9 +48,9 @@ public class QuicAcceptor(ICertificateManager certificateManager) : IAcceptor
                     var connection = await listener.AcceptConnectionAsync(ct);
                     _ = ConnectionLoop(connection, ct);
                 }
-                catch (Exception e)
+                catch (QuicException)
                 {
-                    Log.Warning(e, "QUIC accept loop exception");
+                    // ignored
                 }
             }
         }
