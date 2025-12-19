@@ -11,6 +11,7 @@
  - **Middleware Pipeline**: A modular architecture allowing you to chain features like:
    - **CORS**: Easily configure Cross-Origin Resource Sharing.
    - **Proxy**: Reverse proxy for backend routing.
+   - **Rewrite**: Request path rewriting using RegEx pattern matching.
    - **Static**: Static file serving.
  - **YAML Configuration**: Human-readable configuration for sites, middleware, workers, and bindings.
 
