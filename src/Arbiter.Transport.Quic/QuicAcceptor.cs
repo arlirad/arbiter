@@ -7,6 +7,7 @@ using System.Threading.Channels;
 using Arbiter.Application.Interfaces;
 using Arlirad.Http3;
 using Arlirad.Http3.Enums;
+using Serilog;
 
 namespace Arbiter.Transport.Quic;
 
@@ -42,8 +43,15 @@ public class QuicAcceptor(ICertificateManager certificateManager) : IAcceptor
         {
             while (!ct.IsCancellationRequested)
             {
-                var connection = await listener.AcceptConnectionAsync(ct);
-                _ = ConnectionLoop(connection, ct);
+                try
+                {
+                    var connection = await listener.AcceptConnectionAsync(ct);
+                    _ = ConnectionLoop(connection, ct);
+                }
+                catch (QuicException)
+                {
+                    // ignored
+                }
             }
         }
         catch (OperationCanceledException)
