@@ -54,10 +54,10 @@ sites:
           acmeDirectoryUrl: https://acme-v02.api.letsencrypt.org/directory
           tosAccepted: false # Must be set to true to indicate agreement with the CA's Terms of Service
 listenOn: 
- - "0.0.0.0"
- - "::"
+  - "0.0.0.0"
+  - "::"
 quicPorts:
- - 443
+  - 443
 ```
 
 
