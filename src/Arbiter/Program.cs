@@ -4,6 +4,7 @@ using Arbiter.Infrastructure;
 using Arbiter.Infrastructure.Acme;
 using Arbiter.Infrastructure.Cors;
 using Arbiter.Infrastructure.Proxy;
+using Arbiter.Infrastructure.Rewriting;
 using Arbiter.Transport.Quic;
 using Arbiter.Transport.Tcp;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +30,7 @@ try
             services.AddAcmeInfrastructure();
             services.AddCorsInfrastructure();
             services.AddProxyInfrastructure();
+            services.AddRewritingInfrastructure();
             services.AddApplication();
 
             services.AddApplicationGlobalMiddleware();
