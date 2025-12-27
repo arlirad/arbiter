@@ -32,6 +32,11 @@ public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
         get => Get("host")?.FirstOrDefault() ?? null;
         set => Set("host", value is not null ? [value] : null);
     }
+    public string? TransferEncoding
+    {
+        get => Get("transfer-encoding")?.FirstOrDefault() ?? null;
+        set => Set("transfer-encoding", value is not null ? [value] : null);
+    }
 
     public IEnumerator<KeyValuePair<string, List<string>>> GetEnumerator()
     {
