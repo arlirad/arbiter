@@ -13,6 +13,7 @@ namespace Arbiter.Transport.Tcp;
 internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransaction
 {
     private const string NewLine = "\r\n";
+    private const string ChunkedEncoding = "chunked";
 
     private readonly TaskCompletionSource _tcs = new();
     private bool _chunked;
@@ -62,19 +63,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
         _version = version.Value;
         headers.Host = null;
 
-        Stream? requestBodyStream = null;
-        var contentLengthString = headers.ContentLength;
-
-        if (!string.IsNullOrWhiteSpace(contentLengthString))
-        {
-            if (!int.TryParse(contentLengthString, out var length))
-                return null;
-
-            var remainderStream = new RemainderStream(stream, remainder);
-            requestBodyStream = new ClampedStream(remainderStream, length);
-        }
-
-        headers.ContentLength = null;
+        var requestBodyStream = GetBodyStream(headers, remainder);
 
         _requestMethod = method.Value;
 
@@ -123,7 +112,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
                 }
                 else
                 {
-                    await writer.WriteLineAsync($"Transfer-Encoding: chunked");
+                    await writer.WriteLineAsync($"Transfer-Encoding: {ChunkedEncoding}");
                     _chunked = true;
                 }
             }
@@ -136,6 +125,33 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
         }
 
         _ = Finish();
+    }
+
+    private Stream? GetBodyStream(Headers headers, Stream? remainder)
+    {
+        var contentLengthString = headers.ContentLength;
+        var transferEncoding = headers.TransferEncoding;
+
+        if (!string.IsNullOrWhiteSpace(transferEncoding))
+        {
+            if (transferEncoding.Equals(ChunkedEncoding, StringComparison.OrdinalIgnoreCase))
+            {
+                var remainderStream = new RemainderStream(stream, remainder);
+
+                return new HttpChunkedStream(remainderStream);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(contentLengthString))
+        {
+            if (!int.TryParse(contentLengthString, out var length))
+                return null;
+
+            var remainderStream = new RemainderStream(stream, remainder);
+
+            return new ClampedStream(remainderStream, length);
+        }
+
+        return null;
     }
 
     private bool ShouldSendZeroContentLength(Status status)
