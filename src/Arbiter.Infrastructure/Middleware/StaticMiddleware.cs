@@ -8,6 +8,10 @@ namespace Arbiter.Infrastructure.Middleware;
 
 internal class StaticMiddleware(HandleDelegate next) : IMiddleware
 {
+    private readonly StringComparison _stringComparison = Environment.OSVersion.Platform == PlatformID.Unix
+        ? StringComparison.Ordinal
+        : StringComparison.OrdinalIgnoreCase;
+
     private List<string> _defaultFiles = [];
     private Dictionary<string, string> _mimeTypes = new();
     private string _root = null!;
@@ -27,8 +31,15 @@ internal class StaticMiddleware(HandleDelegate next) : IMiddleware
     {
         try
         {
-            var queryPath = Path.Combine(_root, context.Request.Path.TrimStart('/'));
-            var (path, stream) = GetFile(queryPath);
+            var fullPath = Path.GetFullPath(Path.Combine(_root, context.Request.Path.TrimStart('/')));
+
+            if (!fullPath.StartsWith(_root, _stringComparison))
+            {
+                await context.Response.Set(Status.NotFound, Stream.Null);
+                return;
+            }
+
+            var (path, stream) = GetFile(fullPath);
 
             if (stream is null)
             {
