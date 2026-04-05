@@ -9,5 +9,6 @@ public interface IContextFactory
         Method method,
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
-        Stream? stream);
+        Stream? stream,
+        bool isWebSocketUpgrade);
 }

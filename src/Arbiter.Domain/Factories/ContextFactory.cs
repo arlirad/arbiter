@@ -10,9 +10,10 @@ public class ContextFactory : IContextFactory
         Method method,
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
-        Stream? stream)
+        Stream? stream,
+        bool isWebSocketUpgrade)
     {
-        var request = RequestContextFactory.Create(method, path, headers, stream);
+        var request = RequestContextFactory.Create(method, path, headers, stream, isWebSocketUpgrade);
         var response = ResponseContextFactory.Create();
 
         if (request is null || response is null)

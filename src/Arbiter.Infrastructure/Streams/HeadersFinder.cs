@@ -1,6 +1,7 @@
-using Arbiter.Infrastructure.Streams;
+using System.Text;
+using Arbiter.Domain.ValueObjects;
 
-namespace Arbiter.Transport.Tcp.Streams;
+namespace Arbiter.Infrastructure.Streams;
 
 public static class HeadersFinder
 {
@@ -38,5 +39,30 @@ public static class HeadersFinder
         }
 
         return (null, null);
+    }
+
+    public static async Task<Headers?> ParseHeaders(StreamReader reader)
+    {
+        var headers = new Headers();
+
+        while (true)
+        {
+            var line = await reader.ReadLineAsync();
+
+            if (line is null)
+                return null;
+
+            if (line.Length == 0)
+                break;
+
+            var separatorIndex = line.IndexOf(": ", StringComparison.Ordinal);
+
+            if (separatorIndex < 0)
+                continue;
+
+            headers.Add(line[..separatorIndex], line[(separatorIndex + 2)..]);
+        }
+
+        return headers;
     }
 }
