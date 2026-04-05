@@ -31,7 +31,8 @@ internal class StaticMiddleware(HandleDelegate next) : IMiddleware
     {
         try
         {
-            var fullPath = Path.GetFullPath(Path.Combine(_root, context.Request.Path.TrimStart('/')));
+            var strippedPath = context.Request.Path.TrimStart('/').Split('?').First();
+            var fullPath = Path.GetFullPath(Path.Combine(_root, strippedPath));
 
             if (!fullPath.StartsWith(_root, _stringComparison))
             {
