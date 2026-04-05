@@ -111,58 +111,67 @@ public class ProxyMiddleware : IMiddleware
             : _target.Port;
 
         var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-        await socket.ConnectAsync(_target.Host, port);
 
-        Stream backendStream = new NetworkStream(socket);
-
-        if (_target.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            var ssl = new SslStream(backendStream, false);
-            await ssl.AuthenticateAsClientAsync(_target.Host);
-            backendStream = ssl;
-        }
+            await socket.ConnectAsync(_target.Host, port);
 
-        var sb = new StringBuilder(256);
-        sb.Append("GET ");
-        sb.Append(targetPath);
-        sb.Append(" HTTP/1.1\r\nHost: ");
-        sb.Append(_target.Host);
-        sb.Append("\r\n");
+            Stream backendStream = new NetworkStream(socket);
 
-        foreach (var header in context.Request.Headers)
-        {
-            if (DisallowedUpgradeHeaders.Contains(header.Key))
-                continue;
-
-            foreach (var value in header.Value)
+            if (_target.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
             {
-                sb.Append(header.Key);
-                sb.Append(": ");
-                sb.Append(value);
-                sb.Append("\r\n");
+                var ssl = new SslStream(backendStream, false);
+                await ssl.AuthenticateAsClientAsync(_target.Host);
+                backendStream = ssl;
             }
+
+            var sb = new StringBuilder(256);
+            sb.Append("GET ");
+            sb.Append(targetPath);
+            sb.Append(" HTTP/1.1\r\nHost: ");
+            sb.Append(_target.Host);
+            sb.Append("\r\n");
+
+            foreach (var header in context.Request.Headers)
+            {
+                if (DisallowedUpgradeHeaders.Contains(header.Key))
+                    continue;
+
+                foreach (var value in header.Value)
+                {
+                    sb.Append(header.Key);
+                    sb.Append(": ");
+                    sb.Append(value);
+                    sb.Append("\r\n");
+                }
+            }
+
+            sb.Append("\r\n");
+
+            var requestBytes = Encoding.UTF8.GetBytes(sb.ToString());
+            await backendStream.WriteAsync(requestBytes);
+            await backendStream.FlushAsync();
+
+            var (status, responseHeaders, responseStream) = await ReadUpgradeResponse(backendStream);
+
+            if (status != Status.SwitchingProtocol)
+            {
+                await context.Response.Set(Status.BadGateway);
+                return;
+            }
+
+            foreach (var header in responseHeaders)
+            {
+                context.Response.Headers[header.Key] = header.Value;
+            }
+
+            await context.Response.Set(Status.SwitchingProtocol, responseStream);
+            socket = null;
         }
-
-        sb.Append("\r\n");
-
-        var requestBytes = Encoding.UTF8.GetBytes(sb.ToString());
-        await backendStream.WriteAsync(requestBytes);
-        await backendStream.FlushAsync();
-
-        var (status, responseHeaders, responseStream) = await ReadUpgradeResponse(backendStream);
-
-        if (status != Status.SwitchingProtocol)
+        finally
         {
-            await context.Response.Set(Status.BadGateway);
-            return;
+            socket?.Dispose();
         }
-
-        foreach (var header in responseHeaders)
-        {
-            context.Response.Headers[header.Key] = header.Value;
-        }
-
-        await context.Response.Set(Status.SwitchingProtocol, responseStream);
     }
 
     private static async Task<(Status?, Headers, Stream)> ReadUpgradeResponse(Stream stream)
