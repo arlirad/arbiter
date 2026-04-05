@@ -1,7 +1,11 @@
 using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Text;
 using Arbiter.Domain.Aggregates;
 using Arbiter.Domain.Enums;
 using Arbiter.Domain.Interfaces;
+using Arbiter.Domain.ValueObjects;
 using Arbiter.Infrastructure.Proxy.Mappers;
 using Arbiter.Infrastructure.Proxy.Models;
 using Arbiter.Infrastructure.Streams;
@@ -11,18 +15,27 @@ namespace Arbiter.Infrastructure.Proxy;
 
 public class ProxyMiddleware : IMiddleware
 {
-    private readonly List<string> _disallowedHeaders =
-    [
-        "accept-encoding",
-        "content-encoding",
-        "connection",
-        "keep-alive",
-        "proxy-authenticate",
-        "proxy-authorization",
-        "trailer",
-        "transfer-encoding",
-        "upgrade",
-    ];
+    private static readonly HashSet<string> DisallowedHeaders =
+        new(
+            [
+                "accept-encoding",
+                "content-encoding",
+                "connection",
+                "keep-alive",
+                "proxy-authenticate",
+                "proxy-authorization",
+                "trailer",
+                "transfer-encoding",
+            ],
+            StringComparer.OrdinalIgnoreCase);
+
+    private static readonly HashSet<string> DisallowedUpgradeHeaders =
+        new(DisallowedHeaders.Where(h => !h.Equals("connection", StringComparison.OrdinalIgnoreCase))
+                .Append("host"),
+            StringComparer.OrdinalIgnoreCase);
+
+    private static readonly HashSet<string> DisallowedResponseContentHeaders =
+        new(["content-length", "content-type"], StringComparer.OrdinalIgnoreCase);
 
     private HttpClient _client = null!;
     private Uri _target = null!;
@@ -55,6 +68,12 @@ public class ProxyMiddleware : IMiddleware
             return;
         }
 
+        if (context.Request.IsWebSocketUpgrade)
+        {
+            await HandleWebSocket(context);
+            return;
+        }
+
         var targetPath = _target.AbsolutePath.TrimEnd('/') + '/' + context.Request.Path.TrimStart('/');
         var targetUri = new Uri(_target, targetPath);
         var method = MethodMapper.ToHttpMethod(context.Request.Method);
@@ -67,7 +86,7 @@ public class ProxyMiddleware : IMiddleware
 
         foreach (var header in context.Request.Headers)
         {
-            if (ShouldIgnoreHeader(header.Key, header.Value, ref connectionHeaders))
+            if (ShouldIgnoreHeader(header.Key, header.Value, ref connectionHeaders, DisallowedHeaders))
                 continue;
 
             if (!targetRequest.Headers.TryAddWithoutValidation(header.Key, header.Value))
@@ -82,6 +101,100 @@ public class ProxyMiddleware : IMiddleware
         {
             await context.Response.Set(Status.BadGateway);
         }
+    }
+
+    private async Task HandleWebSocket(Context context)
+    {
+        var targetPath = $"{_target.AbsolutePath.TrimEnd('/')}/{context.Request.Path.TrimStart('/')}";
+        var port = _target.IsDefaultPort
+            ? (_target.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? 443 : 80)
+            : _target.Port;
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+
+        try
+        {
+            await socket.ConnectAsync(_target.Host, port);
+
+            Stream backendStream = new NetworkStream(socket);
+
+            if (_target.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+            {
+                var ssl = new SslStream(backendStream, false);
+                await ssl.AuthenticateAsClientAsync(_target.Host);
+                backendStream = ssl;
+            }
+
+            var sb = new StringBuilder(256);
+            sb.Append("GET ");
+            sb.Append(targetPath);
+            sb.Append(" HTTP/1.1\r\nHost: ");
+            sb.Append(_target.Host);
+            sb.Append("\r\n");
+
+            foreach (var header in context.Request.Headers)
+            {
+                if (DisallowedUpgradeHeaders.Contains(header.Key))
+                    continue;
+
+                foreach (var value in header.Value)
+                {
+                    sb.Append(header.Key);
+                    sb.Append(": ");
+                    sb.Append(value);
+                    sb.Append("\r\n");
+                }
+            }
+
+            sb.Append("\r\n");
+
+            var requestBytes = Encoding.UTF8.GetBytes(sb.ToString());
+            await backendStream.WriteAsync(requestBytes);
+            await backendStream.FlushAsync();
+
+            var (status, responseHeaders, responseStream) = await ReadUpgradeResponse(backendStream);
+
+            if (status != Status.SwitchingProtocol)
+            {
+                await context.Response.Set(Status.BadGateway);
+                return;
+            }
+
+            foreach (var header in responseHeaders)
+            {
+                context.Response.Headers[header.Key] = header.Value;
+            }
+
+            await context.Response.Set(Status.SwitchingProtocol, responseStream);
+            socket = null;
+        }
+        finally
+        {
+            socket?.Dispose();
+        }
+    }
+
+    private static async Task<(Status?, Headers, Stream)> ReadUpgradeResponse(Stream stream)
+    {
+        var (headers, remainder) = await HeadersFinder.GetHeadersClampedStream(stream);
+
+        if (headers is null)
+            return (Status.BadGateway, new Headers(), stream);
+
+        using var reader = new StreamReader(headers);
+        var statusLine = await reader.ReadLineAsync();
+
+        if (statusLine is null || !statusLine.StartsWith("HTTP/1.1 101"))
+            return (Status.BadGateway, new Headers(), stream);
+
+        var responseHeaders = await HeadersFinder.ParseHeaders(reader);
+
+        if (responseHeaders is null)
+            return (Status.BadGateway, new Headers(), stream);
+
+        return remainder is not null
+            ? (Status.SwitchingProtocol, responseHeaders, new RemainderStream(stream, remainder))
+            : (Status.SwitchingProtocol, responseHeaders, stream);
     }
 
     private async Task SendRequest(Context context, HttpRequestMessage targetRequest)
@@ -113,13 +226,21 @@ public class ProxyMiddleware : IMiddleware
         {
             var valueList = header.Value.ToList();
 
-            if (ShouldIgnoreHeader(header.Key, valueList, ref connectionHeaders))
+            if (ShouldIgnoreHeader(header.Key, valueList, ref connectionHeaders, DisallowedHeaders))
                 continue;
 
             context.Response.Headers[header.Key] = valueList;
         }
 
-        if (response.Content.Headers.ContentType == null)
+        foreach (var header in response.Content.Headers)
+        {
+            if (DisallowedResponseContentHeaders.Contains(header.Key))
+                continue;
+
+            context.Response.Headers[header.Key] = header.Value.ToList();
+        }
+
+        if (response.Content.Headers.ContentType is null)
             return;
 
         var segments = new List<string>();
@@ -134,7 +255,11 @@ public class ProxyMiddleware : IMiddleware
             context.Response.Headers.ContentType = string.Join("; ", segments);
     }
 
-    private bool ShouldIgnoreHeader(string key, List<string> values, ref List<string>? connectionHeaders)
+    private static bool ShouldIgnoreHeader(
+        string key,
+        List<string> values,
+        ref List<string>? connectionHeaders,
+        IEnumerable<string> disallowedHeaders)
     {
         if (key.Equals("te", StringComparison.OrdinalIgnoreCase))
             if (values.Any(v => v == "trailers"))
@@ -159,6 +284,6 @@ public class ProxyMiddleware : IMiddleware
         if (connectionHeaders != null && connectionHeaders.Contains(key, StringComparer.OrdinalIgnoreCase))
             return true;
 
-        return _disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase);
+        return disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase);
     }
 }

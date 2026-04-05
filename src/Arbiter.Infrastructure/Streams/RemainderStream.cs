@@ -4,7 +4,7 @@ public class RemainderStream(Stream inner, Stream? remainder = null) : Stream
 {
     public override bool CanRead { get => true; }
     public override bool CanSeek { get => true; }
-    public override bool CanWrite { get => false; }
+    public override bool CanWrite { get => inner.CanWrite; }
     public override long Length { get => throw new NotSupportedException(); }
     public override long Position
     {
@@ -49,7 +49,7 @@ public class RemainderStream(Stream inner, Stream? remainder = null) : Stream
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException();
+        return inner.WriteAsync(buffer, cancellationToken);
     }
 
     public override void Flush()
@@ -65,4 +65,15 @@ public class RemainderStream(Stream inner, Stream? remainder = null) : Stream
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
     public override void SetLength(long value) => throw new NotSupportedException();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            remainder?.Dispose();
+            inner.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
 }

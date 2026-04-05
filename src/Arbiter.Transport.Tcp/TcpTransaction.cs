@@ -5,17 +5,17 @@ using Arbiter.Application.Interfaces;
 using Arbiter.Domain.Enums;
 using Arbiter.Domain.ValueObjects;
 using Arbiter.Infrastructure.Streams;
-using Arbiter.Transport.Tcp.Streams;
 using Arlirad.Ervi.Net.Http;
 
 namespace Arbiter.Transport.Tcp;
 
-internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransaction
+internal class TcpTransaction(Stream stream, bool isSsl, int port, CancellationToken ct) : ITransaction
 {
     private const string NewLine = "\r\n";
     private const string ChunkedEncoding = "chunked";
 
     private readonly TaskCompletionSource _tcs = new();
+    private readonly TaskCompletionSource _upgradeTcs = new();
     private bool _chunked;
     private Method _requestMethod;
     private Stream? _responseStream;
@@ -23,7 +23,9 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
 
     internal bool Finished { get; set; }
     internal bool Faulted { get; set; }
+    internal bool Upgraded { get; set; }
     internal Task ResponseSet { get => _tcs.Task; }
+    internal Task UpgradeCompleted { get => _upgradeTcs.Task; }
 
     public bool IsSecure { get => isSsl; }
     public int Port { get => port; }
@@ -51,7 +53,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
         if (!method.HasValue || !version.HasValue)
             return null;
 
-        var headers = await GetHeaders(reader);
+        var headers = await HeadersFinder.ParseHeaders(reader);
         if (headers is null)
             return null;
 
@@ -67,6 +69,8 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
 
         _requestMethod = method.Value;
 
+        var isWebSocketUpgrade = DetectWebSocketUpgrade(method.Value, headers);
+
         return new RequestDto
         {
             Method = method.Value,
@@ -74,6 +78,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
             Path = path,
             Headers = new ReadOnlyHeaders(headers),
             Stream = requestBodyStream,
+            IsWebSocketUpgrade = isWebSocketUpgrade,
         };
     }
 
@@ -102,7 +107,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
                 }
             }
 
-            if (response.Stream is not null)
+            if (response.Status != Status.SwitchingProtocol && response.Stream is not null)
             {
                 _responseStream = response.Stream;
 
@@ -122,6 +127,13 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
             }
 
             await writer.WriteLineAsync();
+        }
+
+        if (response.Status == Status.SwitchingProtocol && response.Stream is not null)
+        {
+            Upgraded = true;
+            _ = RunUpgrade(response.Stream);
+            return;
         }
 
         _ = Finish();
@@ -185,25 +197,39 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port) : ITransactio
         _tcs.SetResult();
     }
 
-    private static async Task<Headers?> GetHeaders(StreamReader reader)
+    private async Task RunUpgrade(Stream responseStream)
     {
-        var headers = new Headers();
+        _tcs.SetResult();
 
-        while (true)
+        try
         {
-            var line = await reader.ReadLineAsync();
-
-            if (line is null)
-                return null;
-
-            if (line.Length == 0)
-                break;
-
-            var keyValueSeparatorIndex = line.IndexOf(": ", StringComparison.Ordinal);
-
-            headers.Add(line[0..keyValueSeparatorIndex], line[(keyValueSeparatorIndex + 2)..]);
+            await StreamRelay.BidirectionalCopy(responseStream, stream, ct);
         }
+        catch
+        {
+        }
+        finally
+        {
+            await responseStream.DisposeAsync();
+            _upgradeTcs.SetResult();
+        }
+    }
 
-        return headers;
+    private static bool DetectWebSocketUpgrade(Method method, Headers headers)
+    {
+        if (method != Method.Get)
+            return false;
+
+        var connection = headers["connection"]?
+                .SelectMany(v => v.Split(','))
+                .Select(v => v.Trim())
+            ?? [];
+
+        if (!connection.Any(v => v.Equals("upgrade", StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        var upgrade = headers["upgrade"]?.FirstOrDefault() ?? "";
+
+        return upgrade.Equals("websocket", StringComparison.OrdinalIgnoreCase);
     }
 }

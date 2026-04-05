@@ -71,10 +71,17 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
 
             while (true)
             {
-                var transaction = new TcpTransaction(stream, secure, port);
+                var transaction = new TcpTransaction(stream, secure, port, ct);
 
                 await _transactions.Writer.WriteAsync(transaction, ct);
                 await transaction.ResponseSet.WaitAsync(ct);
+
+                if (transaction.Upgraded)
+                {
+                    await transaction.UpgradeCompleted;
+                    socket.Dispose();
+                    break;
+                }
 
                 if (transaction is { Finished: false, Faulted: false })
                     continue;

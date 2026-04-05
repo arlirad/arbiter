@@ -10,4 +10,5 @@ public class RequestDto
     public string Path { get; set; } = null!;
     public ReadOnlyHeaders Headers { get; set; } = null!;
     public Stream? Stream { get; set; }
+    public bool IsWebSocketUpgrade { get; set; }
 }
