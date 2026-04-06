@@ -5,8 +5,18 @@ namespace Arbiter.Core.ValueObjects;
 
 public class RequestContext
 {
-    internal RequestContext(Method method, string path, Headers headers, Stream? stream, bool isWebSocketUpgrade, string? authority, bool isSecure, IPAddress? remoteAddress)
+    internal RequestContext(
+        int transactionId,
+        Method method,
+        string path,
+        Headers headers,
+        Stream? stream,
+        bool isWebSocketUpgrade,
+        string? authority,
+        bool isSecure,
+        IPAddress? remoteAddress)
     {
+        TransactionId = transactionId;
         Method = method;
         Path = path;
         Headers = new ReadOnlyHeaders(headers);
@@ -17,6 +27,7 @@ public class RequestContext
         RemoteAddress = remoteAddress;
     }
 
+    public int TransactionId { get; }
     public Method Method { get; }
     public string Path { get; set; }
     public ReadOnlyHeaders Headers { get; }

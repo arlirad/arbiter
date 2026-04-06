@@ -7,7 +7,6 @@ using System.Threading.Channels;
 using Arbiter.Application.Interfaces;
 using Arlirad.Http3;
 using Arlirad.Http3.Enums;
-using Serilog;
 
 namespace Arbiter.Transport.Quic;
 
@@ -64,6 +63,8 @@ public class QuicAcceptor(ICertificateManager certificateManager) : IAcceptor
     {
         try
         {
+            var remoteEp = quicConnection.RemoteEndPoint as IPEndPoint;
+
             await using var connection = new Http3Connection(quicConnection);
             await connection.Start();
 
@@ -76,7 +77,10 @@ public class QuicAcceptor(ICertificateManager certificateManager) : IAcceptor
                 await _transactions.Writer.WriteAsync(transaction, ct);
             }
         }
-        catch (Exception)
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
         {
             await quicConnection.CloseAsync((long)ErrorCode.InternalError, ct);
         }

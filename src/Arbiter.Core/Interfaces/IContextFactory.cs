@@ -7,6 +7,7 @@ namespace Arbiter.Core.Interfaces;
 public interface IContextFactory
 {
     Context? Create(
+        int transactionId,
         Method method,
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,

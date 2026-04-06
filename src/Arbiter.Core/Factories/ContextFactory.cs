@@ -8,6 +8,7 @@ namespace Arbiter.Core.Factories;
 public class ContextFactory : IContextFactory
 {
     public Context? Create(
+        int transactionId,
         Method method,
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
@@ -17,7 +18,9 @@ public class ContextFactory : IContextFactory
         bool isSecure,
         IPAddress? remoteAddress)
     {
-        var request = RequestContextFactory.Create(method, path, headers, stream, isWebSocketUpgrade, authority, isSecure, remoteAddress);
+        var request = RequestContextFactory.Create(transactionId, method, path, headers, stream, isWebSocketUpgrade,
+            authority, isSecure, remoteAddress);
+
         var response = ResponseContextFactory.Create();
 
         if (request is null || response is null)
