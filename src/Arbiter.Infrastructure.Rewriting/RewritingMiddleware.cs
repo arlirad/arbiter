@@ -1,5 +1,5 @@
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Rewriting.Models;
 using Microsoft.Extensions.Configuration;
 

@@ -1,5 +1,5 @@
 using System.Text;
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.ValueObjects;
 
 namespace Arbiter.Infrastructure.Streams;
 

@@ -1,7 +1,7 @@
-using Arbiter.Domain.Enums;
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.Enums;
+using Arbiter.Core.ValueObjects;
 
-namespace Arbiter.Domain.Factories;
+namespace Arbiter.Core.Factories;
 
 public class RequestContextFactory
 {

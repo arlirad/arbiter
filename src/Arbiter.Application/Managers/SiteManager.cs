@@ -1,6 +1,6 @@
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Orchestrators;
-using Arbiter.Domain.Aggregates;
+using Arbiter.Core.Aggregates;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 

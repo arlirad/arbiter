@@ -1,6 +1,6 @@
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Interfaces;
 
-namespace Arbiter.Domain.Aggregates;
+namespace Arbiter.Core.Aggregates;
 
 public class Site
 {

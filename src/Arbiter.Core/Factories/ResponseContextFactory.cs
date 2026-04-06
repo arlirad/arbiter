@@ -1,6 +1,6 @@
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.ValueObjects;
 
-namespace Arbiter.Domain.Factories;
+namespace Arbiter.Core.Factories;
 
 public class ResponseContextFactory
 {

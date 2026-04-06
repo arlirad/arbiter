@@ -1,4 +1,4 @@
-namespace Arbiter.Domain.Enums;
+namespace Arbiter.Core.Enums;
 
 public enum Status
 {

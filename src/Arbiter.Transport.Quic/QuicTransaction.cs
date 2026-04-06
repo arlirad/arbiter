@@ -1,8 +1,8 @@
 using System.Runtime.Versioning;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
-using Arbiter.Domain.Enums;
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.Enums;
+using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Mappers;
 using Arlirad.Http3.Streams;
 

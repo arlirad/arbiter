@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace Arbiter.Domain.ValueObjects;
+namespace Arbiter.Core.ValueObjects;
 
 public class ReadOnlyHeaders(Headers headers) : IEnumerable<KeyValuePair<string, List<string>>>
 {

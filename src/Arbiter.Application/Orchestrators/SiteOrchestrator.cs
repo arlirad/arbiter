@@ -1,7 +1,7 @@
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,7 +20,7 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
                     MergeConfigs(configManager.GetDefaultWorkerConfig(w.Name!), w.Config)))
             .ToList();
 
-        var handleDelegate = (Arbiter.Domain.Interfaces.HandleDelegate)(middlewareChain.Count > 0
+        var handleDelegate = (Arbiter.Core.Interfaces.HandleDelegate)(middlewareChain.Count > 0
             ? middlewareChain.First().Instance.Handle
             : LastHandleDelegate);
 

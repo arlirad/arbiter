@@ -1,7 +1,7 @@
 using Arbiter.Application.DTOs;
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Interfaces;
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Interfaces;
+using Arbiter.Core.ValueObjects;
 
 namespace Arbiter.Application.Mappers;
 

@@ -2,8 +2,8 @@ using Arbiter.Infrastructure.Enums;
 using Arbiter.Infrastructure.Mappers;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
-using Arbiter.Domain.Enums;
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.Enums;
+using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Streams;
 using Arlirad.Ervi.Net.Http;
 

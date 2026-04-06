@@ -1,6 +1,6 @@
-using Arbiter.Domain.Enums;
+using Arbiter.Core.Enums;
 
-namespace Arbiter.Domain.ValueObjects;
+namespace Arbiter.Core.ValueObjects;
 
 public class ResponseContext
 {

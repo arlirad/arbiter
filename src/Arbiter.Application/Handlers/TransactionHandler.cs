@@ -3,8 +3,8 @@ using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
 using Arbiter.Application.Mappers;
 using Arbiter.Application.Orchestrators;
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Enums;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Enums;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Application.Handlers;

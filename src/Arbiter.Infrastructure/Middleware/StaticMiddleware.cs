@@ -1,6 +1,6 @@
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Enums;
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Enums;
+using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;
 

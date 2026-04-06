@@ -1,4 +1,4 @@
-using Arbiter.Domain.Aggregates;
+using Arbiter.Core.Aggregates;
 
 namespace Arbiter.Application.Interfaces;
 
