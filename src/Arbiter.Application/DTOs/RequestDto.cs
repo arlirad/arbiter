@@ -11,4 +11,6 @@ public class RequestDto
     public ReadOnlyHeaders Headers { get; set; } = null!;
     public Stream? Stream { get; set; }
     public bool IsWebSocketUpgrade { get; set; }
+    public bool IsSecure { get; set; }
+    public string? RemoteAddress { get; set; }
 }

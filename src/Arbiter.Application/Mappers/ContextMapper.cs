@@ -10,7 +10,7 @@ internal class ContextMapper(IContextFactory contextFactory)
     public Context? ToDomain(RequestDto request)
     {
         var context = contextFactory.Create(request.Method, request.Path, request.Headers, request.Stream,
-            request.IsWebSocketUpgrade);
+            request.IsWebSocketUpgrade, request.Authority, request.IsSecure, request.RemoteAddress);
 
         return context;
     }

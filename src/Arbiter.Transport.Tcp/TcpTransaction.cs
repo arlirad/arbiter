@@ -9,7 +9,7 @@ using Arlirad.Ervi.Net.Http;
 
 namespace Arbiter.Transport.Tcp;
 
-internal class TcpTransaction(Stream stream, bool isSsl, int port, CancellationToken ct) : ITransaction
+internal class TcpTransaction(Stream stream, bool isSsl, int port, string? remoteAddress, CancellationToken ct) : ITransaction
 {
     private const string NewLine = "\r\n";
     private const string ChunkedEncoding = "chunked";
@@ -29,6 +29,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, CancellationT
 
     public bool IsSecure { get => isSsl; }
     public int Port { get => port; }
+    public string? RemoteAddress { get => remoteAddress; }
 
     public async Task<RequestDto?> GetRequest()
     {
@@ -79,6 +80,8 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, CancellationT
             Headers = new ReadOnlyHeaders(headers),
             Stream = requestBodyStream,
             IsWebSocketUpgrade = isWebSocketUpgrade,
+            IsSecure = isSsl,
+            RemoteAddress = remoteAddress,
         };
     }
 

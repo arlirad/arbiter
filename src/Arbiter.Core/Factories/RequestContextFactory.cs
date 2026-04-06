@@ -10,7 +10,10 @@ public class RequestContextFactory
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
         Stream? stream,
-        bool isWebSocketUpgrade)
+        bool isWebSocketUpgrade,
+        string? authority,
+        bool isSecure,
+        string? remoteAddress)
     {
         var headersConcrete = new Headers();
 
@@ -19,6 +22,6 @@ public class RequestContextFactory
             headersConcrete[header.Key] = header.Value;
         }
 
-        return new RequestContext(method, path, headersConcrete, stream, isWebSocketUpgrade);
+        return new RequestContext(method, path, headersConcrete, stream, isWebSocketUpgrade, authority, isSecure, remoteAddress);
     }
 }

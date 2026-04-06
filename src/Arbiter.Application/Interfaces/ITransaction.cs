@@ -6,6 +6,7 @@ public interface ITransaction
 {
     bool IsSecure { get; }
     int Port { get; }
+    string? RemoteAddress { get; }
 
     Task<RequestDto?> GetRequest();
     Task SetResponse(ResponseDto response);

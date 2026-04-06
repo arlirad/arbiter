@@ -11,10 +11,11 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class QuicTransaction(Http3RequestStream requestStream, int port) : ITransaction
+public class QuicTransaction(Http3RequestStream requestStream, int port, string? remoteAddress) : ITransaction
 {
     public bool IsSecure { get => true; }
     public int Port { get => port; }
+    public string? RemoteAddress { get => remoteAddress; }
 
     public async Task<RequestDto?> GetRequest()
     {
@@ -84,6 +85,8 @@ public class QuicTransaction(Http3RequestStream requestStream, int port) : ITran
             Path = path,
             Headers = new ReadOnlyHeaders(headers),
             Stream = await requestStream.ReadFrame(CancellationToken.None) ? requestStream : null,
+            IsSecure = true,
+            RemoteAddress = remoteAddress,
         };
     }
 

@@ -70,7 +70,8 @@ public class QuicAcceptor(ICertificateManager certificateManager) : IAcceptor
             while (true)
             {
                 var stream = await connection.GetRequestStream(ct);
-                var transaction = new QuicTransaction(stream, quicConnection.LocalEndPoint.Port);
+                var remoteAddress = quicConnection.RemoteEndPoint;
+                var transaction = new QuicTransaction(stream, quicConnection.LocalEndPoint.Port, remoteAddress?.Address.ToString());
 
                 await _transactions.Writer.WriteAsync(transaction, ct);
             }

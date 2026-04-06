@@ -65,13 +65,14 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
 
             var secure = await CheckForSsl(socket);
             var port = (socket.LocalEndPoint as IPEndPoint)?.Port ?? 0;
+            var remoteAddress = (socket.RemoteEndPoint as IPEndPoint)?.Address.ToString();
 
             if (secure)
                 stream = await WrapInSsl(stream);
 
             while (true)
             {
-                var transaction = new TcpTransaction(stream, secure, port, ct);
+                var transaction = new TcpTransaction(stream, secure, port, remoteAddress, ct);
 
                 await _transactions.Writer.WriteAsync(transaction, ct);
                 await transaction.ResponseSet.WaitAsync(ct);
