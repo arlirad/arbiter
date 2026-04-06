@@ -1,3 +1,4 @@
+using System.Net;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
@@ -14,7 +15,7 @@ public class ContextFactory : IContextFactory
         bool isWebSocketUpgrade,
         string? authority,
         bool isSecure,
-        string? remoteAddress)
+        IPAddress? remoteAddress)
     {
         var request = RequestContextFactory.Create(method, path, headers, stream, isWebSocketUpgrade, authority, isSecure, remoteAddress);
         var response = ResponseContextFactory.Create();

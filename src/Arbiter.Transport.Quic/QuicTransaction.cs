@@ -1,3 +1,4 @@
+using System.Net;
 using System.Runtime.Versioning;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
@@ -11,11 +12,11 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class QuicTransaction(Http3RequestStream requestStream, int port, string? remoteAddress) : ITransaction
+public class QuicTransaction(Http3RequestStream requestStream, int port, IPAddress? remoteAddress) : ITransaction
 {
     public bool IsSecure { get => true; }
     public int Port { get => port; }
-    public string? RemoteAddress { get => remoteAddress; }
+    public IPAddress? RemoteAddress { get => remoteAddress; }
 
     public async Task<RequestDto?> GetRequest()
     {

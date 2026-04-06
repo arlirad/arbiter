@@ -1,10 +1,11 @@
+using System.Net;
 using Arbiter.Core.Enums;
 
 namespace Arbiter.Core.ValueObjects;
 
 public class RequestContext
 {
-    internal RequestContext(Method method, string path, Headers headers, Stream? stream, bool isWebSocketUpgrade, string? authority, bool isSecure, string? remoteAddress)
+    internal RequestContext(Method method, string path, Headers headers, Stream? stream, bool isWebSocketUpgrade, string? authority, bool isSecure, IPAddress? remoteAddress)
     {
         Method = method;
         Path = path;
@@ -23,5 +24,5 @@ public class RequestContext
     public bool IsWebSocketUpgrade { get; }
     public string? Authority { get; }
     public bool IsSecure { get; }
-    public string? RemoteAddress { get; }
+    public IPAddress? RemoteAddress { get; }
 }

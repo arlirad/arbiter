@@ -6,10 +6,11 @@ using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Streams;
 using Arlirad.Ervi.Net.Http;
+using IPAddress = System.Net.IPAddress;
 
 namespace Arbiter.Transport.Tcp;
 
-internal class TcpTransaction(Stream stream, bool isSsl, int port, string? remoteAddress, CancellationToken ct) : ITransaction
+internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? remoteAddress, CancellationToken ct) : ITransaction
 {
     private const string NewLine = "\r\n";
     private const string ChunkedEncoding = "chunked";
@@ -29,7 +30,7 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, string? remot
 
     public bool IsSecure { get => isSsl; }
     public int Port { get => port; }
-    public string? RemoteAddress { get => remoteAddress; }
+    public IPAddress? RemoteAddress { get => remoteAddress; }
 
     public async Task<RequestDto?> GetRequest()
     {

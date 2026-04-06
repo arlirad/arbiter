@@ -1,3 +1,4 @@
+using System.Net;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 
@@ -12,5 +13,5 @@ public class RequestDto
     public Stream? Stream { get; set; }
     public bool IsWebSocketUpgrade { get; set; }
     public bool IsSecure { get; set; }
-    public string? RemoteAddress { get; set; }
+    public IPAddress? RemoteAddress { get; set; }
 }

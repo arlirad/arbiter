@@ -297,10 +297,9 @@ public class ProxyMiddleware : IMiddleware
 
         if (context.Request.RemoteAddress is not null)
         {
-            headers.TryAddWithoutValidation("X-Real-IP", [context.Request.RemoteAddress]);
-
-            var forwardedFor = context.Request.RemoteAddress;
-            headers.TryAddWithoutValidation("X-Forwarded-For", [forwardedFor]);
+            var ip = context.Request.RemoteAddress.ToString();
+            headers.TryAddWithoutValidation("X-Real-IP", [ip]);
+            headers.TryAddWithoutValidation("X-Forwarded-For", [ip]);
         }
 
         headers.TryAddWithoutValidation("X-Forwarded-Proto", [proto]);
@@ -316,12 +315,13 @@ public class ProxyMiddleware : IMiddleware
 
         if (context.Request.RemoteAddress is not null)
         {
+            var ip = context.Request.RemoteAddress.ToString();
             sb.Append("X-Real-IP: ");
-            sb.Append(context.Request.RemoteAddress);
+            sb.Append(ip);
             sb.Append("\r\n");
 
             sb.Append("X-Forwarded-For: ");
-            sb.Append(context.Request.RemoteAddress);
+            sb.Append(ip);
             sb.Append("\r\n");
         }
 

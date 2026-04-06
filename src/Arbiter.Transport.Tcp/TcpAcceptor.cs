@@ -65,7 +65,7 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
 
             var secure = await CheckForSsl(socket);
             var port = (socket.LocalEndPoint as IPEndPoint)?.Port ?? 0;
-            var remoteAddress = (socket.RemoteEndPoint as IPEndPoint)?.Address.ToString();
+            var remoteAddress = (socket.RemoteEndPoint as IPEndPoint)?.Address;
 
             if (secure)
                 stream = await WrapInSsl(stream);

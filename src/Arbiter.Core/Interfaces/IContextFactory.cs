@@ -1,3 +1,4 @@
+using System.Net;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 
@@ -13,5 +14,5 @@ public interface IContextFactory
         bool isWebSocketUpgrade,
         string? authority,
         bool isSecure,
-        string? remoteAddress);
+        IPAddress? remoteAddress);
 }

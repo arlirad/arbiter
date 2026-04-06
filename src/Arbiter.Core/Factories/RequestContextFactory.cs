@@ -1,3 +1,4 @@
+using System.Net;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 
@@ -13,7 +14,7 @@ public class RequestContextFactory
         bool isWebSocketUpgrade,
         string? authority,
         bool isSecure,
-        string? remoteAddress)
+        IPAddress? remoteAddress)
     {
         var headersConcrete = new Headers();
 
