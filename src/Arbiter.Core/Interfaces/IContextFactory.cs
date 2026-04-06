@@ -1,7 +1,7 @@
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Enums;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Enums;
 
-namespace Arbiter.Domain.Interfaces;
+namespace Arbiter.Core.Interfaces;
 
 public interface IContextFactory
 {

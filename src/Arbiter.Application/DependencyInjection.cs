@@ -5,8 +5,8 @@ using Arbiter.Application.Managers;
 using Arbiter.Application.Mappers;
 using Arbiter.Application.Middleware;
 using Arbiter.Application.Orchestrators;
-using Arbiter.Domain.Factories;
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Factories;
+using Arbiter.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Application;
@@ -29,7 +29,7 @@ public static class DependencyInjection
 
         services.AddSingleton(GlobalMiddlewareInjection.GetHandleDelegate);
 
-        services.AddTransient<Domain.Interfaces.HandleDelegate>(sp =>
+        services.AddTransient<Core.Interfaces.HandleDelegate>(sp =>
         {
             var factory = sp.GetRequiredService<MiddlewareChainDelegateOrchestrator>();
             return factory.GetNext();

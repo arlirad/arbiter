@@ -1,6 +1,6 @@
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.ValueObjects;
 
-namespace Arbiter.Domain.Aggregates;
+namespace Arbiter.Core.Aggregates;
 
 public class Context
 {

@@ -1,4 +1,4 @@
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Interfaces;
 
 namespace Arbiter.Application.Orchestrators;
 

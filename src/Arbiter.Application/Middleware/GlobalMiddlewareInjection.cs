@@ -1,5 +1,5 @@
 using Arbiter.Application.Interfaces;
-using Arbiter.Domain.Aggregates;
+using Arbiter.Core.Aggregates;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Application.Middleware;

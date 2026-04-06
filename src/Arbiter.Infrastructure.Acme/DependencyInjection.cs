@@ -1,4 +1,4 @@
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Infrastructure.Acme;

@@ -1,7 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using Arbiter.Application.Interfaces;
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Acme.Models;
 using Certify.ACME.Anvil;
 using Certify.ACME.Anvil.Acme;

@@ -1,5 +1,5 @@
-using Arbiter.Domain.Enums;
-using Arbiter.Domain.ValueObjects;
+using Arbiter.Core.Enums;
+using Arbiter.Core.ValueObjects;
 
 namespace Arbiter.Application.DTOs;
 

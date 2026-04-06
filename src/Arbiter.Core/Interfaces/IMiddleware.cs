@@ -1,7 +1,7 @@
-using Arbiter.Domain.Aggregates;
+using Arbiter.Core.Aggregates;
 using Microsoft.Extensions.Configuration;
 
-namespace Arbiter.Domain.Interfaces;
+namespace Arbiter.Core.Interfaces;
 
 public delegate Task HandleDelegate(Context context);
 

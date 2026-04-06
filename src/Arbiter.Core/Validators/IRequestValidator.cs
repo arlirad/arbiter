@@ -1,4 +1,4 @@
-namespace Arbiter.Domain.Validators;
+namespace Arbiter.Core.Validators;
 
 public interface IRequestValidator
 {

@@ -1,8 +1,8 @@
-using Arbiter.Domain.Aggregates;
-using Arbiter.Domain.Enums;
-using Arbiter.Domain.Interfaces;
+using Arbiter.Core.Aggregates;
+using Arbiter.Core.Enums;
+using Arbiter.Core.Interfaces;
 
-namespace Arbiter.Domain.Factories;
+namespace Arbiter.Core.Factories;
 
 public class ContextFactory : IContextFactory
 {

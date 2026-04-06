@@ -1,5 +1,5 @@
 using System.Net;
-using Arbiter.Domain.Enums;
+using Arbiter.Core.Enums;
 
 namespace Arbiter.Infrastructure.Proxy.Mappers;
 

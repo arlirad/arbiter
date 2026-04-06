@@ -18,7 +18,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Infrastructure", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Application", "src\Arbiter.Application\Arbiter.Application.csproj", "{F0CF71E9-D327-4054-BDAF-A3EBCB39B6C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Domain", "src\Arbiter.Domain\Arbiter.Domain.csproj", "{13559B31-3E40-4CC5-9824-22D57DF441CD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Core", "src\Arbiter.Core\Arbiter.Core.csproj", "{13559B31-3E40-4CC5-9824-22D57DF441CD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arbiter.Infrastructure.Acme", "src\Arbiter.Infrastructure.Acme\Arbiter.Infrastructure.Acme.csproj", "{8F210196-2077-4F34-9B06-1D49D5720ACE}"
 EndProject
