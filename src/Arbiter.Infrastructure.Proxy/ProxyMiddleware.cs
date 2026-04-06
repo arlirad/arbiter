@@ -93,6 +93,8 @@ public class ProxyMiddleware : IMiddleware
                 targetRequest.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
 
+        AddForwardingHeaders(targetRequest.Headers, context);
+
         try
         {
             await SendRequest(context, targetRequest);
@@ -145,6 +147,8 @@ public class ProxyMiddleware : IMiddleware
                     sb.Append("\r\n");
                 }
             }
+
+            AppendForwardingHeaders(sb, context);
 
             sb.Append("\r\n");
 
@@ -285,5 +289,55 @@ public class ProxyMiddleware : IMiddleware
             return true;
 
         return disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void AddForwardingHeaders(System.Net.Http.Headers.HttpRequestHeaders headers, Context context)
+    {
+        var proto = context.Request.IsSecure ? "https" : "http";
+
+        if (context.Request.RemoteAddress is not null)
+        {
+            var ip = context.Request.RemoteAddress.ToString();
+            headers.TryAddWithoutValidation("X-Real-IP", [ip]);
+            headers.TryAddWithoutValidation("X-Forwarded-For", [ip]);
+        }
+
+        headers.TryAddWithoutValidation("X-Forwarded-Proto", [proto]);
+        headers.TryAddWithoutValidation("X-Forwarded-Protocol", [proto]);
+
+        if (context.Request.Authority is not null)
+            headers.TryAddWithoutValidation("X-Forwarded-Host", [context.Request.Authority]);
+    }
+
+    private static void AppendForwardingHeaders(StringBuilder sb, Context context)
+    {
+        var proto = context.Request.IsSecure ? "https" : "http";
+
+        if (context.Request.RemoteAddress is not null)
+        {
+            var ip = context.Request.RemoteAddress.ToString();
+            sb.Append("X-Real-IP: ");
+            sb.Append(ip);
+            sb.Append("\r\n");
+
+            sb.Append("X-Forwarded-For: ");
+            sb.Append(ip);
+            sb.Append("\r\n");
+        }
+
+        sb.Append("X-Forwarded-Proto: ");
+        sb.Append(proto);
+        sb.Append("\r\n");
+
+        sb.Append("X-Forwarded-Protocol: ");
+        sb.Append(proto);
+        sb.Append("\r\n");
+
+        if (context.Request.Authority is not null)
+        {
+            sb.Append("X-Forwarded-Host: ");
+            sb.Append(context.Request.Authority);
+            sb.Append("\r\n");
+        }
     }
 }
