@@ -91,6 +91,10 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
                 break;
             }
         }
+        catch (OperationCanceledException)
+        {
+            socket.Dispose();
+        }
         catch (Exception)
         {
             socket.Dispose();

@@ -14,6 +14,10 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("windows")]
 public class QuicTransaction(Http3RequestStream requestStream, int port, IPAddress? remoteAddress) : ITransaction
 {
+    private static int _nextId;
+    private readonly int _id = Interlocked.Increment(ref _nextId);
+
+    public int Id { get => _id; }
     public bool IsSecure { get => true; }
     public int Port { get => port; }
     public IPAddress? RemoteAddress { get => remoteAddress; }
@@ -81,6 +85,7 @@ public class QuicTransaction(Http3RequestStream requestStream, int port, IPAddre
 
         return new RequestDto
         {
+            TransactionId = _id,
             Method = mappedEnum.Value,
             Authority = authority,
             Path = path,
@@ -118,7 +123,7 @@ public class QuicTransaction(Http3RequestStream requestStream, int port, IPAddre
 
     private async Task Finish(ResponseDto response)
     {
-        if (response.Stream is not null)
+        if (response.Stream is not null && !response.Status.IsBodyForbidden())
         {
             if (response.Stream.CanSeek)
                 await requestStream.CopyFromInSingleFrame(response.Stream);

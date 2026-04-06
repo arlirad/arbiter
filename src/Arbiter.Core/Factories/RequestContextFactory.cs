@@ -7,6 +7,7 @@ namespace Arbiter.Core.Factories;
 public class RequestContextFactory
 {
     public static RequestContext? Create(
+        int transactionId,
         Method method,
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
@@ -23,6 +24,7 @@ public class RequestContextFactory
             headersConcrete[header.Key] = header.Value;
         }
 
-        return new RequestContext(method, path, headersConcrete, stream, isWebSocketUpgrade, authority, isSecure, remoteAddress);
+        return new RequestContext(transactionId, method, path, headersConcrete, stream, isWebSocketUpgrade, authority,
+            isSecure, remoteAddress);
     }
 }

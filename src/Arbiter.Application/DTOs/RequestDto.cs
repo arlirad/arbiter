@@ -6,6 +6,7 @@ namespace Arbiter.Application.DTOs;
 
 public class RequestDto
 {
+    public int TransactionId { get; set; }
     public Method Method { get; set; }
     public string? Authority { get; set; }
     public string Path { get; set; } = null!;

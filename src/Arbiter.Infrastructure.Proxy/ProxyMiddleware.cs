@@ -21,6 +21,7 @@ public class ProxyMiddleware : IMiddleware
                 "accept-encoding",
                 "content-encoding",
                 "connection",
+                "expect",
                 "keep-alive",
                 "proxy-authenticate",
                 "proxy-authorization",
@@ -99,7 +100,7 @@ public class ProxyMiddleware : IMiddleware
         {
             await SendRequest(context, targetRequest);
         }
-        catch (HttpRequestException)
+        catch (Exception ex)
         {
             await context.Response.Set(Status.BadGateway);
         }
@@ -204,22 +205,24 @@ public class ProxyMiddleware : IMiddleware
     private async Task SendRequest(Context context, HttpRequestMessage targetRequest)
     {
         var response = await _client.SendAsync(targetRequest, HttpCompletionOption.ResponseHeadersRead);
-        var responseStream = await response.Content.ReadAsStreamAsync();
 
         var status = StatusCodeMapper.FromHttpStatusCode(response.StatusCode);
 
         if (!status.HasValue)
         {
+            response.Dispose();
             await context.Response.Set(Status.BadGateway);
             return;
         }
 
         CopyHeaders(context, response);
 
+        var responseStream = await response.Content.ReadAsStreamAsync();
+
         if (response.Content.Headers.ContentLength.HasValue)
             responseStream = new ClampedStream(responseStream, response.Content.Headers.ContentLength.Value);
 
-        await context.Response.Set(status.Value, responseStream);
+        await context.Response.Set(status.Value, new ResponseStream(responseStream, response));
     }
 
     private void CopyHeaders(Context context, HttpResponseMessage response)

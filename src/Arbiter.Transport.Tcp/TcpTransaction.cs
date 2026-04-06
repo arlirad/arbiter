@@ -10,15 +10,20 @@ using IPAddress = System.Net.IPAddress;
 
 namespace Arbiter.Transport.Tcp;
 
-internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? remoteAddress, CancellationToken ct) : ITransaction
+internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? remoteAddress, CancellationToken ct)
+    : ITransaction
 {
     private const string NewLine = "\r\n";
     private const string ChunkedEncoding = "chunked";
 
+    private static int _nextId;
+
+    private readonly int _id = Interlocked.Increment(ref _nextId);
     private readonly TaskCompletionSource _tcs = new();
     private readonly TaskCompletionSource _upgradeTcs = new();
     private bool _chunked;
     private Method _requestMethod;
+    private string? _requestPath;
     private Stream? _responseStream;
     private HttpVersion _version = HttpVersion.Http11;
 
@@ -27,7 +32,10 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? re
     internal bool Upgraded { get; set; }
     internal Task ResponseSet { get => _tcs.Task; }
     internal Task UpgradeCompleted { get => _upgradeTcs.Task; }
+    internal Method RequestMethod { get => _requestMethod; }
+    internal string? RequestPath { get => _requestPath; }
 
+    public int Id { get => _id; }
     public bool IsSecure { get => isSsl; }
     public int Port { get => port; }
     public IPAddress? RemoteAddress { get => remoteAddress; }
@@ -70,11 +78,13 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? re
         var requestBodyStream = GetBodyStream(headers, remainder);
 
         _requestMethod = method.Value;
+        _requestPath = path;
 
         var isWebSocketUpgrade = DetectWebSocketUpgrade(method.Value, headers);
 
         return new RequestDto
         {
+            TransactionId = _id,
             Method = method.Value,
             Authority = host,
             Path = path,
@@ -111,7 +121,9 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? re
                 }
             }
 
-            if (response.Status != Status.SwitchingProtocol && response.Stream is not null)
+            if (!response.Status.IsBodyForbidden()
+                && response.Status != Status.SwitchingProtocol
+                && response.Stream is not null)
             {
                 _responseStream = response.Stream;
 
@@ -183,22 +195,30 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? re
 
     private async Task Finish()
     {
-        if (_responseStream is not null)
+        try
         {
-            if (_chunked)
+            if (_responseStream is not null)
             {
-                await using var wrapped = new HttpChunkedStream(stream);
-                await _responseStream.CopyToAsync(wrapped);
-            }
-            else
-            {
-                await _responseStream.CopyToAsync(stream);
-            }
+                if (_chunked)
+                {
+                    await using var wrapped = new HttpChunkedStream(stream);
+                    await _responseStream.CopyToAsync(wrapped);
+                }
+                else
+                {
+                    await _responseStream.CopyToAsync(stream);
+                }
 
-            await stream.FlushAsync();
+                await stream.FlushAsync();
+            }
         }
+        finally
+        {
+            if (_responseStream is not null)
+                await _responseStream.DisposeAsync();
 
-        _tcs.SetResult();
+            _tcs.SetResult();
+        }
     }
 
     private async Task RunUpgrade(Stream responseStream)
@@ -208,9 +228,6 @@ internal class TcpTransaction(Stream stream, bool isSsl, int port, IPAddress? re
         try
         {
             await StreamRelay.BidirectionalCopy(responseStream, stream, ct);
-        }
-        catch
-        {
         }
         finally
         {
