@@ -9,10 +9,7 @@ public class QPackEncoder
     private Stream? _encoderOutgoing;
     private QPackWriter? _encoderOutgoingWriter;
 
-    public ValueTask Start()
-    {
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask Start() => ValueTask.CompletedTask;
 
     public void SetIncomingStream(Stream stream)
     {
@@ -29,8 +26,5 @@ public class QPackEncoder
     public Task<QPackFieldSectionWriter> GetSectionWriter(
         long streamId,
         Stream stream,
-        CancellationToken ct = default)
-    {
-        return Task.FromResult(new QPackFieldSectionWriter(streamId, stream, new QPackWriter(stream), this));
-    }
+        CancellationToken ct = default) => Task.FromResult(new QPackFieldSectionWriter(streamId, stream, new QPackWriter(stream), this));
 }

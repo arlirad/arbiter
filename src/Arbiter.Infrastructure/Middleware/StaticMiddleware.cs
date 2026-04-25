@@ -6,14 +6,14 @@ using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Infrastructure.Middleware;
 
-internal class StaticMiddleware(HandleDelegate next) : IMiddleware
+public class StaticMiddleware(HandleDelegate next) : IMiddleware
 {
     private readonly StringComparison _stringComparison = Environment.OSVersion.Platform == PlatformID.Unix
         ? StringComparison.Ordinal
         : StringComparison.OrdinalIgnoreCase;
 
     private List<string> _defaultFiles = [];
-    private Dictionary<string, string> _mimeTypes = new();
+    private Dictionary<string, string> _mimeTypes = [];
     private string _root = null!;
 
     public Task Configure(Site site, IConfiguration config)
@@ -34,7 +34,8 @@ internal class StaticMiddleware(HandleDelegate next) : IMiddleware
             var strippedPath = context.Request.Path.TrimStart('/').Split('?').First();
             var fullPath = Path.GetFullPath(Path.Combine(_root, strippedPath));
 
-            if (!fullPath.StartsWith(_root, _stringComparison))
+            var rootToCheck = _root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!fullPath.StartsWith(rootToCheck, _stringComparison) && fullPath != _root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
             {
                 await context.Response.Set(Status.NotFound, Stream.Null);
                 return;
@@ -85,7 +86,7 @@ internal class StaticMiddleware(HandleDelegate next) : IMiddleware
                 ? File.OpenRead(queryPath)
                 : null;
         }
-        catch (Exception e) when (e is FileNotFoundException || e is DirectoryNotFoundException)
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
         {
             return null;
         }

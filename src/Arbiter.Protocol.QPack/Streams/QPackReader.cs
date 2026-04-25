@@ -16,7 +16,7 @@ public class QPackReader(Stream inner)
             throw new EndOfStreamException();
 
         firstByte = (byte)firstByteInt;
-        firstByteInt &= (0xFF >> shiftAmount);
+        firstByteInt &= 0xFF >> shiftAmount;
 
         return firstByteInt < (1 << prefix) - 1
             ? (ulong)firstByteInt
@@ -28,10 +28,7 @@ public class QPackReader(Stream inner)
         var shiftAmount = 8 - prefix;
         var firstByteInt = firstByte & (0xFF >> shiftAmount);
 
-        if (firstByteInt < (1 << prefix) - 1)
-            return (ulong)firstByteInt;
-
-        return (ulong)firstByteInt + ReadPrefixedIntVariablePart();
+        return firstByteInt < (1 << prefix) - 1 ? (ulong)firstByteInt : (ulong)firstByteInt + ReadPrefixedIntVariablePart();
     }
 
     public async ValueTask<(ulong Value, byte FirstByte)> ReadPrefixedIntAsync(
@@ -48,7 +45,7 @@ public class QPackReader(Stream inner)
         var shiftAmount = 8 - prefix;
         var firstByteInt = (int)firstByte;
 
-        firstByteInt &= (0xFF >> shiftAmount);
+        firstByteInt &= 0xFF >> shiftAmount;
 
         return firstByteInt < (1 << prefix) - 1
             ? ((ulong)firstByteInt, firstByte)
@@ -65,7 +62,7 @@ public class QPackReader(Stream inner)
         var shiftAmount = 8 - prefix;
         var firstByteInt = (int)firstByte;
 
-        firstByteInt &= (0xFF >> shiftAmount);
+        firstByteInt &= 0xFF >> shiftAmount;
 
         return firstByteInt < (1 << prefix) - 1
             ? (ulong)firstByteInt

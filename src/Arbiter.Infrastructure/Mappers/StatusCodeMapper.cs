@@ -4,8 +4,7 @@ namespace Arbiter.Infrastructure.Mappers;
 
 public static class StatusCodeMapper
 {
-    private static readonly Dictionary<Status, string> ReasonPhrases = new()
-    {
+    private static readonly Dictionary<Status, string> ReasonPhrases = new() {
         [Status.Continue] = "Continue",
         [Status.SwitchingProtocol] = "Switching Protocol",
         [Status.EarlyHints] = "Early Hints",
@@ -66,8 +65,7 @@ public static class StatusCodeMapper
         [Status.NetworkAuthenticationRequired] = "Network Authentication Required",
     };
 
-    private static readonly Dictionary<Status, int> Codes = new()
-    {
+    private static readonly Dictionary<Status, int> Codes = new() {
         [Status.Continue] = 100,
         [Status.SwitchingProtocol] = 101,
         [Status.EarlyHints] = 103,
@@ -128,13 +126,7 @@ public static class StatusCodeMapper
         [Status.NetworkAuthenticationRequired] = 511,
     };
 
-    public static string ToReasonPhrase(Status statusCode)
-    {
-        return ReasonPhrases[statusCode];
-    }
+    public static string ToReasonPhrase(Status statusCode) => ReasonPhrases[statusCode];
 
-    public static int ToCode(Status statusCode)
-    {
-        return Codes[statusCode];
-    }
+    public static int ToCode(Status statusCode) => Codes[statusCode];
 }

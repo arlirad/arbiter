@@ -10,6 +10,12 @@ public class Context
         Response = response;
     }
 
-    public RequestContext Request { get; }
-    public ResponseContext Response { get; }
+    public RequestContext Request
+    {
+        get;
+    }
+    public ResponseContext Response
+    {
+        get;
+    }
 }

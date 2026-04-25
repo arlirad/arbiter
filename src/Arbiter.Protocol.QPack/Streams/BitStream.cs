@@ -4,8 +4,16 @@ public class BitStream(byte[] buffer)
 {
     private const int ByteSize = sizeof(byte) * 8;
 
-    public int Position { get; set; } = 0;
-    public int Length { get; set; } = buffer.Length * ByteSize;
+    public int Position
+    {
+        get;
+        set;
+    } = 0;
+    public int Length
+    {
+        get;
+        set;
+    } = buffer.Length * ByteSize;
 
     public long ReadNotAdvancing(int n)
     {
@@ -33,7 +41,7 @@ public class BitStream(byte[] buffer)
 
     private (long, int) ReadPartial(int n, int pos)
     {
-        var available = ByteSize - pos % ByteSize;
+        var available = ByteSize - (pos % ByteSize);
         var firstShift = Math.Max(available - n, 0);
         var firstByte = buffer[pos / ByteSize] >> firstShift;
         var mask = (1 << Math.Min(available, n)) - 1;

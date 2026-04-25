@@ -1,11 +1,9 @@
-using System.Net;
-using System.Net.Security;
-using System.Net.Sockets;
 using System.Text;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
+using Arbiter.Infrastructure.Proxy.Connectors;
 using Arbiter.Infrastructure.Proxy.Mappers;
 using Arbiter.Infrastructure.Proxy.Models;
 using Arbiter.Infrastructure.Streams;
@@ -39,7 +37,7 @@ public class ProxyMiddleware : IMiddleware
         new(["content-length", "content-type"], StringComparer.OrdinalIgnoreCase);
 
     private HttpClient _client = null!;
-    private Uri _target = null!;
+    private IProxyConnector _connector = null!;
 
     public Task Configure(Site site, IConfiguration config)
     {
@@ -48,15 +46,11 @@ public class ProxyMiddleware : IMiddleware
         if (typedConfig?.Target is null)
             throw new Exception("target is not set");
 
-        var handler = new SocketsHttpHandler
-        {
-            UseCookies = false,
-            AllowAutoRedirect = false,
-            AutomaticDecompression = DecompressionMethods.None,
-        };
+        _connector = typedConfig.Target.Scheme.Equals("unix", StringComparison.OrdinalIgnoreCase)
+            ? new UnixProxyConnector(typedConfig.Target.AbsolutePath)
+            : new TcpProxyConnector(typedConfig.Target);
 
-        _client = new HttpClient(handler, disposeHandler: false);
-        _target = typedConfig.Target;
+        _client = new HttpClient(_connector.CreateHandler(), disposeHandler: false);
 
         return Task.CompletedTask;
     }
@@ -75,11 +69,9 @@ public class ProxyMiddleware : IMiddleware
             return;
         }
 
-        var targetPath = _target.AbsolutePath.TrimEnd('/') + '/' + context.Request.Path.TrimStart('/');
-        var targetUri = new Uri(_target, targetPath);
+        var targetUri = _connector.BuildTargetUri(context.Request.Path);
         var method = MethodMapper.ToHttpMethod(context.Request.Method);
-        var targetRequest = new HttpRequestMessage(method, targetUri)
-        {
+        var targetRequest = new HttpRequestMessage(method, targetUri) {
             Content = context.Request.Stream is not null ? new StreamContent(context.Request.Stream) : null,
         };
 
@@ -100,7 +92,7 @@ public class ProxyMiddleware : IMiddleware
         {
             await SendRequest(context, targetRequest);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await context.Response.Set(Status.BadGateway);
         }
@@ -108,31 +100,17 @@ public class ProxyMiddleware : IMiddleware
 
     private async Task HandleWebSocket(Context context)
     {
-        var targetPath = $"{_target.AbsolutePath.TrimEnd('/')}/{context.Request.Path.TrimStart('/')}";
-        var port = _target.IsDefaultPort
-            ? (_target.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? 443 : 80)
-            : _target.Port;
-
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        var targetUri = _connector.BuildTargetUri(context.Request.Path);
+        var host = _connector.GetHost(context);
+        var connection = await _connector.ConnectForUpgradeAsync();
 
         try
         {
-            await socket.ConnectAsync(_target.Host, port);
-
-            Stream backendStream = new NetworkStream(socket);
-
-            if (_target.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-            {
-                var ssl = new SslStream(backendStream, false);
-                await ssl.AuthenticateAsClientAsync(_target.Host);
-                backendStream = ssl;
-            }
-
             var sb = new StringBuilder(256);
             sb.Append("GET ");
-            sb.Append(targetPath);
+            sb.Append(targetUri.AbsolutePath);
             sb.Append(" HTTP/1.1\r\nHost: ");
-            sb.Append(_target.Host);
+            sb.Append(host);
             sb.Append("\r\n");
 
             foreach (var header in context.Request.Headers)
@@ -154,10 +132,10 @@ public class ProxyMiddleware : IMiddleware
             sb.Append("\r\n");
 
             var requestBytes = Encoding.UTF8.GetBytes(sb.ToString());
-            await backendStream.WriteAsync(requestBytes);
-            await backendStream.FlushAsync();
+            await connection.Stream.WriteAsync(requestBytes);
+            await connection.Stream.FlushAsync();
 
-            var (status, responseHeaders, responseStream) = await ReadUpgradeResponse(backendStream);
+            var (status, responseHeaders, responseStream) = await ReadUpgradeResponse(connection.Stream);
 
             if (status != Status.SwitchingProtocol)
             {
@@ -166,16 +144,14 @@ public class ProxyMiddleware : IMiddleware
             }
 
             foreach (var header in responseHeaders)
-            {
                 context.Response.Headers[header.Key] = header.Value;
-            }
 
             await context.Response.Set(Status.SwitchingProtocol, responseStream);
-            socket = null;
+            connection.Detach();
         }
         finally
         {
-            socket?.Dispose();
+            connection.Dispose();
         }
     }
 
@@ -244,7 +220,7 @@ public class ProxyMiddleware : IMiddleware
             if (DisallowedResponseContentHeaders.Contains(header.Key))
                 continue;
 
-            context.Response.Headers[header.Key] = header.Value.ToList();
+            context.Response.Headers[header.Key] = [.. header.Value];
         }
 
         if (response.Content.Headers.ContentType is null)
@@ -269,8 +245,10 @@ public class ProxyMiddleware : IMiddleware
         IEnumerable<string> disallowedHeaders)
     {
         if (key.Equals("te", StringComparison.OrdinalIgnoreCase))
+        {
             if (values.Any(v => v == "trailers"))
                 return true;
+        }
 
         if (key.Equals("connection", StringComparison.OrdinalIgnoreCase))
         {
@@ -288,10 +266,7 @@ public class ProxyMiddleware : IMiddleware
             return true;
         }
 
-        if (connectionHeaders != null && connectionHeaders.Contains(key, StringComparer.OrdinalIgnoreCase))
-            return true;
-
-        return disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase);
+        return (connectionHeaders != null && connectionHeaders.Contains(key, StringComparer.OrdinalIgnoreCase)) || disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase);
     }
 
     private static void AddForwardingHeaders(System.Net.Http.Headers.HttpRequestHeaders headers, Context context)

@@ -1,4 +1,3 @@
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
@@ -18,7 +17,6 @@ public static class DependencyInjection
         services.AddSingleton<IServer, Server>();
 
         services.AddSingleton<ICertificateManager, CertificateManager>();
-        services.AddSingleton<IConfigurator, SiteManagerConfigurator>();
         services.AddSingleton<IContextFactory, ContextFactory>();
         services.AddSingleton<TransactionHandler>();
         services.AddSingleton<ContextMapper>();
@@ -29,8 +27,7 @@ public static class DependencyInjection
 
         services.AddSingleton(GlobalMiddlewareInjection.GetHandleDelegate);
 
-        services.AddTransient<Core.Interfaces.HandleDelegate>(sp =>
-        {
+        services.AddTransient<Core.Interfaces.HandleDelegate>(sp => {
             var factory = sp.GetRequiredService<MiddlewareChainDelegateOrchestrator>();
             return factory.GetNext();
         });

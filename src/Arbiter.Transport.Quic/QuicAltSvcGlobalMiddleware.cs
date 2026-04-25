@@ -1,16 +1,36 @@
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Primitives;
 
 namespace Arbiter.Transport.Quic;
 
-internal class QuicAltSvcGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
+internal class QuicAltSvcGlobalMiddleware : IGlobalMiddleware, IConfigurable
 {
+    private readonly HandleDelegate _next;
     private List<int> _quicPorts = [];
+    private ConfigurationScope? _scope;
+
+    public QuicAltSvcGlobalMiddleware(
+        HandleDelegate next,
+        IConfiguration configuration)
+    {
+        _next = next;
+        Bind(configuration);
+    }
+
+    public void Bind(IConfiguration configuration)
+    {
+        _scope = new ConfigurationScope(configuration, "QuicPorts");
+        UpdatePorts();
+        ChangeToken.OnChange(_scope.GetReloadToken, UpdatePorts);
+    }
 
     public Task Handle(ITransaction transaction, Site? site, Context context)
     {
-        if (site is null || transaction is QuicTransaction)
-            return next(transaction, site, context);
+        if (site is null || transaction.Protocol == "h3")
+            return _next(transaction, site, context);
 
         var port = site.Bindings
             .Where(b => _quicPorts.Any(qp => qp == b.Port))
@@ -19,14 +39,20 @@ internal class QuicAltSvcGlobalMiddleware(HandleDelegate next) : IGlobalMiddlewa
             .ToList();
 
         if (port.Count == 0)
-            return next(transaction, site, context);
+            return _next(transaction, site, context);
 
         context.Response.Headers.AltSvc = $"h3=\":{port.First()}\"; ma=86400";
-        return next(transaction, site, context);
+        return _next(transaction, site, context);
     }
 
-    public void SetPorts(List<int> quicPorts)
+    private void UpdatePorts()
     {
-        _quicPorts = [.. quicPorts];
+        if (_scope is null)
+            return;
+
+        var quicPorts = _scope.GetSection("QuicPorts").Get<List<int>>();
+
+        if (quicPorts is not null)
+            _quicPorts = [.. quicPorts];
     }
 }

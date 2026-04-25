@@ -16,10 +16,11 @@ public class RewritingMiddleware(HandleDelegate next) : IMiddleware
         if (typedConfig?.Rules is null)
             throw new Exception("rules are not set");
 
-        _compiledRules = typedConfig.Rules.Select(r => CompiledRule.Compile(r.From, r.To))
-            .Where(r => r is not null)
-            .Select(r => r!)
-            .ToList();
+        _compiledRules = [
+            .. typedConfig.Rules.Select(r => CompiledRule.Compile(r.From, r.To))
+                .Where(r => r is not null)
+                .Select(r => r!)
+        ];
 
         return Task.CompletedTask;
     }

@@ -18,8 +18,7 @@ public class Http3Writer(Stream stream)
     /// </returns>
     public async ValueTask WriteVarInt(ulong value, byte[] buffer, CancellationToken ct = default)
     {
-        var length = value switch
-        {
+        var length = value switch {
             <= 63 => 1,
             <= 16383 => 2,
             <= 1073741823 => 4,
@@ -27,8 +26,7 @@ public class Http3Writer(Stream stream)
             _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
         };
 #pragma warning disable CS8509
-        var prefix = length switch
-        {
+        var prefix = length switch {
             1 => 0b0000_0000,
             2 => 0b0100_0000,
             4 => 0b1000_0000,

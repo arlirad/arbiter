@@ -2,42 +2,42 @@ using Arbiter.Core.Interfaces;
 
 namespace Arbiter.Core.Aggregates;
 
-public class Site
+public class Site(
+    string path,
+    IEnumerable<Uri> bindings,
+    IEnumerable<IMiddleware> middlewares,
+    IEnumerable<IWorker> workers,
+    HandleDelegate handleDelegate)
 {
-    private readonly List<IMiddleware> _middleware;
-    private readonly List<IWorker> _workers;
+    private readonly Dictionary<Type, object> _componentData = [];
+    private readonly List<IMiddleware> _middleware = [.. middlewares];
+    private readonly List<IWorker> _workers = [.. workers];
 
-    private Dictionary<Type, object> _componentData = new();
-
-    public Site(
-        string path,
-        IEnumerable<Uri> bindings,
-        IEnumerable<IMiddleware> middlewares,
-        IEnumerable<IWorker> workers,
-        HandleDelegate handleDelegate)
+    public string Path
     {
-        Path = path;
-        Bindings = [.. bindings];
-        _middleware = [.. middlewares];
-        _workers = [.. workers];
-        HandleDelegate = handleDelegate;
-    }
+        get;
+    } = path;
+    public List<Uri> Bindings
+    {
+        get;
+    } = [.. bindings];
+    public List<string> DefaultFiles
+    {
+        get;
+    } = [];
 
-    public string Path { get; }
-    public List<Uri> Bindings { get; }
-    public List<string> DefaultFiles { get; } = [];
+    public IReadOnlyList<IMiddleware> Middleware => _middleware.AsReadOnly();
+    public IReadOnlyList<IWorker> Workers => _workers.AsReadOnly();
 
-    public IReadOnlyList<IMiddleware> Middleware { get => _middleware.AsReadOnly(); }
-    public IReadOnlyList<IWorker> Workers { get => _workers.AsReadOnly(); }
-
-    public HandleDelegate HandleDelegate { get; }
+    public HandleDelegate HandleDelegate
+    {
+        get;
+    } = handleDelegate;
 
     public async Task Start()
     {
         foreach (var worker in _workers)
-        {
             await worker.Start();
-        }
     }
 
     public async Task Stop()
@@ -46,13 +46,8 @@ public class Site
         workersReversed.Reverse();
 
         foreach (var worker in workersReversed)
-        {
             await worker.Stop();
-        }
     }
 
-    public T GetComponentData<T>() where T : new()
-    {
-        return (T)(_componentData.TryGetValue(typeof(T), out var value) ? value : _componentData[typeof(T)] = new T());
-    }
+    public T GetComponentData<T>() where T : new() => (T)(_componentData.TryGetValue(typeof(T), out var value) ? value : _componentData[typeof(T)] = new T());
 }

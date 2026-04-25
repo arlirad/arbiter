@@ -43,10 +43,11 @@ internal class AcmeWorker(
         _accountName = typedConfig.AccountName;
         _tosAccepted = typedConfig.TosAccepted.Value;
         _data = site.GetComponentData<DataModel>();
-        _domains = site.Bindings
-            .Where(b => b.Scheme == Uri.UriSchemeHttps)
-            .Select(b => b.Host)
-            .ToList();
+        _domains = [
+            .. site.Bindings
+                .Where(b => b.Scheme == Uri.UriSchemeHttps)
+                .Select(b => b.Host)
+        ];
 
         return Task.CompletedTask;
     }
@@ -93,8 +94,7 @@ internal class AcmeWorker(
 
     private async Task LoadCertificate(string domain)
     {
-        await Task.Run(() =>
-        {
+        await Task.Run(() => {
             try
             {
                 var domainCertPath = configManager.GetFilePath($"{domain}.pfx");
@@ -137,8 +137,7 @@ internal class AcmeWorker(
             Log.Information("Validation of '{Domain}' completed", domain);
 
             var privateKey = KeyFactory.NewKey(KeyAlgorithm.ES256);
-            var cert = await order.Generate(new CsrInfo
-            {
+            var cert = await order.Generate(new CsrInfo {
                 CommonName = domain,
             }, privateKey);
 

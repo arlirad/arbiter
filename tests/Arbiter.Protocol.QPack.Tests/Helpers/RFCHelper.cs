@@ -19,8 +19,7 @@ public class RFCHelper
 
             if (line.StartsWith("Stream: "))
             {
-                var streamId = line.TrimEnd() switch
-                {
+                var streamId = line.TrimEnd() switch {
                     "Stream: Encoder" => EncoderStream,
                     "Stream: Decoder" => DecoderStream,
                     _ => long.Parse(line[8..]),
@@ -55,9 +54,7 @@ public class RFCHelper
         var bytes = new byte[numberChars / 2];
 
         for (var i = 0; i < numberChars; i += 2)
-        {
             bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
-        }
 
         return bytes;
     }

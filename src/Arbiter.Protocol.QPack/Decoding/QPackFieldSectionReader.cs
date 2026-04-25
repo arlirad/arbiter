@@ -14,16 +14,23 @@ public class QPackFieldSectionReader(
     QPackDecoder parent
 ) : IEnumerable<QPackField>, IAsyncDisposable
 {
-    public long StreamId { get; } = streamId;
-    public long RequiredInsertCount { get; } = requiredInsertCount;
-    public long Base { get; } = @base;
+    public long StreamId
+    {
+        get;
+    } = streamId;
+    public long RequiredInsertCount
+    {
+        get;
+    } = requiredInsertCount;
+    public long Base
+    {
+        get;
+    } = @base;
 
     public async ValueTask DisposeAsync()
     {
         if (RequiredInsertCount != 0)
             await parent.AcknowledgeSection(this);
-
-        await stream.DisposeAsync();
 
         GC.SuppressFinalize(this);
     }

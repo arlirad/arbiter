@@ -1,16 +1,49 @@
+using System.Threading;
 using Arbiter.Application.Configuration;
+using Arbiter.Application.Interfaces;
 using Arbiter.Application.Orchestrators;
 using Arbiter.Core.Aggregates;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Primitives;
 using Serilog;
 
 namespace Arbiter.Application.Managers;
 
 internal class SiteManager(
     IServiceProvider serviceProvider
-)
+) : IAsyncConfigurable
 {
-    private readonly Dictionary<string, Site> _sites = new();
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private readonly Dictionary<string, SiteConfig> _siteConfigs = [];
+    private readonly Dictionary<string, Site> _sites = [];
+    private ConfigurationScope? _scope;
+
+    public async ValueTask Bind(IConfiguration configuration)
+    {
+        _scope = new ConfigurationScope(configuration, "Sites");
+        await UpdateSites();
+        ChangeToken.OnChange(_scope.GetReloadToken, () => _ = UpdateSitesAsync());
+    }
+
+    private async Task UpdateSitesAsync()
+    {
+        if (!await _reloadLock.WaitAsync(0))
+            return;
+
+        try
+        {
+            await UpdateSites();
+        }
+        catch (Exception e)
+        {
+            Log.Error("Failed to reload sites: {Exception}", e);
+        }
+        finally
+        {
+            _reloadLock.Release();
+        }
+    }
 
     public Site? Find(string? host, int port)
     {
@@ -21,10 +54,18 @@ internal class SiteManager(
         ).Value;
     }
 
-    public async Task Update(Dictionary<string, SiteConfig> sites)
+    private async Task UpdateSites()
     {
+        if (_scope is null)
+            return;
+
+        var sites = _scope.GetSection("Sites").Get<Dictionary<string, SiteConfig>>();
+
+        if (sites is null)
+            return;
+
         await CreateSites(sites);
-        // await RecreateSites(config);
+        await RecreateSites(sites);
         await PruneSites(sites);
     }
 
@@ -49,6 +90,7 @@ internal class SiteManager(
             Log.Information("Started site '{Key}'", siteToCreate.Key);
 
             _sites[siteToCreate.Key] = site;
+            _siteConfigs[siteToCreate.Key] = siteToCreate.Value;
         }
     }
 
@@ -57,7 +99,33 @@ internal class SiteManager(
         if (sites is null)
             throw new InvalidOperationException("config.Sites cannot be null");
 
-        throw new NotImplementedException();
+        var sitesToRecreate = _siteConfigs
+            .Where(kvp => sites.TryGetValue(kvp.Key, out var newConfig) &&
+                !kvp.Value.Equals(newConfig))
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var siteKey in sitesToRecreate)
+        {
+            var oldSite = _sites[siteKey];
+            var newConfig = sites[siteKey];
+
+            await oldSite.Stop();
+
+            Log.Information("Recreating site '{Key}'", siteKey);
+
+            await using var scope = serviceProvider.CreateAsyncScope();
+
+            var factory = scope.ServiceProvider.GetRequiredService<SiteOrchestrator>();
+            var newSite = await factory.Orchestrate(newConfig);
+
+            await newSite.Start();
+
+            _sites[siteKey] = newSite;
+            _siteConfigs[siteKey] = newConfig;
+
+            Log.Information("Recreated site '{Key}'", siteKey);
+        }
     }
 
     private async Task PruneSites(Dictionary<string, SiteConfig> sites)
@@ -76,6 +144,7 @@ internal class SiteManager(
         {
             var site = _sites[siteKey];
             _sites.Remove(siteKey);
+            _siteConfigs.Remove(siteKey);
 
             stopTasks.Add(site.Stop());
         }

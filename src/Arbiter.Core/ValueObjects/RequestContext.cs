@@ -27,13 +27,42 @@ public class RequestContext
         RemoteAddress = remoteAddress;
     }
 
-    public int TransactionId { get; }
-    public Method Method { get; }
-    public string Path { get; set; }
-    public ReadOnlyHeaders Headers { get; }
-    public Stream? Stream { get; private set; }
-    public bool IsWebSocketUpgrade { get; }
-    public string? Authority { get; }
-    public bool IsSecure { get; }
-    public IPAddress? RemoteAddress { get; }
+    public int TransactionId
+    {
+        get;
+    }
+    public Method Method
+    {
+        get;
+    }
+    public string Path
+    {
+        get;
+        set;
+    }
+    public ReadOnlyHeaders Headers
+    {
+        get;
+    }
+    public Stream? Stream
+    {
+        get;
+        private set;
+    }
+    public bool IsWebSocketUpgrade
+    {
+        get;
+    }
+    public string? Authority
+    {
+        get;
+    }
+    public bool IsSecure
+    {
+        get;
+    }
+    public IPAddress? RemoteAddress
+    {
+        get;
+    }
 }

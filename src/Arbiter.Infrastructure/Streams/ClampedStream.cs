@@ -3,11 +3,15 @@ namespace Arbiter.Infrastructure.Streams;
 public class ClampedStream(Stream inner, long length) : Stream
 {
     private long _position;
-    public override bool CanRead { get => true; }
-    public override bool CanSeek { get => true; }
-    public override bool CanWrite { get => false; }
-    public override long Length { get => length; }
-    public override long Position { get => _position; set => throw new NotSupportedException(); }
+    public override bool CanRead => true;
+    public override bool CanSeek => true;
+    public override bool CanWrite => false;
+    public override long Length => length;
+    public override long Position
+    {
+        get => _position;
+        set => throw new NotSupportedException();
+    }
 
     public override int Read(byte[] buffer, int offset, int count)
     {
@@ -42,41 +46,15 @@ public class ClampedStream(Stream inner, long length) : Stream
         return actualReadLength;
     }
 
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        throw new NotSupportedException();
-    }
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
-    public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-    {
-        throw new NotSupportedException();
-    }
+    public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-    public override void Flush()
-    {
-        inner.Flush();
-    }
+    public override void Flush() => inner.Flush();
 
-    public override Task FlushAsync(CancellationToken cancellationToken)
-    {
-        return inner.FlushAsync(cancellationToken);
-    }
+    public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
 
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
     public override void SetLength(long value) => throw new NotSupportedException();
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-            inner.Dispose();
-
-        base.Dispose(disposing);
-    }
-
-    public async override ValueTask DisposeAsync()
-    {
-        await inner.DisposeAsync();
-        await base.DisposeAsync();
-    }
 }

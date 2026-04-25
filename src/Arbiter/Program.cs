@@ -21,8 +21,7 @@ try
 {
     using var host = Host
         .CreateDefaultBuilder(args)
-        .ConfigureServices((_, services) =>
-        {
+        .ConfigureServices((_, services) => {
             services.AddConfiguration(args);
             services.AddTcpTransport();
             services.AddQuicTransport();

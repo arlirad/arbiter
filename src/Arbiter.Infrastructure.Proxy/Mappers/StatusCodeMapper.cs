@@ -5,8 +5,7 @@ namespace Arbiter.Infrastructure.Proxy.Mappers;
 
 public static class StatusCodeMapper
 {
-    private static readonly Dictionary<HttpStatusCode, Status> Codes = new()
-    {
+    private static readonly Dictionary<HttpStatusCode, Status> Codes = new() {
         [HttpStatusCode.Continue] = Status.Continue,
         [HttpStatusCode.SwitchingProtocols] = Status.SwitchingProtocol,
         [HttpStatusCode.EarlyHints] = Status.EarlyHints,

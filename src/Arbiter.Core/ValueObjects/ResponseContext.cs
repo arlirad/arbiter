@@ -6,12 +6,23 @@ public class ResponseContext
 {
     internal ResponseContext()
     {
-        Headers = new Headers();
+        Headers = [];
     }
 
-    public Status? Status { get; private set; }
-    public Headers Headers { get; }
-    public Stream? Stream { get; private set; }
+    public Status? Status
+    {
+        get;
+        private set;
+    }
+    public Headers Headers
+    {
+        get;
+    }
+    public Stream? Stream
+    {
+        get;
+        private set;
+    }
 
     public ValueTask Set(Status status, Stream? stream = null)
     {

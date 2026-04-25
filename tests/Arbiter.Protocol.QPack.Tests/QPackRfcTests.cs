@@ -45,8 +45,7 @@ public class QPackRfcTests
             }
         }
 
-        Assert.Multiple(() =>
-        {
+        Assert.Multiple(() => {
             Assert.That(buffer0Headers[":path"], Is.EqualTo("/index.html"));
             Assert.That(decoderInstructions.Length, Is.EqualTo(0));
         });
@@ -126,15 +125,12 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), CancellationToken.None);
 
-        Assert.Multiple(() =>
-        {
+        Assert.Multiple(() => {
             Assert.That(decoder.DynamicTableCapacity, Is.EqualTo(220));
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(106));
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(2));
-            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
-            {
-                new(":authority", "www.example.com"),
-                new(":path", "/sample/path"),
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
+                new(":authority", "www.example.com"), new(":path", "/sample/path"),
             }));
 
             Assert.That(headers[":authority"], Is.EqualTo("www.example.com"));
@@ -189,14 +185,10 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
 
-        Assert.Multiple(() =>
-        {
+        Assert.Multiple(() => {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(3));
-            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
-            {
-                new(":authority", "www.example.com"),
-                new(":path", "/sample/path"),
-                new("custom-key", "custom-value"),
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
+                new(":authority", "www.example.com"), new(":path", "/sample/path"), new("custom-key", "custom-value"),
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
@@ -292,15 +284,10 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
 
-        Assert.Multiple(() =>
-        {
+        Assert.Multiple(() => {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(4));
-            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
-            {
-                new(":authority", "www.example.com"),
-                new(":path", "/sample/path"),
-                new("custom-key", "custom-value"),
-                new(":authority", "www.example.com"),
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
+                new(":authority", "www.example.com"), new(":path", "/sample/path"), new("custom-key", "custom-value"), new(":authority", "www.example.com"),
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
@@ -346,16 +333,11 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
 
-        Assert.Multiple(() =>
-        {
+        Assert.Multiple(() => {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(5));
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(215));
-            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField>
-            {
-                new(":path", "/sample/path"),
-                new("custom-key", "custom-value"),
-                new(":authority", "www.example.com"),
-                new("custom-key", "custom-value2"),
+            Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
+                new(":path", "/sample/path"), new("custom-key", "custom-value"), new(":authority", "www.example.com"), new("custom-key", "custom-value2"),
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));

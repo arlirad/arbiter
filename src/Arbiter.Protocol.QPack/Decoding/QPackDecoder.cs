@@ -7,15 +7,16 @@ namespace Arlirad.Infrastructure.QPack.Decoding;
 public class QPackDecoder
 {
     private static readonly TimeSpan InsertIncrementCountWaitTime = TimeSpan.FromMilliseconds(100);
+    private readonly SemaphoreSlim _capacitySignal = new(0, 1);
     private readonly Task _decoderOutgoingTask;
     private readonly TaskCompletionSource _decoderOutgoingTcs = new();
 
     private readonly List<QPackField> _dynamicTable = [];
-    private readonly TaskCompletionSource _maxTableCapacityTcs = new();
     private readonly List<(long Required, TaskCompletionSource Tcs)> _waiters = [];
     private readonly Lock _waitersLock = new();
 
     private long _ackedInsertCount;
+    private int _capacitySignaled;
     private CancellationTokenSource? _cts;
     private Stream? _decoderOutgoing;
     private QPackWriter? _decoderOutgoingWriter;
@@ -27,17 +28,32 @@ public class QPackDecoder
     private bool _started;
 
     private long _totalEvictionCount;
-    private long _totalInsertCount;
 
     public QPackDecoder()
     {
         _decoderOutgoingTask = _decoderOutgoingTcs.Task;
     }
 
-    public long MaxTableCapacity { get; set; }
-    public long DynamicTableCapacity { get; private set; }
-    public long DynamicTableSize { get; private set; }
-    public long TotalInsertCount { get => _totalInsertCount; }
+    public long MaxTableCapacity
+    {
+        get;
+        set;
+    }
+    public long DynamicTableCapacity
+    {
+        get;
+        private set;
+    }
+    public long DynamicTableSize
+    {
+        get;
+        private set;
+    }
+    public long TotalInsertCount
+    {
+        get;
+        private set;
+    }
 
     public ValueTask Start()
     {
@@ -88,10 +104,14 @@ public class QPackDecoder
         var baseSign = (deltaBaseSign & QPackConsts.DeltaBaseSignMask) == QPackConsts.DeltaBaseSignMask;
 
         if (encodedInsertCount != 0)
+        {
             while (DynamicTableCapacity == 0)
             {
-                await _maxTableCapacityTcs.Task;
+                if (_capacitySignaled != 0 && DynamicTableCapacity == 0)
+                    throw new InvalidOperationException("QPACK_DECODER_ERROR: Dynamic table capacity not set");
+                await _capacitySignal.WaitAsync(ct);
             }
+        }
 
         var requiredInsertCount = CalculateRequiredInsertCount(encodedInsertCount, DynamicTableCapacity);
 
@@ -128,16 +148,22 @@ public class QPackDecoder
         }
     }
 
-    public List<QPackField> GetDynamicTable()
-    {
-        return [.. _dynamicTable];
-    }
+    public List<QPackField> GetDynamicTable() => [.. _dynamicTable];
 
     public QPackField? GetField(long index, bool isDynamic)
     {
-        return isDynamic
-            ? _dynamicTable[(int)(index - _totalEvictionCount)]
-            : QPackConsts.StaticTable[(int)index];
+        if (isDynamic)
+        {
+            var tableIndex = (int)(index - _totalEvictionCount);
+            return tableIndex < 0 || tableIndex >= _dynamicTable.Count
+                ? throw new InvalidOperationException("QPACK_DECOMPRESSION_FAILED: Invalid dynamic table index")
+                : _dynamicTable[tableIndex];
+        }
+
+        var staticIndex = (int)index;
+        return staticIndex < 0 || staticIndex >= QPackConsts.StaticTable.Count
+            ? throw new InvalidOperationException("QPACK_DECOMPRESSION_FAILED: Invalid static table index")
+            : QPackConsts.StaticTable[staticIndex];
     }
 
     private async ValueTask WaitForInsertCount(long required, CancellationToken ct)
@@ -146,7 +172,7 @@ public class QPackDecoder
 
         lock (_waitersLock)
         {
-            if (_totalInsertCount >= required)
+            if (TotalInsertCount >= required)
                 return;
 
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -158,10 +184,7 @@ public class QPackDecoder
         await task.WaitAsync(ct);
     }
 
-    private static int GetEntrySize(string name, string? value)
-    {
-        return name.Length + (value?.Length ?? 0) + QPackConsts.EntryAdditionalByteCount;
-    }
+    private static int GetEntrySize(string name, string? value) => name.Length + (value?.Length ?? 0) + QPackConsts.EntryAdditionalByteCount;
 
     private long? CalculateRequiredInsertCount(long encodedInsertCount, long dynamicTableCapacity)
     {
@@ -174,8 +197,8 @@ public class QPackDecoder
         if (encodedInsertCount > fullRange)
             return null;
 
-        var maxValue = _totalInsertCount + maxEntryCount;
-        var maxWrapped = (maxValue / fullRange) * fullRange;
+        var maxValue = TotalInsertCount + maxEntryCount;
+        var maxWrapped = maxValue / fullRange * fullRange;
         var reqInsertCount = maxWrapped + encodedInsertCount - 1;
 
         if (reqInsertCount > maxValue)
@@ -208,7 +231,8 @@ public class QPackDecoder
                     await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer, ct);
 
                 Resize(capacity);
-                _maxTableCapacityTcs.SetResult();
+                _capacitySignaled = 1;
+                _capacitySignal.Release();
             }
             else if (QPackConsts.Is(instruction, 0b1000_0000,
                 QPackConsts.EncoderInstructionInsertWithNameReference))
@@ -281,18 +305,15 @@ public class QPackDecoder
     }
 
     private ulong FromRelative(ulong index)
-    {
         // We don't really need to worry about overflows, GetField is going to fail anyway if we overflow.
-        return (ulong)(_totalInsertCount - (long)index - 1);
-    }
+        => (ulong)(TotalInsertCount - (long)index - 1);
 
     private void Insert(string name, string value, CancellationToken ct)
     {
         var entrySize = GetEntrySize(name, value);
 
         if (entrySize > DynamicTableCapacity)
-            // TODO: QPACK_ENCODER_STREAM_ERROR
-            throw new NotImplementedException();
+            throw new InvalidOperationException($"QPACK_ENCODER_STREAM_ERROR: Entry size {entrySize} exceeds dynamic table capacity {DynamicTableCapacity}");
 
         while (DynamicTableSize + entrySize > DynamicTableCapacity)
         {
@@ -310,11 +331,15 @@ public class QPackDecoder
 
         lock (_waitersLock)
         {
-            _totalInsertCount++;
+            TotalInsertCount++;
 
             for (var i = _waiters.Count - 1; i >= 0; i--)
             {
-                toRelease.Add(_waiters[i].Tcs);
+                var (required, tcs) = _waiters[i];
+                if (required > TotalInsertCount)
+                    continue;
+
+                toRelease.Add(tcs);
                 _waiters.RemoveAt(i);
             }
 
@@ -322,9 +347,7 @@ public class QPackDecoder
         }
 
         foreach (var taskCompletionSource in toRelease)
-        {
             taskCompletionSource.SetResult();
-        }
 
         DynamicTableSize += entrySize;
     }
@@ -339,11 +362,11 @@ public class QPackDecoder
 
             lock (_waitersLock)
             {
-                if (_ackedInsertCount == _totalInsertCount)
+                if (_ackedInsertCount == TotalInsertCount)
                     return;
 
-                increment = _totalInsertCount - _ackedInsertCount;
-                _ackedInsertCount = _totalInsertCount;
+                increment = TotalInsertCount - _ackedInsertCount;
+                _ackedInsertCount = TotalInsertCount;
                 _insertIncrementCountSendTask = null;
             }
 

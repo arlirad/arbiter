@@ -7,7 +7,9 @@ public class CompiledRule
     private readonly List<Regex> _from = [];
     private string _to = null!;
 
-    private CompiledRule() { }
+    private CompiledRule()
+    {
+    }
 
     public static CompiledRule? Compile(List<string>? from, string? to)
     {
@@ -18,7 +20,7 @@ public class CompiledRule
 
         foreach (var line in from)
         {
-            var regex = new Regex(line, RegexOptions.Compiled);
+            var regex = new Regex(line, RegexOptions.Compiled, TimeSpan.FromSeconds(1));
             newRule._from.Add(regex);
         }
 
@@ -30,9 +32,7 @@ public class CompiledRule
     public string Apply(string input)
     {
         foreach (var line in _from)
-        {
             input = line.Replace(input, _to);
-        }
 
         return input;
     }

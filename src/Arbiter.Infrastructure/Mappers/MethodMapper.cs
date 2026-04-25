@@ -6,8 +6,7 @@ public static class MethodMapper
 {
     public static Method? ToEnum(string method)
     {
-        return method switch
-        {
+        return method switch {
             "GET" => Method.Get,
             "HEAD" => Method.Head,
             "OPTIONS" => Method.Options,
@@ -22,8 +21,7 @@ public static class MethodMapper
 
     public static string? ToString(Method method)
     {
-        return method switch
-        {
+        return method switch {
             Method.Get => "GET",
             Method.Head => "HEAD",
             Method.Options => "OPTIONS",

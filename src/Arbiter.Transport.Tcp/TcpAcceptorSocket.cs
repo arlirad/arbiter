@@ -5,13 +5,13 @@ namespace Arbiter.Transport.Tcp;
 internal class TcpAcceptorSocket(Socket socket)
 {
     private CancellationTokenSource _cts = new();
-    public CancellationToken CancellationToken { get => _cts.Token; }
+    public CancellationToken CancellationToken => _cts.Token;
 
     public async Task Stop()
     {
-        var oldCts = _cts;
-        _cts = new CancellationTokenSource();
+        var oldCts = Interlocked.Exchange(ref _cts, new CancellationTokenSource());
         await oldCts.CancelAsync();
+        oldCts.Dispose();
     }
 
     public void Close()

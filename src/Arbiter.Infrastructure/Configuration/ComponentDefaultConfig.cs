@@ -4,5 +4,9 @@ namespace Arbiter.Infrastructure.Configuration;
 
 internal class ComponentDefaultConfig
 {
-    public IConfigurationSection? Config { get; set; }
+    public IConfigurationSection? Config
+    {
+        get;
+        set;
+    }
 }

@@ -6,8 +6,7 @@ public static class MethodMapper
 {
     public static HttpMethod ToHttpMethod(Method method)
     {
-        return method switch
-        {
+        return method switch {
             Method.Get => HttpMethod.Get,
             Method.Head => HttpMethod.Head,
             Method.Options => HttpMethod.Options,

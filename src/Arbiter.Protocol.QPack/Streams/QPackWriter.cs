@@ -6,15 +6,15 @@ public class QPackWriter(Stream inner)
 
     public async ValueTask WritePrefixedIntAsync(long value, int prefix, byte firstByte, CancellationToken ct = default)
     {
-        if (value < ((1 << prefix) - 1))
+        if (value < (1 << prefix) - 1)
         {
-            _buffer[0] = (byte)(firstByte | (int)value & ((1 << prefix) - 1));
+            _buffer[0] = (byte)(firstByte | ((int)value & ((1 << prefix) - 1)));
             await inner.WriteAsync(new Memory<byte>(_buffer, 0, 1), ct);
 
             return;
         }
 
-        _buffer[0] = (byte)(firstByte | (1 << prefix) - 1);
+        _buffer[0] = (byte)(firstByte | ((1 << prefix) - 1));
 
         value -= (1 << prefix) - 1;
 

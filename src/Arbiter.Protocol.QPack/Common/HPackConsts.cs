@@ -2,10 +2,8 @@ namespace Arlirad.Infrastructure.QPack.Common;
 
 public static class HPackConsts
 {
-    public static readonly Dictionary<int, Dictionary<long, int>> Code = new()
-    {
-        [5] = new Dictionary<long, int>
-        {
+    public static readonly Dictionary<int, Dictionary<long, int>> Code = new() {
+        [5] = new Dictionary<long, int> {
             [0x0] = 48,  // 5
             [0x1] = 49,  // 5
             [0x2] = 50,  // 5
@@ -17,8 +15,7 @@ public static class HPackConsts
             [0x8] = 115, // 5
             [0x9] = 116, // 5
         },
-        [6] = new Dictionary<long, int>
-        {
+        [6] = new Dictionary<long, int> {
             [0x14] = 32,  // 6
             [0x15] = 37,  // 6
             [0x16] = 45,  // 6
@@ -46,8 +43,7 @@ public static class HPackConsts
             [0x2C] = 114, // 6
             [0x2D] = 117, // 6
         },
-        [7] = new Dictionary<long, int>
-        {
+        [7] = new Dictionary<long, int> {
             [0x5C] = 58,  // 7
             [0x5D] = 66,  // 7
             [0x5E] = 67,  // 7
@@ -81,8 +77,7 @@ public static class HPackConsts
             [0x7A] = 121, // 7
             [0x7B] = 122, // 7
         },
-        [8] = new Dictionary<long, int>
-        {
+        [8] = new Dictionary<long, int> {
             [0xF8] = 38, // 8
             [0xF9] = 42, // 8
             [0xFA] = 44, // 8
@@ -90,27 +85,23 @@ public static class HPackConsts
             [0xFC] = 88, // 8
             [0xFD] = 90, // 8
         },
-        [10] = new Dictionary<long, int>
-        {
+        [10] = new Dictionary<long, int> {
             [0x3F8] = 33, // 10
             [0x3F9] = 34, // 10
             [0x3FA] = 40, // 10
             [0x3FB] = 41, // 10
             [0x3FC] = 63, // 10
         },
-        [11] = new Dictionary<long, int>
-        {
+        [11] = new Dictionary<long, int> {
             [0x7FA] = 39,  // 11
             [0x7FB] = 43,  // 11
             [0x7FC] = 124, // 11
         },
-        [12] = new Dictionary<long, int>
-        {
+        [12] = new Dictionary<long, int> {
             [0xFFA] = 35, // 12
             [0xFFB] = 62, // 12
         },
-        [13] = new Dictionary<long, int>
-        {
+        [13] = new Dictionary<long, int> {
             [0x1FF8] = 0,   // 13
             [0x1FF9] = 36,  // 13
             [0x1FFA] = 64,  // 13
@@ -118,25 +109,21 @@ public static class HPackConsts
             [0x1FFC] = 93,  // 13
             [0x1FFD] = 126, // 13
         },
-        [14] = new Dictionary<long, int>
-        {
+        [14] = new Dictionary<long, int> {
             [0x3FFC] = 94,  // 14
             [0x3FFD] = 125, // 14
         },
-        [15] = new Dictionary<long, int>
-        {
+        [15] = new Dictionary<long, int> {
             [0x7FFC] = 60,  // 15
             [0x7FFD] = 96,  // 15
             [0x7FFE] = 123, // 15
         },
-        [19] = new Dictionary<long, int>
-        {
+        [19] = new Dictionary<long, int> {
             [0x7FFF0] = 92,  // 19
             [0x7FFF1] = 195, // 19
             [0x7FFF2] = 208, // 19
         },
-        [20] = new Dictionary<long, int>
-        {
+        [20] = new Dictionary<long, int> {
             [0xFFFE6] = 128, // 20
             [0xFFFE7] = 130, // 20
             [0xFFFE8] = 131, // 20
@@ -146,8 +133,7 @@ public static class HPackConsts
             [0xFFFEC] = 224, // 20
             [0xFFFED] = 226, // 20
         },
-        [21] = new Dictionary<long, int>
-        {
+        [21] = new Dictionary<long, int> {
             [0x1FFFDC] = 153, // 21
             [0x1FFFDD] = 161, // 21
             [0x1FFFDE] = 167, // 21
@@ -162,8 +148,7 @@ public static class HPackConsts
             [0x1FFFE7] = 229, // 21
             [0x1FFFE8] = 230, // 21
         },
-        [22] = new Dictionary<long, int>
-        {
+        [22] = new Dictionary<long, int> {
             [0x3FFFD2] = 129, // 22
             [0x3FFFD3] = 132, // 22
             [0x3FFFD4] = 133, // 22
@@ -191,8 +176,7 @@ public static class HPackConsts
             [0x3FFFEA] = 232, // 22
             [0x3FFFEB] = 233, // 22
         },
-        [23] = new Dictionary<long, int>
-        {
+        [23] = new Dictionary<long, int> {
             [0x7FFFD8] = 1,   // 23
             [0x7FFFD9] = 135, // 23
             [0x7FFFDA] = 137, // 23
@@ -223,8 +207,7 @@ public static class HPackConsts
             [0x7FFFF3] = 231, // 23
             [0x7FFFF4] = 239, // 23
         },
-        [24] = new Dictionary<long, int>
-        {
+        [24] = new Dictionary<long, int> {
             [0xFFFFEA] = 9,   // 24
             [0xFFFFEB] = 142, // 24
             [0xFFFFEC] = 144, // 24
@@ -238,15 +221,13 @@ public static class HPackConsts
             [0xFFFFF4] = 236, // 24
             [0xFFFFF5] = 237, // 24
         },
-        [25] = new Dictionary<long, int>
-        {
+        [25] = new Dictionary<long, int> {
             [0x1FFFFEC] = 199, // 25
             [0x1FFFFED] = 207, // 25
             [0x1FFFFEE] = 234, // 25
             [0x1FFFFEF] = 235, // 25
         },
-        [26] = new Dictionary<long, int>
-        {
+        [26] = new Dictionary<long, int> {
             [0x3FFFFE0] = 192, // 26
             [0x3FFFFE1] = 193, // 26
             [0x3FFFFE2] = 200, // 26
@@ -263,8 +244,7 @@ public static class HPackConsts
             [0x3FFFFED] = 243, // 26
             [0x3FFFFEE] = 255, // 26
         },
-        [27] = new Dictionary<long, int>
-        {
+        [27] = new Dictionary<long, int> {
             [0x7FFFFDE] = 203, // 27
             [0x7FFFFDF] = 204, // 27
             [0x7FFFFE0] = 211, // 27
@@ -285,8 +265,7 @@ public static class HPackConsts
             [0x7FFFFEF] = 253, // 27
             [0x7FFFFF0] = 254, // 27
         },
-        [28] = new Dictionary<long, int>
-        {
+        [28] = new Dictionary<long, int> {
             [0xFFFFFE2] = 2,   // 28
             [0xFFFFFE3] = 3,   // 28
             [0xFFFFFE4] = 4,   // 28
@@ -317,8 +296,7 @@ public static class HPackConsts
             [0xFFFFFFD] = 220, // 28
             [0xFFFFFFE] = 249, // 28
         },
-        [30] = new Dictionary<long, int>
-        {
+        [30] = new Dictionary<long, int> {
             [0x3FFFFFFC] = 10, // 30
             [0x3FFFFFFD] = 13, // 30
             [0x3FFFFFFE] = 22, // 30

@@ -32,14 +32,14 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
             handleDelegate
         );
 
-        foreach (var middleware in middlewareChain)
+        foreach (var (Instance, Config) in middlewareChain)
         {
-            await middleware.Instance.Configure(site, middleware.Config!);
+            await Instance.Configure(site, Config!);
         }
 
-        foreach (var worker in workers)
+        foreach (var (Instance, Config) in workers)
         {
-            await worker.Instance.Configure(site, worker.Config!);
+            await Instance.Configure(site, Config!);
         }
 
         return site;
@@ -60,8 +60,7 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
         middlewareConfigs.Reverse();
 
         var middlewareChainReversed = middlewareConfigs
-            .Select<SiteComponentConfig, (IMiddleware Instance, IConfiguration Config)>(m =>
-            {
+            .Select<SiteComponentConfig, (IMiddleware Instance, IConfiguration Config)>(m => {
                 var middleware = (Instance: InstanceMiddleware(m.Name!),
                     MergeConfigs(configManager.GetDefaultMiddlewareConfig(m.Name!), m.Config));
 
@@ -76,10 +75,7 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
         return middlewareChainReversed;
     }
 
-    private static Task LastHandleDelegate(Context _)
-    {
-        return Task.CompletedTask;
-    }
+    private static Task LastHandleDelegate(Context _) => Task.CompletedTask;
 
     private static IConfiguration MergeConfigs(params IConfiguration?[] configs)
     {

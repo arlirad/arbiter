@@ -2,5 +2,9 @@ namespace Arbiter.Infrastructure.Proxy.Models;
 
 internal class ConfigModel
 {
-    public Uri? Target { get; set; }
+    public Uri? Target
+    {
+        get;
+        set;
+    }
 }

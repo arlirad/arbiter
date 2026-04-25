@@ -9,5 +9,6 @@ internal enum FrameType
     PushPromise = 0x05,
     SettingsMaxFieldSectionSize = 0x06,
     GoAway = 0x07,
-    MMaxPushId = 0x0d,
+    MaxPushId = 0x0d,
+    DuplicatePush = 0x0e,
 }

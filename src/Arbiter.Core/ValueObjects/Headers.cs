@@ -38,17 +38,11 @@ public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
         set => Set("transfer-encoding", value is not null ? [value] : null);
     }
 
-    public IEnumerator<KeyValuePair<string, List<string>>> GetEnumerator()
-    {
-        return _headers.GetEnumerator();
-    }
+    public IEnumerator<KeyValuePair<string, List<string>>> GetEnumerator() => _headers.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    private List<string>? Get(string name)
-    {
-        return _headers.GetValueOrDefault(name);
-    }
+    private List<string>? Get(string name) => _headers.GetValueOrDefault(name);
 
     private void Set(string name, List<string>? value)
     {
@@ -63,11 +57,11 @@ public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
 
     public void Add(string headerKey, string headerValue)
     {
-        _headers[headerKey] = _headers.GetValueOrDefault(headerKey) ?? [headerValue];
+        if (_headers.TryGetValue(headerKey, out var list))
+            list.Add(headerValue);
+        else
+            _headers[headerKey] = [headerValue];
     }
 
-    public void Replace(string headerKey, string headerValue)
-    {
-        _headers[headerKey] = [headerValue];
-    }
+    public void Replace(string headerKey, string headerValue) => _headers[headerKey] = [headerValue];
 }

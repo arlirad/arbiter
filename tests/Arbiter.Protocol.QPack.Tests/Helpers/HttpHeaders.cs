@@ -10,15 +10,9 @@ public class HttpHeaders
         set => Set(name, value);
     }
 
-    public Dictionary<string, string>.Enumerator GetEnumerator()
-    {
-        return _headers.GetEnumerator();
-    }
+    public Dictionary<string, string>.Enumerator GetEnumerator() => _headers.GetEnumerator();
 
-    private string? Get(string name)
-    {
-        return _headers.GetValueOrDefault(name);
-    }
+    private string? Get(string name) => _headers.GetValueOrDefault(name);
 
     private void Set(string name, string? value)
     {

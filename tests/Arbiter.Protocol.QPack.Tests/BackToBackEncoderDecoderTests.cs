@@ -61,18 +61,16 @@ public class BackToBackEncoderDecoderTests
             length: sectionBytes.Length, ct: CancellationToken.None))
         {
             foreach (var field in reader)
-            {
                 headers[field.Name] = field.Value!;
-            }
         }
 
         // With RequiredInsertCount = 0, the decoder must not send Section Acknowledgment
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(headers[":path"], Is.EqualTo("/index.html"));
             Assert.That(headers["custom-key"], Is.EqualTo("custom-value"));
             Assert.That(decToEnc.Length, Is.EqualTo(0), "No decoder→encoder instruction expected for RIC=0");
-        });
+        }
     }
 
     [Test]
@@ -106,12 +104,11 @@ public class BackToBackEncoderDecoderTests
 
         // Verify the decoder state and that at least one instruction byte was sent
         // (increment = one fits in a single byte)
-        Assert.Multiple(() =>
-        {
+        Assert.Multiple(() => {
             Assert.That(decoder.TotalInsertCount, Is.GreaterThanOrEqualTo(1));
             Assert.That(decoder.GetDynamicTable().Any(f => f.Name == name && f.Value == value), Is.True);
             // For small increments (1), the instruction is a single byte with the top two bits being 00
-            Assert.That((firstByte[0] & 0b1100_0000), Is.EqualTo(QPackConsts.DecoderInstructionInsertCountIncrement));
+            Assert.That(firstByte[0] & 0b1100_0000, Is.EqualTo(QPackConsts.DecoderInstructionInsertCountIncrement));
         });
     }
 }

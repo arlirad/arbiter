@@ -7,6 +7,6 @@ public delegate Task HandleDelegate(Context context);
 
 public interface IMiddleware
 {
-    public Task Configure(Site site, IConfiguration config);
-    public Task Handle(Context context);
+    Task Configure(Site site, IConfiguration config);
+    Task Handle(Context context);
 }

@@ -4,10 +4,10 @@ public class QueueStream : Stream
 {
     private readonly Queue<byte> _queue = new();
     private volatile TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    public override bool CanRead { get => true; }
-    public override bool CanSeek { get => true; }
-    public override bool CanWrite { get => true; }
-    public override long Length { get => _queue.Count; }
+    public override bool CanRead => true;
+    public override bool CanSeek => true;
+    public override bool CanWrite => true;
+    public override long Length => _queue.Count;
     public override long Position
     {
         get => throw new NotSupportedException();
@@ -18,15 +18,9 @@ public class QueueStream : Stream
     {
     }
 
-    public override int Read(byte[] buffer, int offset, int count)
-    {
-        throw new NotImplementedException();
-    }
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotImplementedException();
 
-    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-    {
-        return ReadAsync(new Memory<byte>(buffer, offset, count), cancellationToken).AsTask();
-    }
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => ReadAsync(new Memory<byte>(buffer, offset, count), cancellationToken).AsTask();
 
     public async override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
@@ -47,22 +41,14 @@ public class QueueStream : Stream
         return read;
     }
 
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        throw new NotImplementedException();
-    }
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotImplementedException();
 
-    public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-    {
-        return WriteAsync(new ReadOnlyMemory<byte>(buffer, offset, count), cancellationToken).AsTask();
-    }
+    public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => WriteAsync(new ReadOnlyMemory<byte>(buffer, offset, count), cancellationToken).AsTask();
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
         for (var i = 0; i < buffer.Length; i++)
-        {
             _queue.Enqueue(buffer.Span[i]);
-        }
 
         Set();
 

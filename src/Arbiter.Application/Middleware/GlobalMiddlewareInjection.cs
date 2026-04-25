@@ -13,8 +13,7 @@ public static class GlobalMiddlewareInjection
     public static void AddGlobalMiddleware<T>(this IServiceCollection services) where T : class, IGlobalMiddleware
     {
         Types.Add(typeof(T));
-        services.AddSingleton<T>(sp =>
-        {
+        services.AddSingleton<T>(sp => {
             BuildChain(sp);
             return (Instances[typeof(T)] as T)!;
         });
@@ -44,8 +43,5 @@ public static class GlobalMiddlewareInjection
         _handleDelegate = previousDelegate;
     }
 
-    private static Task LastHandleDelegate(ITransaction _, Site? site, Context context)
-    {
-        return site?.HandleDelegate(context) ?? Task.CompletedTask;
-    }
+    private static Task LastHandleDelegate(ITransaction _, Site? site, Context context) => site?.HandleDelegate(context) ?? Task.CompletedTask;
 }

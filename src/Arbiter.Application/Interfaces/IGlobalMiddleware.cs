@@ -6,5 +6,5 @@ public delegate Task HandleDelegate(ITransaction transaction, Site? site, Contex
 
 public interface IGlobalMiddleware
 {
-    public Task Handle(ITransaction transaction, Site? site, Context context);
+    Task Handle(ITransaction transaction, Site? site, Context context);
 }

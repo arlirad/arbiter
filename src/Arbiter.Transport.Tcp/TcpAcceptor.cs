@@ -1,27 +1,53 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
+using Arbiter.Protocol.Http11;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Primitives;
+using Serilog;
 
 namespace Arbiter.Transport.Tcp;
 
-public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
+public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IAsyncConfigurable
 {
     private const int Backlog = 128;
 
-    private readonly Dictionary<IPEndPoint, TcpAcceptorSocket> _sockets = [];
+    private readonly ICertificateManager _certificateManager = certificateManager;
+    private readonly ConcurrentDictionary<IPEndPoint, TcpAcceptorSocket> _sockets = new();
 
-    private readonly Channel<TcpTransaction> _transactions =
-        Channel.CreateBounded<TcpTransaction>(new BoundedChannelOptions(4096));
+    private readonly Channel<ITransaction> _transactions =
+        Channel.CreateBounded<ITransaction>(new BoundedChannelOptions(4096));
+
+    private ConfigurationScope? _scope;
 
     public async Task<ITransaction> Accept(CancellationToken ct)
     {
         while (true)
-        {
             return await _transactions.Reader.ReadAsync(ct);
+    }
+
+    public async ValueTask Bind(IConfiguration configuration)
+    {
+        _scope = new ConfigurationScope(configuration, "ListenOn", "Sites");
+        await UpdateBindings();
+        ChangeToken.OnChange(_scope.GetReloadToken, () => _ = UpdateBindingsAsync());
+    }
+
+    private async Task UpdateBindingsAsync()
+    {
+        try
+        {
+            await UpdateBindings();
+        }
+        catch (Exception e)
+        {
+            Log.Error("Failed to reload config: {Exception}", e);
         }
     }
 
@@ -32,9 +58,7 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
         foreach (var address in addresses)
         {
             foreach (var port in ports)
-            {
                 endPoints.Add(new IPEndPoint(address, port));
-            }
         }
 
         await CreateSocket(endPoints);
@@ -70,26 +94,10 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
             if (secure)
                 stream = await WrapInSsl(stream);
 
-            while (true)
-            {
-                var transaction = new TcpTransaction(stream, secure, port, remoteAddress, ct);
+            await using var transport = new Http11Transport(stream, secure, port, remoteAddress, ct);
 
+            await foreach (var transaction in transport.AcceptTransactions(ct))
                 await _transactions.Writer.WriteAsync(transaction, ct);
-                await transaction.ResponseSet.WaitAsync(ct);
-
-                if (transaction.Upgraded)
-                {
-                    await transaction.UpgradeCompleted;
-                    socket.Dispose();
-                    break;
-                }
-
-                if (transaction is { Finished: false, Faulted: false })
-                    continue;
-
-                socket.Dispose();
-                break;
-            }
         }
         catch (OperationCanceledException)
         {
@@ -106,18 +114,14 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
         var buffer = new byte[1];
         var length = await socket.ReceiveAsync(buffer, SocketFlags.Peek);
 
-        if (length == 0)
-            return false;
-
-        return buffer[0] == 22;
+        return length != 0 && buffer[0] == 22;
     }
 
     private async Task<Stream> WrapInSsl(Stream stream)
     {
         var ssl = new SslStream(stream, false);
 
-        await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
-        {
+        await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
             ServerCertificateSelectionCallback = CertificateSelectionCallback,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
             ApplicationProtocols = [SslApplicationProtocol.Http11],
@@ -126,13 +130,7 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
         return ssl;
     }
 
-    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName)
-    {
-        if (hostName is null)
-            return certificateManager.GetFallback();
-
-        return certificateManager.Get(hostName) ?? certificateManager.GetFallback();
-    }
+    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName) => hostName is null ? _certificateManager.GetFallback() : _certificateManager.Get(hostName) ?? _certificateManager.GetFallback();
 
     private Task CreateSocket(List<IPEndPoint> endPoints)
     {
@@ -157,27 +155,61 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor
 
     private async Task PruneSockets(IEnumerable<IPEndPoint> endPoints)
     {
+        var toRemove = _sockets.Keys
+            .Where(e => !endPoints.Any(ep => ep.Equals(e)))
+            .ToList();
+
         var cancellationTasks = new List<Task>();
-        var pruned = new Dictionary<IPEndPoint, TcpAcceptorSocket>();
 
-        foreach (var socket in _sockets
-            .Where(s => !endPoints.Any(e => e.Equals(s.Key))))
+        foreach (var endpoint in toRemove)
         {
-            cancellationTasks.Add(socket.Value.Stop());
-            pruned[socket.Key] = socket.Value;
-        }
-
-        foreach (var prunedSocket in pruned)
-        {
-            _sockets.Remove(prunedSocket.Key);
+            if (_sockets.TryRemove(endpoint, out var socket))
+            {
+                cancellationTasks.Add(socket.Stop());
+                _ = Task.Run(socket.Close);
+            }
         }
 
         if (cancellationTasks.Count > 0)
             await Task.WhenAll(cancellationTasks);
+    }
 
-        foreach (var prunedSocket in pruned)
+    private async Task UpdateBindings()
+    {
+        try
         {
-            prunedSocket.Value.Close();
+            if (_scope is null)
+                return;
+
+            var (addresses, ports) = ExtractConfigBindings();
+
+            if (addresses is not null && ports is not null)
+                await Bind(addresses, ports);
         }
+        catch (Exception e)
+        {
+            Log.Error("Failed to reload config: {Exception}", e);
+        }
+    }
+
+    private (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings()
+    {
+        if (_scope is null)
+            return (null, null);
+
+        var listenOn = _scope.GetSection("ListenOn").Get<List<string>>();
+        var sites = _scope.GetSection("Sites").Get<Dictionary<string, SiteConfig>>();
+
+        if (listenOn is null || sites is null)
+            return (null, null);
+
+        var ports = sites
+            .SelectMany(s => s.Value.Bindings ?? [])
+            .Select(b => b.Port);
+
+        return (
+            listenOn.Select(IPAddress.Parse),
+            ports
+        );
     }
 }

@@ -5,6 +5,9 @@ namespace Arlirad.Http3.Framing;
 
 internal class Http3Frame(FrameType type, Stream stream, long length)
 {
-    public FrameType Type { get => type; }
-    public ClampedStream Stream { get; } = new(stream, length);
+    public FrameType Type => type;
+    public ClampedStream Stream
+    {
+        get;
+    } = new(stream, length);
 }

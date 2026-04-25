@@ -30,8 +30,7 @@ public static class QPackConsts
 
     public const int EntryAdditionalByteCount = 32;
 
-    public static readonly Dictionary<int, QPackField> StaticTable = new()
-    {
+    public static readonly Dictionary<int, QPackField> StaticTable = new() {
         [0] = new QPackField(":authority"),
         [1] = new QPackField(":path", "/"),
         [2] = new QPackField("age", "0"),

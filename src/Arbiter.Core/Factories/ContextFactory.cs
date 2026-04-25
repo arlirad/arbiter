@@ -23,9 +23,6 @@ public class ContextFactory : IContextFactory
 
         var response = ResponseContextFactory.Create();
 
-        if (request is null || response is null)
-            return null;
-
-        return new Context(request, response);
+        return request is null || response is null ? null : new Context(request, response);
     }
 }
