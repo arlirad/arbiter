@@ -99,7 +99,7 @@ public class HttpClientServerFixture : IAsyncDisposable
         });
 
         var handler = requestHandler ?? (req => Task.FromResult(new ResponseDto {
-            Status = Status.Ok
+            Status = Status.Ok,
         }));
         var fixture = new HttpClientServerFixture(listener, certificate, handler);
         await fixture.StartServerLoopAsync();

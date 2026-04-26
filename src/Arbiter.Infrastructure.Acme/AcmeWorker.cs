@@ -46,7 +46,7 @@ internal class AcmeWorker(
         _domains = [
             .. site.Bindings
                 .Where(b => b.Scheme == Uri.UriSchemeHttps)
-                .Select(b => b.Host)
+                .Select(b => b.Host),
         ];
 
         return Task.CompletedTask;

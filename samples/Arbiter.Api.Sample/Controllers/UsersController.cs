@@ -15,10 +15,10 @@ public class UsersController : ControllerBase
     {
         var users = new[] {
             new {
-                Id = 1, Name = "Alice", Email = "alice@example.com"
+                Id = 1, Name = "Alice", Email = "alice@example.com",
             },
             new {
-                Id = 2, Name = "Bob", Email = "bob@example.com"
+                Id = 2, Name = "Bob", Email = "bob@example.com",
             },
         };
 

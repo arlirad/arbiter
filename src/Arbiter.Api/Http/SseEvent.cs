@@ -24,11 +24,11 @@ public class SseEvent
     }
 
     public static SseEvent DataLine(string data) => new() {
-        Data = data
+        Data = data,
     };
 
     public static SseEvent EventLine(string eventName, string data) => new() {
         Event = eventName,
-        Data = data
+        Data = data,
     };
 }

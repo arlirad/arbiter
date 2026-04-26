@@ -143,7 +143,7 @@ public class HttpClientIntegrationTests
             var values = req.Headers["X-Custom-Header"];
             receivedCustomHeader = values?.FirstOrDefault();
             return Task.FromResult(new ResponseDto {
-                Status = Status.Ok
+                Status = Status.Ok,
             });
         });
 
@@ -179,7 +179,7 @@ public class HttpClientIntegrationTests
             if (bodyStream is null)
             {
                 return new ResponseDto {
-                    Status = Status.BadRequest
+                    Status = Status.BadRequest,
                 };
             }
 
@@ -219,7 +219,7 @@ public class HttpClientIntegrationTests
         var customFixture = await HttpClientServerFixture.CreateAsync(req => {
             methodReceived = req.Method.ToString();
             return Task.FromResult(new ResponseDto {
-                Status = Status.Ok
+                Status = Status.Ok,
             });
         });
 

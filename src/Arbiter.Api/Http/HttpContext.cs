@@ -17,7 +17,7 @@ public class HttpContext
         RequestServices = requestServices;
         CancellationToken = cancellationToken;
         JsonSerializerOptions = jsonOptions ?? new JsonSerializerOptions {
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
         };
         OutputFormatterSelector = outputFormatterSelector;
     }

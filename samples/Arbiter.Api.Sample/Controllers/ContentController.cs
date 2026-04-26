@@ -14,7 +14,7 @@ public class ContentController : ControllerBase
             Message = "Hello, world!",
             Timestamp = DateTime.UtcNow,
             Numbers = new[] {
-                1, 2, 3, 4, 5
+                1, 2, 3, 4, 5,
             },
         };
 

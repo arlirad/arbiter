@@ -4,22 +4,16 @@ using Arbiter.Api.Http;
 
 namespace Arbiter.Api.Http;
 
-public sealed class SseWriter
+public sealed class SseWriter(HttpContext context, JsonSerializerOptions? jsonOptions = null)
 {
-    private readonly JsonSerializerOptions _jsonOptions;
-
-    public SseWriter(HttpContext context, JsonSerializerOptions? jsonOptions = null)
-    {
-        Context = context;
-        _jsonOptions = jsonOptions ?? new JsonSerializerOptions {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-    }
+    private readonly JsonSerializerOptions _jsonOptions = jsonOptions ?? new JsonSerializerOptions {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
 
     public HttpContext Context
     {
         get;
-    }
+    } = context;
 
     public Task WriteAsync(SseEvent evt)
     {
@@ -28,7 +22,7 @@ public sealed class SseWriter
 
         if (evt.Data is not null)
         {
-            var data = evt.Data is string str ? str : JsonSerializer.Serialize(evt.Data, _jsonOptions);
+            var data = evt.Data ?? JsonSerializer.Serialize(evt.Data, _jsonOptions);
 
             foreach (var line in data.Split('\n'))
                 _ = Context.Response.WriteAsync($"data: {line}\n");

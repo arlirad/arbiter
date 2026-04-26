@@ -5,7 +5,6 @@ public class SiteConfig : IEquatable<SiteConfig?>
     public string? Path
     {
         get;
-        set;
     }
     public List<Uri>? Bindings
     {

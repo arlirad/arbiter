@@ -19,7 +19,7 @@ public class RewritingMiddleware(HandleDelegate next) : IMiddleware
         _compiledRules = [
             .. typedConfig.Rules.Select(r => CompiledRule.Compile(r.From, r.To))
                 .Where(r => r is not null)
-                .Select(r => r!)
+                .Select(r => r!),
         ];
 
         return Task.CompletedTask;

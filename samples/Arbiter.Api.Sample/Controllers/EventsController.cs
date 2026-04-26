@@ -42,7 +42,7 @@ public class EventsController : ControllerBase
                 await writer.WriteAsync(new SseEvent {
                     Data = JsonSerializer.Serialize(new {
                         Count = counter++,
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow,
                     }),
                 });
 
