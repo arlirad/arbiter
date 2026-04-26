@@ -7,6 +7,7 @@ using Arbiter.Infrastructure.Proxy;
 using Arbiter.Infrastructure.Rewriting;
 using Arbiter.Transport.Quic;
 using Arbiter.Transport.Tcp;
+using Arbiter.Transport.Unix;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -25,6 +26,7 @@ try
             services.AddConfiguration(args);
             services.AddTcpTransport();
             services.AddQuicTransport();
+            services.AddUnixSocketTransport();
             services.AddInfrastructure();
             services.AddAcmeInfrastructure();
             services.AddCorsInfrastructure();

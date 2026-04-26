@@ -116,9 +116,7 @@ public class QPackRfcTests
             Assert.That(stream4Section.Base, Is.EqualTo(0));
 
             foreach (var field in stream4Section)
-            {
                 headers[field.Name] = field.Value;
-            }
         }
 
         var buffer = new byte[1];

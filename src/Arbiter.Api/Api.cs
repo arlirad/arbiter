@@ -7,6 +7,7 @@ using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Transport.Tcp;
+using Arbiter.Transport.Unix;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -28,19 +29,33 @@ internal sealed class Api(
     {
         _site = await BuildSite();
 
-        var addresses = builder.Addresses.Count > 0
-            ? builder.Addresses
-            : [IPAddress.Any];
-
-        var acceptor = new TcpAcceptor(certificateManager);
-        await acceptor.Bind(addresses, [builder.Port]);
-
-        Log.Information("API listening on {Addresses}:{Port}", string.Join(", ", addresses), builder.Port);
-
-        while (!ct.IsCancellationRequested)
+        if (!string.IsNullOrEmpty(builder.UnixSocketPath))
         {
-            var transaction = await acceptor.Accept(ct);
-            _ = HandleTransaction(transaction, ct);
+            var unixAcceptor = new UnixSocketAcceptor();
+            await unixAcceptor.Bind([builder.UnixSocketPath]);
+            Log.Information("API listening on unix://{Path}", builder.UnixSocketPath);
+
+            while (!ct.IsCancellationRequested)
+            {
+                var transaction = await unixAcceptor.Accept(ct);
+                _ = HandleTransaction(transaction, ct);
+            }
+        }
+        else
+        {
+            var addresses = builder.Addresses.Count > 0
+                ? builder.Addresses
+                : [IPAddress.Any];
+
+            var tcpAcceptor = new TcpAcceptor(certificateManager);
+            await tcpAcceptor.Bind(addresses, [builder.Port]);
+            Log.Information("API listening on {Addresses}:{Port}", string.Join(", ", addresses), builder.Port);
+
+            while (!ct.IsCancellationRequested)
+            {
+                var transaction = await tcpAcceptor.Accept(ct);
+                _ = HandleTransaction(transaction, ct);
+            }
         }
     }
 

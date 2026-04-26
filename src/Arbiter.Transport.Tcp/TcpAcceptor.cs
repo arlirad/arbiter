@@ -205,6 +205,7 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
 
         var ports = sites
             .SelectMany(s => s.Value.Bindings ?? [])
+            .Where(b => b.Scheme != "unix")
             .Select(b => b.Port);
 
         return (

@@ -41,6 +41,11 @@ public sealed class ApiBuilder
         get;
         set;
     }
+    internal string? UnixSocketPath
+    {
+        get;
+        set;
+    }
     internal List<Type> ControllerTypes
     {
         get;
@@ -95,6 +100,12 @@ public sealed class ApiBuilder
     public ApiBuilder WithTls()
     {
         UseTls = true;
+        return this;
+    }
+
+    public ApiBuilder WithUnixSocket(string path)
+    {
+        UnixSocketPath = path;
         return this;
     }
 

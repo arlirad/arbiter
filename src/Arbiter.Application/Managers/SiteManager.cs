@@ -54,6 +54,15 @@ internal class SiteManager(
         ).Value;
     }
 
+    public Site? Find(string? host)
+    {
+        host ??= "*";
+
+        return _sites.FirstOrDefault(s =>
+            s.Value.Bindings.Any(b => b.Host.Equals(host))
+        ).Value;
+    }
+
     private async Task UpdateSites()
     {
         if (_scope is null)

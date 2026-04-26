@@ -11,6 +11,7 @@
         <ProjectReference Include="..\Arbiter.Core\Arbiter.Core.csproj"/>
         <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
         <ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>
+        <ProjectReference Include="..\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
         <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
         <ProjectReference Include="..\Arbiter.Infrastructure.Cors\Arbiter.Infrastructure.Cors.csproj"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>

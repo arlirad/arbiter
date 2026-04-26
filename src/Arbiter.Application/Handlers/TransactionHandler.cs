@@ -19,7 +19,9 @@ internal class TransactionHandler(SiteManager siteManager, ContextMapper context
         if (context is null)
             return;
 
-        var site = siteManager.Find(request.Authority, transaction.Port);
+        var site = transaction.Port == -1
+            ? siteManager.Find(request.Authority)
+            : siteManager.Find(request.Authority, transaction.Port);
 
         await handleDelegate(transaction, site, context);
         await SendResponse(transaction, context);
