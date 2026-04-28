@@ -48,7 +48,7 @@ public class CorsMiddleware(HandleDelegate next) : IMiddleware
         {
             var origin = context.Request.Headers[OriginHeader]?.FirstOrDefault();
 
-            if (origin is not null && _allowedOrigins.Contains(origin))
+            if (origin is not null && (_allowedOrigins.Contains("*") || _allowedOrigins.Contains(origin)))
             {
                 context.Response.Headers.Replace(AllowOriginHeader, origin);
 

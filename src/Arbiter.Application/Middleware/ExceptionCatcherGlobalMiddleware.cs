@@ -1,6 +1,7 @@
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
+using Serilog;
 
 namespace Arbiter.Application.Middleware;
 
@@ -14,6 +15,7 @@ public class ExceptionCatcherGlobalMiddleware(HandleDelegate next) : IGlobalMidd
         }
         catch (Exception e)
         {
+            Log.Error(e, "Transaction ({id}) unhandled exception", transaction.Id);
 #if DEBUG
             await context.Response.Set(Status.InternalServerError, await CreateExceptionPage(e));
 #else

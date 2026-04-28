@@ -4,8 +4,7 @@ pkgrel=2
 pkgdesc=""
 arch=('x86_64')
 license=('MIT')
-depends=('dotnet-runtime-preview-bin')
-makedepends=('dotnet-sdk-preview-bin')
+makedepends=('dotnet-sdk')
 source=("git+https://github.com/arlirad/arbiter")
 sha256sums=('SKIP')
 options=(!strip !debug)
@@ -13,8 +12,7 @@ options=(!strip !debug)
 build() {
     cd "$srcdir/arbiter"
 
-    dotnet restore
-    dotnet publish -c Release -o "$srcdir/publish"
+    dotnet publish src/Arbiter/Arbiter.csproj -c Release -r linux-x64 --self-contained -o "$srcdir/publish"
 }
 
 package() {

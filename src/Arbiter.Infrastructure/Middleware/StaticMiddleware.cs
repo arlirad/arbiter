@@ -3,6 +3,7 @@ using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;
+using Serilog;
 
 namespace Arbiter.Infrastructure.Middleware;
 
@@ -54,8 +55,9 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
 
             await context.Response.Set(Status.Ok, stream);
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException e)
         {
+            Log.Error(e, "StaticMiddleware: access denied for {Path}", context.Request.Path);
             await context.Response.Set(Status.InternalServerError, Stream.Null);
         }
     }

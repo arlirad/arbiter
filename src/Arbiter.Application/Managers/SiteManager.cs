@@ -45,22 +45,43 @@ internal class SiteManager(
         }
     }
 
-    public Site? Find(string? host, int port)
+    public Site? Find(string? authority, int port)
     {
-        host ??= "*";
+        var host = StripPort(authority) ?? "*";
 
         return _sites.FirstOrDefault(s =>
             s.Value.Bindings.Any(b => b.Host.Equals(host) && b.Port.Equals(port))
         ).Value;
     }
 
-    public Site? Find(string? host)
+    public Site? Find(string? authority)
     {
-        host ??= "*";
+        var host = StripPort(authority) ?? "*";
 
         return _sites.FirstOrDefault(s =>
             s.Value.Bindings.Any(b => b.Host.Equals(host))
         ).Value;
+    }
+
+    private static string? StripPort(string? authority)
+    {
+        if (authority is null)
+            return null;
+
+        var colon = authority.LastIndexOf(':');
+
+        if (colon <= 0)
+            return authority;
+
+        if (authority.StartsWith('['))
+        {
+            var bracket = authority.IndexOf(']', colon);
+
+            if (bracket == -1)
+                return authority[..colon];
+        }
+
+        return authority[..colon];
     }
 
     private async Task UpdateSites()
