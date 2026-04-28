@@ -57,7 +57,7 @@ public class Http3ConcurrencyTests
                 [":scheme"] = ["https"],
                 [":authority"] = ["localhost"],
             });
-            requestStream.Finish();
+            await requestStream.FinishAsync();
         }
 
         for (var i = 0; i < 3; i++)
@@ -68,7 +68,7 @@ public class Http3ConcurrencyTests
             {
             }
 
-            serverStream.Finish();
+            await serverStream.FinishAsync();
         }
 
         Assert.Pass();
@@ -86,7 +86,7 @@ public class Http3ConcurrencyTests
                 RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, fixture.Port),
                 DefaultStreamErrorCode = 0,
                 DefaultCloseErrorCode = 0,
-                ClientAuthenticationOptions = new System.Net.Security.SslClientAuthenticationOptions {
+                ClientAuthenticationOptions = new SslClientAuthenticationOptions {
                     TargetHost = "localhost",
                     ApplicationProtocols = [SslApplicationProtocol.Http3],
                     RemoteCertificateValidationCallback = (_, _, _, _) => true,
@@ -97,7 +97,7 @@ public class Http3ConcurrencyTests
 
         try
         {
-            Assert.That(connections.Count, Is.EqualTo(3));
+            Assert.That(connections, Has.Count.EqualTo(3));
         }
         finally
         {

@@ -1,5 +1,6 @@
 using System.Net;
 using Arbiter.Core.Enums;
+using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
 
 namespace Arbiter.Application.DTOs;
@@ -36,7 +37,7 @@ public class RequestDto
         get;
         set;
     }
-    public bool IsWebSocketUpgrade
+    public IUpgrade? Upgrade
     {
         get;
         set;

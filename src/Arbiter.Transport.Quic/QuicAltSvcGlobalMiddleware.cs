@@ -1,6 +1,7 @@
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
+using Arbiter.Core.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 
@@ -29,7 +30,7 @@ internal class QuicAltSvcGlobalMiddleware : IGlobalMiddleware, IConfigurable
 
     public Task Handle(ITransaction transaction, Site? site, Context context)
     {
-        if (site is null || transaction.Protocol == "h3")
+        if (site is null || transaction.Protocol == Protocol.Http3)
             return _next(transaction, site, context);
 
         var port = site.Bindings
@@ -47,12 +48,9 @@ internal class QuicAltSvcGlobalMiddleware : IGlobalMiddleware, IConfigurable
 
     private void UpdatePorts()
     {
-        if (_scope is null)
-            return;
+        var quicPorts = _scope?.GetSection("QuicPorts").Get<List<int>>();
 
-        var quicPorts = _scope.GetSection("QuicPorts").Get<List<int>>();
-
-        if (quicPorts is not null)
+        if (quicPorts != null)
             _quicPorts = [.. quicPorts];
     }
 }

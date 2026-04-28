@@ -7,7 +7,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Protocol.Http11;
+using Arbiter.Transport.Tcp;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 using Serilog;
@@ -18,18 +18,17 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
 {
     private const int Backlog = 128;
 
-    private readonly ICertificateManager _certificateManager = certificateManager;
     private readonly ConcurrentDictionary<IPEndPoint, TcpAcceptorSocket> _sockets = new();
 
-    private readonly Channel<ITransaction> _transactions =
-        Channel.CreateBounded<ITransaction>(new BoundedChannelOptions(4096));
+    private readonly Channel<ITransport> _transports =
+        Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
 
     private ConfigurationScope? _scope;
 
-    public async Task<ITransaction> Accept(CancellationToken ct)
+    public async Task<ITransport> Accept(CancellationToken ct)
     {
         while (true)
-            return await _transactions.Reader.ReadAsync(ct);
+            return await _transports.Reader.ReadAsync(ct);
     }
 
     public async ValueTask Bind(IConfiguration configuration)
@@ -94,10 +93,9 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
             if (secure)
                 stream = await WrapInSsl(stream);
 
-            await using var transport = new Http11Transport(stream, secure, port, remoteAddress, ct);
+            var transport = new TcpTransport(stream, secure, port, remoteAddress);
 
-            await foreach (var transaction in transport.AcceptTransactions(ct))
-                await _transactions.Writer.WriteAsync(transaction, ct);
+            await _transports.Writer.WriteAsync(transport, ct);
         }
         catch (OperationCanceledException)
         {
@@ -124,13 +122,13 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
         await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
             ServerCertificateSelectionCallback = CertificateSelectionCallback,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
-            ApplicationProtocols = [SslApplicationProtocol.Http11],
+            ApplicationProtocols = [SslApplicationProtocol.Http11, SslApplicationProtocol.Http2],
         });
 
         return ssl;
     }
 
-    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName) => hostName is null ? _certificateManager.GetFallback() : _certificateManager.Get(hostName) ?? _certificateManager.GetFallback();
+    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName) => hostName is null ? certificateManager.GetFallback() : certificateManager.Get(hostName) ?? certificateManager.GetFallback();
 
     private Task CreateSocket(List<IPEndPoint> endPoints)
     {

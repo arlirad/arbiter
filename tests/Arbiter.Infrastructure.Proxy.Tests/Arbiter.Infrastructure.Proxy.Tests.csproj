@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+        <PackageReference Include="NUnit"/>
+        <PackageReference Include="NUnit.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="NUnit3TestAdapter"/>
+        <PackageReference Include="Serilog"/>
+        <PackageReference Include="Serilog.Sinks.Console"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="NUnit.Framework"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Arbiter.Infrastructure.Proxy\Arbiter.Infrastructure.Proxy.csproj"/>
+        <ProjectReference Include="..\..\src\Arbiter.Api\Arbiter.Api.csproj"/>
+        <ProjectReference Include="..\..\src\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
+        <ProjectReference Include="..\..\src\Arbiter.Protocol.WebSocket\Arbiter.Protocol.WebSocket.csproj"/>
+    </ItemGroup>
+
+</Project>

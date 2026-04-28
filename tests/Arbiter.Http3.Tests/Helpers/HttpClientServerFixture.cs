@@ -7,6 +7,7 @@ using System.Security.Cryptography.X509Certificates;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Enums;
+using Arbiter.Transport.Quic;
 using Arlirad.Http3;
 using Arlirad.Http3.Streams;
 
@@ -44,10 +45,7 @@ public class HttpClientServerFixture : IAsyncDisposable
     }
 
     public int Port => _listener.LocalEndPoint.Port;
-    public HttpClient Client
-    {
-        get;
-    }
+    public HttpClient Client { get; } = null!;
 
     public async ValueTask DisposeAsync()
     {
@@ -59,17 +57,13 @@ public class HttpClientServerFixture : IAsyncDisposable
         {
             await _listener.DisposeAsync();
         }
-        catch
-        {
-        }
+        catch { }
 
         try
         {
             await (_serverLoop ?? Task.CompletedTask);
         }
-        catch
-        {
-        }
+        catch { }
 
         _cts.Dispose();
     }
@@ -98,9 +92,7 @@ public class HttpClientServerFixture : IAsyncDisposable
             }),
         });
 
-        var handler = requestHandler ?? (req => Task.FromResult(new ResponseDto {
-            Status = Status.Ok,
-        }));
+        var handler = requestHandler ?? (req => Task.FromResult(new ResponseDto { Status = Status.Ok }));
         var fixture = new HttpClientServerFixture(listener, certificate, handler);
         await fixture.StartServerLoopAsync();
         return fixture;
@@ -120,37 +112,24 @@ public class HttpClientServerFixture : IAsyncDisposable
                         var connection = await _listener.AcceptConnectionAsync(ct);
                         _ = HandleConnectionAsync(connection, ct);
                     }
-                    catch (QuicException)
-                    {
-                    }
+                    catch (QuicException) { }
                 }
             }
-            catch (OperationCanceledException)
-            {
-            }
+            catch (OperationCanceledException) { }
         });
     }
 
     private async Task HandleConnectionAsync(QuicConnection connection, CancellationToken ct)
     {
-        await using var http3 = new Http3Connection(connection);
-        await http3.Start();
+        var transport = new QuicTransport(connection, Port, null);
+        await using var protocol = new Http3Protocol();
 
         var tasks = new List<Task>();
 
-        await foreach (var transaction in ReadTransactionsAsync(http3, ct))
+        await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
             tasks.Add(HandleTransactionAsync(transaction));
 
         await Task.WhenAll(tasks);
-    }
-
-    private async IAsyncEnumerable<ITransaction> ReadTransactionsAsync(Http3Connection http3, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            var stream = await http3.GetRequestStream(ct);
-            yield return new Http3Transaction(stream, Port, null);
-        }
     }
 
     private async Task HandleTransactionAsync(ITransaction transaction)
@@ -158,15 +137,12 @@ public class HttpClientServerFixture : IAsyncDisposable
         try
         {
             var request = await transaction.GetRequest();
-
             if (request is not null)
             {
                 var response = await _requestHandler(request);
                 await transaction.SetResponse(response);
             }
         }
-        catch (Exception)
-        {
-        }
+        catch (Exception) { }
     }
 }

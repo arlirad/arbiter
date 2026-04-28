@@ -16,7 +16,7 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
 {
     private static int _nextId;
 
-    public string Protocol => "h3";
+    public Protocol Protocol => Protocol.Http3;
     public int Id
     {
         get;
@@ -25,11 +25,13 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
 
+    public Http3RequestStream GetRequestStream() => requestStream;
+
     public async Task<RequestDto?> GetRequest()
     {
         var headers = new Headers();
 
-        string? method, scheme, authority, path = authority = scheme = method = null;
+        string? method = null, scheme = null, authority = null, path = null, protocol = null;
 
         await foreach (var header in requestStream.ReadHeaders())
         {
@@ -47,6 +49,9 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
                 case ":path":
                     path = header.Value;
                     break;
+                case ":protocol":
+                    protocol = header.Value;
+                    break;
                 default:
                     headers.Add(header.Key, header.Value ?? string.Empty);
                     break;
@@ -57,6 +62,28 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
         {
             await EarlyAbort(Status.BadRequest);
             return null;
+        }
+
+        if (string.Equals(method, "CONNECT", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(protocol) || !string.Equals(protocol, "websocket", StringComparison.OrdinalIgnoreCase))
+            {
+                await EarlyAbort(Status.NotImplemented);
+                return null;
+            }
+
+            var parsedAuthority = await ParseAuthority(authority, port);
+
+            return parsedAuthority is null ? null : new RequestDto {
+                TransactionId = Id,
+                Method = Method.Get,
+                Authority = parsedAuthority,
+                Path = path,
+                Headers = new ReadOnlyHeaders(headers),
+                Upgrade = new H3WebSocketUpgrade(requestStream),
+                IsSecure = true,
+                RemoteAddress = remoteAddress,
+            };
         }
 
         if (authority.Contains(':'))
@@ -105,7 +132,7 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
             }
         }
 
-        var mappedEnum = Arbiter.Infrastructure.Mappers.MethodMapper.ToEnum(method);
+        var mappedEnum = MethodMapper.ToEnum(method);
 
         if (!mappedEnum.HasValue)
         {
@@ -133,8 +160,15 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
 
     private async Task EarlyAbort(Status status)
     {
-        await WriteStatusAndHeaders(StatusCodeMapper.ToCode(status));
-        requestStream.Finish();
+        try
+        {
+            await WriteStatusAndHeaders(StatusCodeMapper.ToCode(status));
+            await requestStream.FinishAsync();
+        }
+        finally
+        {
+            await requestStream.RetireAsync();
+        }
     }
 
     private async Task WriteStatusAndHeaders(int status, ReadOnlyHeaders? responseHeaders = null)
@@ -168,7 +202,58 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
             if (response.Stream is not null)
                 await response.Stream.DisposeAsync();
 
-            requestStream.Finish();
+            try
+            {
+                await requestStream.FinishAsync();
+            }
+            finally
+            {
+                await requestStream.RetireAsync();
+            }
         }
+    }
+
+    private async Task<string?> ParseAuthority(string authority, int expectedPort)
+    {
+        if (!authority.Contains(':'))
+            return authority;
+
+        var isIpv6 = authority.StartsWith('[');
+
+        if (isIpv6)
+        {
+            var closeBracket = authority.IndexOf(']');
+            if (closeBracket < 0)
+            {
+                await EarlyAbort(Status.BadRequest);
+                return null;
+            }
+
+            var portStart = closeBracket + 1;
+            if (portStart >= authority.Length || authority[portStart] != ':')
+                return authority[1..closeBracket];
+
+            var portStr = authority[(portStart + 1)..];
+            if (int.TryParse(portStr, out var authorityPort) && authorityPort == expectedPort)
+                return authority[1..closeBracket];
+
+            await EarlyAbort(Status.MisdirectedRequest);
+            return null;
+
+        }
+
+        var parts = authority.Split(':');
+
+        if (parts.Length > 2)
+        {
+            await EarlyAbort(Status.BadRequest);
+            return null;
+        }
+
+        if (int.TryParse(parts[1], out var authPort) && authPort == expectedPort)
+            return parts[0];
+
+        await EarlyAbort(Status.MisdirectedRequest);
+        return null;
     }
 }

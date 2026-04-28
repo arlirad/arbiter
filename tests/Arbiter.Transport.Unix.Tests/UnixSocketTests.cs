@@ -6,7 +6,6 @@ using System.Text;
 using Arbiter.Application.DTOs;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
-
 using Arbiter.Transport.Unix.Tests.Helpers;
 
 namespace Arbiter.Transport.Unix.Tests;
@@ -224,7 +223,7 @@ public class UnixSocketIntegrationTests
 
         using var stream = new NetworkStream(socket, ownsSocket: false);
 
-        var request = Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
+        var request = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"u8.ToArray();
         await stream.WriteAsync(request);
         await stream.FlushAsync();
 
@@ -274,7 +273,7 @@ public class UnixSocketIntegrationTests
 
         Assert.That(reqStr, Does.Contain("GET /test"));
 
-        var resp = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+        var resp = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         await ns.WriteAsync(resp);
         await ns.FlushAsync();
 
@@ -359,7 +358,7 @@ public class UnixSocketAcceptorTests
         var acceptor = new UnixSocketAcceptor();
 
         var field = acceptor.GetType()
-            .GetField("_transactions", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            .GetField("_transports", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         Assert.That(field, Is.Not.Null);
     }

@@ -3,7 +3,7 @@ namespace Arbiter.Infrastructure.Streams;
 public class RemainderStream(Stream inner, Stream? remainder = null) : Stream
 {
     public override bool CanRead => true;
-    public override bool CanSeek => true;
+    public override bool CanSeek => false;
     public override bool CanWrite => inner.CanWrite;
     public override long Length => throw new NotSupportedException();
     public override long Position

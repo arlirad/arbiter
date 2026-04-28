@@ -13,13 +13,13 @@ public class ContextFactory : IContextFactory
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
         Stream? stream,
-        bool isWebSocketUpgrade,
+        IUpgrade? upgrade,
         string? authority,
         bool isSecure,
         IPAddress? remoteAddress)
     {
-        var request = RequestContextFactory.Create(transactionId, method, path, headers, stream, isWebSocketUpgrade,
-            authority, isSecure, remoteAddress);
+        var request = RequestContextFactory.Create(transactionId, method, path, headers, stream,
+            upgrade, authority, isSecure, remoteAddress);
 
         var response = ResponseContextFactory.Create();
 

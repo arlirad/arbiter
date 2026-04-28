@@ -50,7 +50,7 @@ public class Http3RequestResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
-        requestStream.Finish();
+        await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(default);
         var hasHeaders = false;
@@ -76,7 +76,7 @@ public class Http3RequestResponseTests
             [":authority"] = ["localhost"],
         });
         await requestStream.WriteAsync(requestBody);
-        requestStream.Finish();
+        await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
 

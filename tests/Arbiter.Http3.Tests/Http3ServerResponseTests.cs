@@ -52,7 +52,7 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(default);
         await foreach (var _ in serverStream.ReadHeaders(default))
@@ -63,7 +63,7 @@ public class Http3ServerResponseTests
             [":status"] = ["200"],
             ["content-type"] = ["text/plain"],
         }, default);
-        serverStream.Finish();
+        await serverStream.FinishAsync();
 
         var responseHeaders = new List<KeyValuePair<string, string?>>();
         await foreach (var header in clientStream.ReadHeaders(default))
@@ -88,7 +88,7 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(default);
         await foreach (var _ in serverStream.ReadHeaders(default))
@@ -100,7 +100,7 @@ public class Http3ServerResponseTests
             ["content-type"] = ["text/plain"],
         }, CancellationToken.None);
         await serverStream.WriteAsync(responseBody, CancellationToken.None);
-        serverStream.Finish();
+        await serverStream.FinishAsync();
 
         await foreach (var _ in clientStream.ReadHeaders(CancellationToken.None))
         {
@@ -127,7 +127,7 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
         await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
@@ -137,7 +137,7 @@ public class Http3ServerResponseTests
         await serverStream.WriteHeaders(new Dictionary<string, List<string>> {
             [":status"] = ["204"],
         }, CancellationToken.None);
-        serverStream.Finish();
+        await serverStream.FinishAsync();
 
         await foreach (var _ in clientStream.ReadHeaders(CancellationToken.None))
         {
@@ -164,7 +164,7 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
         await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
@@ -177,7 +177,7 @@ public class Http3ServerResponseTests
         await serverStream.WriteAsync(chunk1, CancellationToken.None);
         await serverStream.WriteAsync(chunk2, CancellationToken.None);
         await serverStream.WriteAsync(chunk3, CancellationToken.None);
-        serverStream.Finish();
+        await serverStream.FinishAsync();
 
         await foreach (var _ in clientStream.ReadHeaders(CancellationToken.None))
         {
@@ -211,7 +211,7 @@ public class Http3ServerResponseTests
             [":authority"] = ["localhost"],
         });
         await clientStream.WriteAsync(requestBody, CancellationToken.None);
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
         await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
@@ -228,7 +228,7 @@ public class Http3ServerResponseTests
 
         await serverStream.WriteAsync(receivedBody[..receivedBytes], CancellationToken.None);
 
-        serverStream.Finish();
+        await serverStream.FinishAsync();
 
         await foreach (var _ in clientStream.ReadHeaders(CancellationToken.None))
         {

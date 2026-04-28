@@ -25,9 +25,10 @@
     <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
       <ProjectReference Include="..\Arbiter.Infrastructure.Proxy\Arbiter.Infrastructure.Proxy.csproj"/>
       <ProjectReference Include="..\Arbiter.Protocol.Http11\Arbiter.Protocol.Http11.csproj"/>
+    <ProjectReference Include="..\Arbiter.Protocol.Http3\Arbiter.Protocol.Http3.csproj"/>
     <ProjectReference Include="..\Arbiter.Transport.Quic\Arbiter.Transport.Quic.csproj"/>
-<ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>
-      <ProjectReference Include="..\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
+    <ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>
+    <ProjectReference Include="..\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
     </ItemGroup>
 
 </Project>

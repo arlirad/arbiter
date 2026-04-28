@@ -118,5 +118,20 @@ public class RawQuicFixture : IAsyncDisposable
 
     public Http3Connection CreateServerHttp3Connection() => new(_serverQuicConnection!);
 
-    public async Task<QuicStream> OpenClientUnidirectionalStreamAsync() => await _clientQuicConnection!.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
+    public async Task<QuicStream> OpenClientUnidirectionalStreamAsync()
+    {
+        var stream = await _clientQuicConnection!.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
+        System.Console.Error.WriteLine($"OpenClientUnidirectionalStreamAsync: stream={stream}, Type={stream.Type}, CanWrite={stream.CanWrite}");
+        return stream;
+    }
+
+    public void FeedInboundStream(QuicStream stream, Http3Connection connection)
+        => connection.FeedInboundStream(stream);
+
+    public async Task<QuicStream> AcceptServerInboundStream(CancellationToken ct = default)
+    {
+        var stream = await _serverQuicConnection!.AcceptInboundStreamAsync(ct);
+        System.Console.Error.WriteLine($"AcceptServerInboundStream: stream={stream}, Type={stream.Type}, CanRead={stream.CanRead}");
+        return stream;
+    }
 }

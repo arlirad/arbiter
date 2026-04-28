@@ -2,5 +2,5 @@ namespace Arbiter.Application.Interfaces;
 
 public interface IAcceptor
 {
-    Task<ITransaction> Accept(CancellationToken ct);
+    Task<ITransport> Accept(CancellationToken ct);
 }

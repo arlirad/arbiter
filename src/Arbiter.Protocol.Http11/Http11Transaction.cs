@@ -1,4 +1,3 @@
-using System.Net;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Enums;
@@ -51,7 +50,7 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
         private set;
     }
 
-    public string Protocol => "http/1.1";
+    public global::Arbiter.Core.Enums.Protocol Protocol => global::Arbiter.Core.Enums.Protocol.Http11;
     public int Id
     {
         get;
@@ -89,7 +88,7 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
 
         var host = headers.Host;
 
-        if (version == Core.Enums.HttpVersion.Http11 && host is null)
+        if (version == HttpVersion.Http11 && host is null)
             return null;
 
         _version = version.Value;
@@ -109,7 +108,9 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
             Path = path,
             Headers = new ReadOnlyHeaders(headers),
             Stream = requestBodyStream,
-            IsWebSocketUpgrade = isWebSocketUpgrade,
+            Upgrade = isWebSocketUpgrade
+                ? new Http11WebSocketUpgrade(stream, OnAccept, OnUpgradeComplete)
+                : null,
             IsSecure = isSecure,
             RemoteAddress = remoteAddress,
         };
@@ -142,7 +143,6 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
             }
 
             if (!response.Status.IsBodyForbidden()
-                && response.Status != Status.SwitchingProtocol
                 && response.Stream is not null)
             {
                 _responseStream = response.Stream;
@@ -165,13 +165,6 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
             await writer.WriteLineAsync();
         }
 
-        if (response is { Status: Status.SwitchingProtocol, Stream: not null })
-        {
-            Upgraded = true;
-            _ = RunUpgrade(response.Stream);
-            return;
-        }
-
         _ = Finish();
     }
 
@@ -182,12 +175,12 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
 
         if (!string.IsNullOrWhiteSpace(transferEncoding))
         {
-            if (transferEncoding.Equals(ChunkedEncoding, StringComparison.OrdinalIgnoreCase))
-            {
-                var remainderStream = new RemainderStream(stream, remainder);
+            if (!transferEncoding.Equals(ChunkedEncoding, StringComparison.OrdinalIgnoreCase))
+                return null;
 
-                return new HttpChunkedStream(remainderStream);
-            }
+            var remainderStream = new RemainderStream(stream, remainder);
+
+            return new HttpChunkedStream(remainderStream);
         }
         else if (!string.IsNullOrWhiteSpace(contentLengthString))
         {
@@ -240,20 +233,13 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
         }
     }
 
-    private async Task RunUpgrade(Stream responseStream)
+    private void OnAccept()
     {
+        Upgraded = true;
         _tcs.SetResult();
-
-        try
-        {
-            await StreamRelay.BidirectionalCopy(responseStream, stream, ct);
-        }
-        finally
-        {
-            await responseStream.DisposeAsync();
-            _upgradeTcs.SetResult();
-        }
     }
+
+    private async ValueTask OnUpgradeComplete() => _upgradeTcs.SetResult();
 
     private static bool DetectWebSocketUpgrade(Method method, Headers headers)
     {

@@ -14,12 +14,15 @@
         <ProjectReference Include="..\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
         <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
         <ProjectReference Include="..\Arbiter.Infrastructure.Cors\Arbiter.Infrastructure.Cors.csproj"/>
+        <ProjectReference Include="..\Arbiter.Protocol.Http11\Arbiter.Protocol.Http11.csproj"/>
+        <ProjectReference Include="..\Arbiter.Protocol.WebSocket\Arbiter.Protocol.WebSocket.csproj"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"/>
         <PackageReference Include="Microsoft.Extensions.Options"/>
     </ItemGroup>
 
     <ItemGroup>
         <InternalsVisibleTo Include="Arbiter.Api.Tests"/>
+        <InternalsVisibleTo Include="Arbiter.Infrastructure.Proxy.Tests"/>
     </ItemGroup>
 
 </Project>

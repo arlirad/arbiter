@@ -1,5 +1,6 @@
 using System.Net;
 using Arbiter.Core.Enums;
+using Arbiter.Core.Interfaces;
 
 namespace Arbiter.Core.ValueObjects;
 
@@ -11,7 +12,7 @@ public class RequestContext
         string path,
         Headers headers,
         Stream? stream,
-        bool isWebSocketUpgrade,
+        IUpgrade? upgrade,
         string? authority,
         bool isSecure,
         IPAddress? remoteAddress)
@@ -21,7 +22,7 @@ public class RequestContext
         Path = path;
         Headers = new ReadOnlyHeaders(headers);
         Stream = stream;
-        IsWebSocketUpgrade = isWebSocketUpgrade;
+        Upgrade = upgrade;
         Authority = authority;
         IsSecure = isSecure;
         RemoteAddress = remoteAddress;
@@ -49,7 +50,8 @@ public class RequestContext
         get;
         private set;
     }
-    public bool IsWebSocketUpgrade
+    public bool IsUpgrade => Upgrade is not null;
+    public IUpgrade? Upgrade
     {
         get;
     }

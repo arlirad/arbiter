@@ -12,4 +12,9 @@ public class Http3ConnectionSettings
         get;
         set;
     }
+    public bool EnableConnectProtocol
+    {
+        get;
+        set;
+    }
 }

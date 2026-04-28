@@ -1,6 +1,11 @@
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
+using Arbiter.Application.Mappers;
+using Arbiter.Application.Orchestrators;
+using Arbiter.Core.Factories;
+using Arbiter.Core.Interfaces;
+using Arbiter.Core.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -8,6 +13,7 @@ namespace Arbiter.Application;
 
 internal class Server(
     IEnumerable<IAcceptor> acceptors,
+    IProtocolFactory protocolFactory,
     SiteManager siteManager,
     IConfigManager configManager,
     IConfiguration configuration,
@@ -22,24 +28,41 @@ internal class Server(
         foreach (var acceptor in acceptors.OfType<IAsyncConfigurable>())
             await acceptor.Bind(configuration);
 
-        var tasks = acceptors.Select<IAcceptor, Task>(acceptor => Accept(acceptor, ct));
+        var tasks = acceptors.Select<IAcceptor, Task>(acceptor => AcceptLoop(acceptor, ct));
 
         await Task.WhenAll(tasks);
     }
 
-    private async Task Accept(IAcceptor acceptor, CancellationToken ct)
+    private async Task AcceptLoop(IAcceptor acceptor, CancellationToken ct)
     {
         try
         {
             while (!ct.IsCancellationRequested)
             {
-                var transaction = await acceptor.Accept(ct);
-                _ = HandleWithLogging(transaction);
+                var transport = await acceptor.Accept(ct);
+                _ = HandleConnection(transport, ct);
             }
         }
         catch (OperationCanceledException)
         {
             // ignored
+        }
+    }
+
+    private async Task HandleConnection(ITransport transport, CancellationToken ct)
+    {
+        try
+        {
+            await using var protocol = protocolFactory.Create(transport.Protocol);
+            await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
+                _ = HandleWithLogging(transaction);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Error handling connection");
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Net;
 using Arbiter.Core.Enums;
+using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
 
 namespace Arbiter.Core.Factories;
@@ -12,7 +13,7 @@ public class RequestContextFactory
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
         Stream? stream,
-        bool isWebSocketUpgrade,
+        IUpgrade? upgrade,
         string? authority,
         bool isSecure,
         IPAddress? remoteAddress)
@@ -24,7 +25,7 @@ public class RequestContextFactory
             headersConcrete[header.Key] = header.Value;
         }
 
-        return new RequestContext(transactionId, method, path, headersConcrete, stream, isWebSocketUpgrade, authority,
-            isSecure, remoteAddress);
+        return new RequestContext(transactionId, method, path, headersConcrete, stream,
+            upgrade, authority, isSecure, remoteAddress);
     }
 }

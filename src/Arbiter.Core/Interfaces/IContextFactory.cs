@@ -12,7 +12,7 @@ public interface IContextFactory
         string path,
         IEnumerable<KeyValuePair<string, List<string>>> headers,
         Stream? stream,
-        bool isWebSocketUpgrade,
+        IUpgrade? upgrade,
         string? authority,
         bool isSecure,
         IPAddress? remoteAddress);

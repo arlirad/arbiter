@@ -27,6 +27,7 @@ try
             services.AddTcpTransport();
             services.AddQuicTransport();
             services.AddUnixSocketTransport();
+            services.AddSingleton<IProtocolFactory, ProtocolFactory>();
             services.AddInfrastructure();
             services.AddAcmeInfrastructure();
             services.AddCorsInfrastructure();

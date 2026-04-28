@@ -16,20 +16,18 @@ namespace Arbiter.Http3.Tests.Helpers;
 [SupportedOSPlatform("windows")]
 public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDisposable
 {
-    private readonly X509Certificate2 _certificate = certificate;
     private readonly CancellationTokenSource _cts = new();
     private readonly Channel<Http3RequestStream> _requestChannel = Channel.CreateBounded<Http3RequestStream>(new BoundedChannelOptions(256));
-    private Http3Connection? _clientConnection;
+    private Http3Protocol? _serverProtocol;
     private QuicListener? _listener;
-    private Http3Connection? _serverConnection;
+    private QuicConnection? _clientConnection;
 
     public int Port
     {
-        get;
-        private set;
+        get; private set;
     }
-    public Http3Connection ServerConnection => _serverConnection!;
-    public Http3Connection ClientConnection => _clientConnection!;
+    public Http3Protocol ServerProtocol => _serverProtocol!;
+    public QuicConnection ClientConnection => _clientConnection!;
 
     public async ValueTask DisposeAsync()
     {
@@ -37,12 +35,10 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         {
             await _cts.CancelAsync();
         }
-        catch (ObjectDisposedException)
-        {
-        }
+        catch (ObjectDisposedException) { }
 
-        if (_serverConnection is not null)
-            await _serverConnection.DisposeAsync();
+        if (_serverProtocol is not null)
+            await _serverProtocol.DisposeAsync();
 
         if (_clientConnection is not null)
             await _clientConnection.DisposeAsync();
@@ -90,16 +86,13 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
             },
         };
 
-        var clientQuicConnection = await QuicConnection.ConnectAsync(clientOptions);
+        _clientConnection = await QuicConnection.ConnectAsync(clientOptions);
+        var serverQuicConnection = await _listener.AcceptConnectionAsync(CancellationToken.None);
 
-        var serverQuicConnection = await _listener!.AcceptConnectionAsync(CancellationToken.None);
+        var serverTransport = new Arbiter.Transport.Quic.QuicTransport(serverQuicConnection, Port, null);
+        _serverProtocol = new Http3Protocol();
 
-        _serverConnection = new Http3Connection(serverQuicConnection);
-        _clientConnection = new Http3Connection(clientQuicConnection);
-
-        await Task.WhenAll(_serverConnection.Start(), _clientConnection.Start());
-
-        _ = ServeRequests();
+        _ = ServeRequests(serverTransport);
     }
 
     private ValueTask<QuicServerConnectionOptions> ConnectionOptionsCallback(
@@ -114,7 +107,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
             MaxInboundBidirectionalStreams = 100,
             ServerAuthenticationOptions = new SslServerAuthenticationOptions {
                 ClientCertificateRequired = false,
-                ServerCertificate = _certificate,
+                ServerCertificate = certificate,
                 EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls13,
                 ApplicationProtocols = [SslApplicationProtocol.Http3],
             },
@@ -123,46 +116,32 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         return ValueTask.FromResult(options);
     }
 
-    private async Task ServeRequests()
+    private async Task ServeRequests(Arbiter.Transport.Quic.QuicTransport serverTransport)
     {
         var ct = _cts.Token;
 
         try
         {
-            while (!ct.IsCancellationRequested)
+            await foreach (var transaction in _serverProtocol!.AcceptTransactions(serverTransport, ct))
             {
-                var stream = await _serverConnection!.GetRequestStream(ct);
-                await _requestChannel.Writer.WriteAsync(stream, ct);
+                if (transaction is Http3Transaction h3tx)
+                {
+                    await _requestChannel.Writer.WriteAsync(h3tx.GetRequestStream(), ct);
+                }
             }
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) { }
     }
 
-    public async Task<Http3RequestStream> AcceptRequestStream(CancellationToken ct = default) => await _requestChannel.Reader.ReadAsync(ct);
+    public async Task<Http3RequestStream> AcceptRequestStream(CancellationToken ct = default)
+        => await _requestChannel.Reader.ReadAsync(ct);
 
-    public async Task<QuicStream> OpenClientStreamAsync(CancellationToken ct = default)
-    {
-        var clientQuic = GetClientQuicConnection();
-        return await clientQuic.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct);
-    }
+    public ValueTask<QuicStream> OpenClientStreamAsync(CancellationToken ct = default)
+        => _clientConnection!.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct);
 
     public async Task<Http3RequestStream> CreateClientRequestStreamAsync(CancellationToken ct = default)
     {
         var stream = await OpenClientStreamAsync(ct);
-        return new Http3RequestStream(_clientConnection!, stream.Id, stream);
-    }
-
-    public QuicConnection GetClientQuicConnection()
-    {
-        var field = typeof(Http3Connection).GetField("<connection>P",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            ?? typeof(Http3Connection).GetField("_connection",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            ?? throw new InvalidOperationException("Cannot find QUIC connection field on Http3Connection");
-
-        return field.GetValue(_clientConnection) as QuicConnection
-            ?? throw new InvalidOperationException("Cannot access client QUIC connection");
+        return new Http3RequestStream(_serverProtocol!.ServerConnection, stream.Id, stream);
     }
 }

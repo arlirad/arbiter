@@ -1,13 +1,13 @@
 using System.Text.Json;
 using Arbiter.Api.Formatters;
 using Arbiter.Core.Aggregates;
+using Arbiter.Core.Interfaces;
+using Arlirad.WebSocket;
 
 namespace Arbiter.Api.Http;
 
 public class HttpContext
 {
-    private Stream? _webSocketStream;
-
     internal HttpContext(Context context, IServiceProvider requestServices, string? queryString, CancellationToken cancellationToken, JsonSerializerOptions? jsonOptions = null, OutputFormatterSelector? outputFormatterSelector = null)
     {
         var query = QueryCollection.Parse(queryString);
@@ -20,7 +20,10 @@ public class HttpContext
             PropertyNameCaseInsensitive = true,
         };
         OutputFormatterSelector = outputFormatterSelector;
+        _context = context;
     }
+
+    private readonly Context _context;
 
     public HttpRequest Request
     {
@@ -53,11 +56,18 @@ public class HttpContext
         get;
     }
 
-    public bool IsWebSocketUpgrade => Request.Headers["Upgrade"]?.Equals("websocket", StringComparison.OrdinalIgnoreCase) == true;
+    public bool IsUpgrade => _context.Request.Upgrade is not null;
+    public bool IsWebSocketUpgrade => _context.Request.Upgrade is IWebSocketUpgrade;
 
-    public Task<WebSocket?> AcceptWebSocketAsync()
+    public async Task<Http.WebSocket?> AcceptWebSocketAsync()
     {
-        _webSocketStream = Request.Body;
-        return Task.FromResult<WebSocket?>(_webSocketStream is null ? null : new WebSocket(_webSocketStream, isServer: true));
+        if (_context.Request.Upgrade is not IWebSocketUpgrade upgrade)
+            return null;
+
+        var stream = await upgrade.AcceptAsync();
+        _context.IsUpgraded = true;
+
+        var connection = new WebSocketConnection(stream);
+        return new Http.WebSocket(connection);
     }
 }

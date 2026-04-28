@@ -22,7 +22,7 @@ public sealed class SseWriter(HttpContext context, JsonSerializerOptions? jsonOp
 
         if (evt.Data is not null)
         {
-            var data = evt.Data ?? JsonSerializer.Serialize(evt.Data, _jsonOptions);
+            var data = evt.Data is string str ? str : JsonSerializer.Serialize(evt.Data, _jsonOptions);
 
             foreach (var line in data.Split('\n'))
                 _ = Context.Response.WriteAsync($"data: {line}\n");

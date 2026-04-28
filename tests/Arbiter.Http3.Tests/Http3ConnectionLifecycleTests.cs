@@ -42,7 +42,7 @@ public class Http3ConnectionLifecycleTests
     public async Task Start_completes_without_error()
     {
         Assert.That(_fixture, Is.Not.Null);
-        Assert.That(_fixture.ServerConnection, Is.Not.Null);
+        Assert.That(_fixture.ServerProtocol, Is.Not.Null);
         Assert.That(_fixture.ClientConnection, Is.Not.Null);
     }
 
@@ -50,8 +50,8 @@ public class Http3ConnectionLifecycleTests
     public async Task Settings_contain_expected_parameters()
     {
         Assert.Multiple(() => {
-            Assert.That(_fixture.ServerConnection.LocalSettings.MaxFieldSectionSize, Is.EqualTo(8192));
-            Assert.That(_fixture.ServerConnection.LocalSettings.MaxDecoderDynamicTableCapacity, Is.EqualTo(8192));
+            Assert.That(_fixture!.ServerProtocol!.LocalSettings.MaxFieldSectionSize, Is.EqualTo(8192));
+            Assert.That(_fixture.ServerProtocol.LocalSettings.MaxDecoderDynamicTableCapacity, Is.EqualTo(8192));
         });
     }
 
@@ -61,8 +61,8 @@ public class Http3ConnectionLifecycleTests
         await Task.Delay(100);
 
         Assert.Multiple(() => {
-            Assert.That(_fixture!.ClientConnection.LocalSettings.MaxFieldSectionSize, Is.EqualTo(8192));
-            Assert.That(_fixture.ClientConnection.LocalSettings.MaxDecoderDynamicTableCapacity, Is.EqualTo(8192));
+            Assert.That(_fixture!.ServerProtocol!.LocalSettings.MaxFieldSectionSize, Is.EqualTo(8192));
+            Assert.That(_fixture.ServerProtocol.LocalSettings.MaxDecoderDynamicTableCapacity, Is.EqualTo(8192));
         });
     }
 

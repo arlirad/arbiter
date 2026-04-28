@@ -70,6 +70,21 @@ public class HttpClientIntegrationTests
     }
 
     [Test]
+    public async Task Many_GETs_same_connection_do_not_exhaust_stream_credit()
+    {
+        var fixture = _fixture!;
+
+        for (var i = 0; i < 150; i++)
+        {
+            var response = await fixture.Client.GetAsync($"/request-{i}");
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.That(content, Is.Empty);
+        }
+    }
+
+    [Test]
     public async Task POST_with_body()
     {
         var fixture = _fixture!;

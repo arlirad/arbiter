@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
@@ -57,15 +58,21 @@ public class ProxyMiddleware : IMiddleware
 
     public async Task Handle(Context context)
     {
-        if (context.Request.Method == Method.Connect)
+        if (context.Request.Upgrade is IWebSocketUpgrade upgrade)
         {
-            await context.Response.Set(Status.MethodNotAllowed);
+            await HandleWebSocket(context, upgrade);
             return;
         }
 
-        if (context.Request.IsWebSocketUpgrade)
+        if (context.Request.Upgrade is not null)
         {
-            await HandleWebSocket(context);
+            await context.Response.Set(Status.NotImplemented);
+            return;
+        }
+
+        if (context.Request.Method == Method.Connect)
+        {
+            await context.Response.Set(Status.MethodNotAllowed);
             return;
         }
 
@@ -98,7 +105,7 @@ public class ProxyMiddleware : IMiddleware
         }
     }
 
-    private async Task HandleWebSocket(Context context)
+    private async Task HandleWebSocket(Context context, IWebSocketUpgrade upgrade)
     {
         var targetUri = _connector.BuildTargetUri(context.Request.Path);
         var host = _connector.GetHost(context);
@@ -108,10 +115,15 @@ public class ProxyMiddleware : IMiddleware
         {
             var sb = new StringBuilder(256);
             sb.Append("GET ");
-            sb.Append(targetUri.AbsolutePath);
+            sb.Append(targetUri.PathAndQuery);
             sb.Append(" HTTP/1.1\r\nHost: ");
             sb.Append(host);
             sb.Append("\r\n");
+
+            AppendHeaderIfMissing(sb, context.Request.Headers, "Upgrade", "websocket");
+            AppendHeaderIfMissing(sb, context.Request.Headers, "Connection", "Upgrade");
+            AppendHeaderIfMissing(sb, context.Request.Headers, "Sec-WebSocket-Key", CreateWebSocketKey());
+            AppendHeaderIfMissing(sb, context.Request.Headers, "Sec-WebSocket-Version", "13");
 
             foreach (var header in context.Request.Headers)
             {
@@ -137,17 +149,38 @@ public class ProxyMiddleware : IMiddleware
 
             var (status, responseHeaders, responseStream) = await ReadUpgradeResponse(connection.Stream);
 
-            if (status != Status.SwitchingProtocol)
+            if (!status.HasValue)
             {
                 await context.Response.Set(Status.BadGateway);
                 return;
             }
 
-            foreach (var header in responseHeaders)
-                context.Response.Headers[header.Key] = header.Value;
+            if (status != Status.SwitchingProtocol)
+            {
+                CopyHeaders(context, responseHeaders);
+                await context.Response.Set(status.Value, responseStream);
+                return;
+            }
 
-            await context.Response.Set(Status.SwitchingProtocol, responseStream);
+            if (responseStream is null)
+            {
+                await context.Response.Set(Status.BadGateway);
+                return;
+            }
+
+            var clientStream = await upgrade.AcceptAsync(new ReadOnlyHeaders(responseHeaders));
+            context.IsUpgraded = true;
             connection.Detach();
+
+            try
+            {
+                await StreamRelay.BidirectionalCopy(responseStream, clientStream);
+            }
+            finally
+            {
+                await responseStream.DisposeAsync();
+                await clientStream.DisposeAsync();
+            }
         }
         finally
         {
@@ -155,27 +188,79 @@ public class ProxyMiddleware : IMiddleware
         }
     }
 
-    private static async Task<(Status?, Headers, Stream)> ReadUpgradeResponse(Stream stream)
+    private static string CreateWebSocketKey()
+    {
+        Span<byte> nonce = stackalloc byte[16];
+        RandomNumberGenerator.Fill(nonce);
+        return Convert.ToBase64String(nonce);
+    }
+
+    private static void AppendHeaderIfMissing(StringBuilder sb, ReadOnlyHeaders headers, string name, string value)
+    {
+        if (headers[name] is not null)
+            return;
+
+        sb.Append(name);
+        sb.Append(": ");
+        sb.Append(value);
+        sb.Append("\r\n");
+    }
+
+    private static async Task<(Status?, Headers, Stream?)> ReadUpgradeResponse(Stream stream)
     {
         var (headers, remainder) = await HeadersFinder.GetHeadersClampedStream(stream);
 
         if (headers is null)
-            return (Status.BadGateway, new Headers(), stream);
+            return (null, new Headers(), null);
 
         using var reader = new StreamReader(headers);
         var statusLine = await reader.ReadLineAsync();
 
-        if (statusLine is null || !statusLine.StartsWith("HTTP/1.1 101"))
-            return (Status.BadGateway, new Headers(), stream);
+        if (statusLine is null)
+            return (null, new Headers(), null);
 
         var responseHeaders = await HeadersFinder.ParseHeaders(reader);
 
         if (responseHeaders is null)
-            return (Status.BadGateway, new Headers(), stream);
+            return (null, new Headers(), null);
 
-        return remainder is not null
-            ? (Status.SwitchingProtocol, responseHeaders, new RemainderStream(stream, remainder))
-            : (Status.SwitchingProtocol, responseHeaders, stream);
+        var status = ParseStatus(statusLine);
+        var responseStream = status == Status.SwitchingProtocol
+            ? remainder is not null ? new RemainderStream(stream, remainder) : stream
+            : CreateResponseBodyStream(responseHeaders, stream, remainder);
+
+        return (status, responseHeaders, responseStream);
+    }
+
+    private void CopyHeaders(Context context, Headers responseHeaders)
+    {
+        List<string>? connectionHeaders = null;
+
+        foreach (var header in responseHeaders)
+        {
+            if (ShouldIgnoreHeader(header.Key, header.Value, ref connectionHeaders, DisallowedHeaders))
+                continue;
+
+            context.Response.Headers[header.Key] = header.Value;
+        }
+    }
+
+    private static Status? ParseStatus(string statusLine)
+    {
+        var parts = statusLine.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 && int.TryParse(parts[1], out var statusCode) && Enum.IsDefined(typeof(Status), statusCode)
+            ? (Status)statusCode
+            : null;
+    }
+
+    private static Stream? CreateResponseBodyStream(Headers headers, Stream stream, Stream? remainder)
+    {
+        var contentLength = headers.ContentLength;
+        return !string.IsNullOrWhiteSpace(contentLength)
+            ? long.TryParse(contentLength, out var length) && length > 0
+                ? new ClampedStream(new RemainderStream(stream, remainder), length)
+                : null
+            : remainder is not null ? new RemainderStream(stream, remainder) : null;
     }
 
     private async Task SendRequest(Context context, HttpRequestMessage targetRequest)

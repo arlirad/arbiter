@@ -19,6 +19,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
     private static readonly Dictionary<SettingsParameter, Func<Http3Connection, ulong>> SettingsToWrite = new() {
         [SettingsParameter.QPackMaxTableCapacity] = (conn) => (ulong)conn.LocalSettings.MaxDecoderDynamicTableCapacity,
         [SettingsParameter.MaxFieldSectionSize] = (conn) => (ulong)conn.LocalSettings.MaxFieldSectionSize,
+        [SettingsParameter.EnableConnectProtocol] = (_) => 1,
     };
 
     private readonly CancellationTokenSource _cts = new();
@@ -59,46 +60,20 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         await Encoder.Start();
         await Decoder.Start();
 
-        _ = AcceptIncomingStreams();
         await OpenOutgoingStreams();
     }
 
-    public async Task<Http3RequestStream> GetRequestStream(CancellationToken ct) => await _requestStreams.Reader.ReadAsync(ct);
-
-    private async Task AcceptIncomingStreams()
+    public Http3RequestStream? FeedInboundStream(QuicStream stream)
     {
-        var ct = _cts.Token;
-
-        try
+        if (stream.Type == QuicStreamType.Unidirectional)
         {
-            while (!ct.IsCancellationRequested)
-            {
-                var stream = await connection.AcceptInboundStreamAsync(ct);
+            _ = HandleUnidirectionalStream(stream);
+            return null;
+        }
 
-                _ = stream.Type == QuicStreamType.Unidirectional
-                    ? HandleUnidirectionalStream(stream)
-                    : HandleBidirectionalStream(stream);
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            await RaiseConnectionError(ErrorCode.InternalError);
-        }
-    }
-
-    private async Task HandleBidirectionalStream(QuicStream stream)
-    {
-        try
-        {
-            var ct = _cts.Token;
-            var requestStream = new Http3RequestStream(this, stream.Id, stream);
-
-            await _requestStreams.Writer.WriteAsync(requestStream, ct);
-        }
-        catch (Exception ex)
-        {
-            await stream.DisposeAsync();
-        }
+        var requestStream = new Http3RequestStream(this, stream.Id, stream);
+        _ = _requestStreams.Writer.WriteAsync(requestStream, _cts.Token);
+        return requestStream;
     }
 
     private async Task HandleUnidirectionalStream(QuicStream stream)
@@ -135,9 +110,10 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
                     break;
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Stream handling error - will be cleaned up via connection close
+            System.Console.Error.WriteLine($"HandleUnidirectionalStream error: {ex}");
+            throw;
         }
     }
 
@@ -218,6 +194,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
             case SettingsParameter.QPackBlockedStreams:
                 break;
             case SettingsParameter.EnableConnectProtocol:
+                _peerSettings.EnableConnectProtocol = value != 0;
                 break;
             case SettingsParameter.H3Datagram:
                 break;

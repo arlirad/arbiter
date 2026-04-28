@@ -30,6 +30,7 @@
     <ItemGroup>
         <ProjectReference Include="..\..\src\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
         <ProjectReference Include="..\..\src\Arbiter.Application\Arbiter.Application.csproj"/>
+        <ProjectReference Include="..\..\src\Arbiter.Protocol.Http11\Arbiter.Protocol.Http11.csproj"/>
     </ItemGroup>
 
 </Project>

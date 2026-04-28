@@ -10,12 +10,9 @@
     <ItemGroup>
         <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
         <ProjectReference Include="..\Arbiter.Core\Arbiter.Core.csproj"/>
-        <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
-        <ProjectReference Include="..\Arbiter.Protocol.Http11\Arbiter.Protocol.Http11.csproj"/>
     </ItemGroup>
     
     <ItemGroup>
-        <PackageReference Include="Arlirad.Ervi.Net.Http"/>
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder"/>
         <PackageReference Include="Serilog"/>
     </ItemGroup>

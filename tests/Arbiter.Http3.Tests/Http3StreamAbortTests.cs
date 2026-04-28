@@ -52,7 +52,7 @@ public class Http3StreamAbortTests
             [":authority"] = ["localhost"],
             ["content-length"] = ["100"],
         });
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
         await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
@@ -82,7 +82,7 @@ public class Http3StreamAbortTests
             ["content-length"] = ["1024"],
         });
         await clientStream.WriteAsync(partialBody, CancellationToken.None);
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
         await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
@@ -122,7 +122,7 @@ public class Http3StreamAbortTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
-        clientStream.Finish();
+        await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
         await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
@@ -132,7 +132,7 @@ public class Http3StreamAbortTests
         await serverStream.WriteHeaders(new Dictionary<string, List<string>> {
             [":status"] = ["200"],
         }, CancellationToken.None);
-        serverStream.Finish();
+        await serverStream.FinishAsync();
 
         await foreach (var _ in clientStream.ReadHeaders(CancellationToken.None))
         {

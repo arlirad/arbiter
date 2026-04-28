@@ -52,7 +52,7 @@ public class Http3ErrorHandlingTests
             [":authority"] = ["localhost"],
         }, CancellationToken.None);
 
-        requestStream.Finish();
+        await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(default);
 
@@ -79,7 +79,7 @@ public class Http3ErrorHandlingTests
             ["x-custom"] = ["test"],
         }, CancellationToken.None);
 
-        requestStream.Finish();
+        await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
 

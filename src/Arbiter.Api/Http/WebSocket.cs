@@ -1,19 +1,22 @@
+using Arlirad.WebSocket;
+
 namespace Arbiter.Api.Http;
 
-public class WebSocket(Stream stream, bool isServer)
+public class WebSocket(WebSocketConnection connection)
 {
-    private readonly bool _isServer = isServer;
-    private readonly Stream _stream = stream;
+    private readonly WebSocketConnection _connection = connection;
 
-    public bool Connected => true;
+    public bool Connected => !_connection.GetType().IsAssignableFrom(typeof(object));
 
-    public async Task SendAsync(string message, CancellationToken ct = default)
-    {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(message);
-        await _stream.WriteAsync(bytes, ct);
-    }
+    public Task SendAsync(string message, CancellationToken ct = default) => _connection.SendTextAsync(message, ct);
 
-    public async Task<int> ReceiveAsync(byte[] buffer, CancellationToken ct = default) => await _stream.ReadAsync(buffer, ct);
+    public Task SendAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) => _connection.SendBinaryAsync(data, ct);
 
-    public Task CloseAsync() => Task.CompletedTask;
+    public Task<string?> ReceiveTextAsync(CancellationToken ct = default) => _connection.ReceiveTextAsync(ct);
+
+    public Task<ReadOnlyMemory<byte>> ReceiveBinaryAsync(CancellationToken ct = default) => _connection.ReceiveBinaryAsync(ct);
+
+    public Task<WebSocketMessage> ReceiveAsync(CancellationToken ct = default) => _connection.ReceiveAsync(ct);
+
+    public Task CloseAsync(WebSocketCloseStatusCode code = WebSocketCloseStatusCode.Normal, string? reason = null, CancellationToken ct = default) => _connection.CloseAsync(code, reason, ct);
 }

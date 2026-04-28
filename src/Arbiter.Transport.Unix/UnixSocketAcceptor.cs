@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Protocol.Http11;
+using Arbiter.Transport.Unix;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 using Serilog;
@@ -17,15 +17,15 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable
 
     private readonly ConcurrentDictionary<string, UnixSocketAcceptorSocket> _sockets = new();
 
-    private readonly Channel<ITransaction> _transactions =
-        Channel.CreateBounded<ITransaction>(new BoundedChannelOptions(4096));
+    private readonly Channel<ITransport> _transports =
+        Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
 
     private ConfigurationScope? _scope;
 
-    public async Task<ITransaction> Accept(CancellationToken ct)
+    public async Task<ITransport> Accept(CancellationToken ct)
     {
         while (true)
-            return await _transactions.Reader.ReadAsync(ct);
+            return await _transports.Reader.ReadAsync(ct);
     }
 
     public async ValueTask Bind(IConfiguration configuration)
@@ -78,11 +78,8 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable
         try
         {
             var stream = new NetworkStream(socket, ownsSocket: false);
-
-            await using var transport = new Http11Transport(stream, false, -1, null, ct);
-
-            await foreach (var transaction in transport.AcceptTransactions(ct))
-                await _transactions.Writer.WriteAsync(transaction, ct);
+            var transport = new UnixTransport(stream, -1, null);
+            await _transports.Writer.WriteAsync(transport, ct);
         }
         catch (OperationCanceledException)
         {

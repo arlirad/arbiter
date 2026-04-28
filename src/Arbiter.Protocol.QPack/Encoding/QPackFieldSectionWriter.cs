@@ -35,24 +35,17 @@ public class QPackFieldSectionWriter(
         if (!_prefixWritten)
             throw new InvalidOperationException("WritePrefix must be called before writing any field sections");
 
-        var staticEntryExact = QPackConsts.StaticTable
-            .FirstOrDefault(kvp => kvp.Value.Name.Equals(name, StringComparison.OrdinalIgnoreCase)
-                && kvp.Value.Value == value);
-
-        if (staticEntryExact.Value is not null)
+        if (QPackConsts.StaticExactIndex.TryGetValue((name, value), out var exactIndex))
         {
-            await writer.WritePrefixedIntAsync((byte)staticEntryExact.Key, 6, QPackConsts.IndexedStaticFieldLine, ct);
+            await writer.WritePrefixedIntAsync((byte)exactIndex, 6, QPackConsts.IndexedStaticFieldLine, ct);
             return;
         }
 
-        var staticEntryNameOnly = QPackConsts.StaticTable
-            .FirstOrDefault(kvp => kvp.Value.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
         var valueBytes = System.Text.Encoding.UTF8.GetBytes(value);
 
-        if (staticEntryNameOnly.Value is not null)
+        if (QPackConsts.StaticNameIndex.TryGetValue(name, out var nameIndex))
         {
-            await writer.WritePrefixedIntAsync((byte)staticEntryNameOnly.Key, 4,
+            await writer.WritePrefixedIntAsync((byte)nameIndex, 4,
                 QPackConsts.LiteralStaticFieldLineWithNameReference, ct);
 
             await writer.WritePrefixedIntAsync(valueBytes.Length, 7, 0b0000_0000, ct);

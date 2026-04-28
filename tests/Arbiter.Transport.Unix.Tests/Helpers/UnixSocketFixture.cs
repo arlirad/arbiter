@@ -1,41 +1,30 @@
-using System.IO;
-using System.Net;
-using System.Net.Http;
 using System.Net.Sockets;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
-using Arbiter.Transport.Unix;
+using Arbiter.Protocol.Http11;
 
 namespace Arbiter.Transport.Unix.Tests.Helpers;
 
-public class UnixSocketFixture : IAsyncDisposable
+public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<ResponseDto>>? requestHandler = null) : IAsyncDisposable
 {
     private readonly CancellationTokenSource _cts = new();
     public string SocketPath
     {
         get;
-    }
+    } = socketPath;
     private UnixSocketAcceptor? _acceptor;
-    private readonly Func<RequestDto, Task<ResponseDto>> _requestHandler;
+    private readonly Func<RequestDto, Task<ResponseDto>> _requestHandler = requestHandler ?? (req => Task.FromResult(new ResponseDto {
+        Status = Status.Ok,
+        Headers = new ReadOnlyHeaders(new Headers()),
+    }));
     private Task _serverLoop = null!;
     private HttpClient? _client;
 
-    public UnixSocketFixture(string socketPath, Func<RequestDto, Task<ResponseDto>>? requestHandler = null)
-    {
-        SocketPath = socketPath;
-        _requestHandler = requestHandler is not null
-            ? requestHandler
-            : (req => Task.FromResult(new ResponseDto {
-                Status = Status.Ok,
-                Headers = new Core.ValueObjects.ReadOnlyHeaders(new Core.ValueObjects.Headers()),
-            }));
-    }
-
     public HttpClient Client => _client! ?? throw new InvalidOperationException("Fixture not initialized");
 
-    public async Task InitializeAsync()
+    private async Task InitializeAsync()
     {
         _acceptor = new UnixSocketAcceptor();
         await _acceptor.Bind([SocketPath]);
@@ -43,7 +32,7 @@ public class UnixSocketFixture : IAsyncDisposable
         await Task.Yield();
 
         var handler = new SocketsHttpHandler {
-            ConnectCallback = async (context, ct) => {
+            ConnectCallback = async (_, ct) => {
                 var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
                 await socket.ConnectAsync(new UnixDomainSocketEndPoint(SocketPath), ct);
                 return new NetworkStream(socket, ownsSocket: true);
@@ -62,8 +51,8 @@ public class UnixSocketFixture : IAsyncDisposable
                 {
                     try
                     {
-                        var transaction = await _acceptor.Accept(ct);
-                        _ = HandleTransaction(transaction);
+                        var transport = await _acceptor.Accept(ct);
+                        _ = HandleConnection(transport, ct);
                     }
                     catch (OperationCanceledException)
                     {
@@ -78,6 +67,16 @@ public class UnixSocketFixture : IAsyncDisposable
             {
             }
         });
+    }
+
+    private async Task HandleConnection(ITransport transport, CancellationToken ct)
+    {
+        await using var protocol = new Http11Protocol();
+
+        await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
+        {
+            _ = HandleTransaction(transaction);
+        }
     }
 
     private async Task HandleTransaction(ITransaction transaction)
@@ -104,14 +103,12 @@ public class UnixSocketFixture : IAsyncDisposable
 
         if (_acceptor is not null)
         {
-            var sockets = _acceptor.GetType()
-                .GetField("_sockets", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
-                .GetValue(_acceptor) as IDictionary<string, object>;
-
-            if (sockets is not { } dict)
+            if (_acceptor.GetType()
+                    .GetField("_sockets", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
+                    .GetValue(_acceptor) is not IDictionary<string, object> sockets)
                 return;
 
-            foreach (var socketObj in dict.Values)
+            foreach (var socketObj in sockets.Values)
             {
                 var stopMethod = socketObj.GetType().GetMethod("Stop");
                 var closeMethod = socketObj.GetType().GetMethod("Close");

@@ -18,4 +18,9 @@ public class Context
     {
         get;
     }
+    public bool IsUpgraded
+    {
+        get;
+        set;
+    }
 }

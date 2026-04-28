@@ -31,6 +31,7 @@
         <ProjectReference Include="..\..\src\Arbiter.Protocol.Http3\Arbiter.Protocol.Http3.csproj"/>
         <ProjectReference Include="..\..\src\Arbiter.Transport.Quic\Arbiter.Transport.Quic.csproj"/>
         <ProjectReference Include="..\..\src\Arbiter.Application\Arbiter.Application.csproj"/>
+        <ProjectReference Include="..\..\src\Arbiter.Protocol.WebSocket\Arbiter.Protocol.WebSocket.csproj"/>
     </ItemGroup>
 
 </Project>

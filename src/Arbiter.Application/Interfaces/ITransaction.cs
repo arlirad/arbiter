@@ -1,16 +1,16 @@
 using System.Net;
 using Arbiter.Application.DTOs;
+using Arbiter.Core.Enums;
 
 namespace Arbiter.Application.Interfaces;
 
 public interface ITransaction
 {
-    string Protocol
+    int Id
     {
         get;
     }
-
-    int Id
+    Protocol Protocol
     {
         get;
     }

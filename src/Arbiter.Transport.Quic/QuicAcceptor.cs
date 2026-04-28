@@ -7,8 +7,7 @@ using System.Security.Authentication;
 using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arlirad.Http3;
-using Arlirad.Http3.Enums;
+using Arbiter.Transport.Quic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 using Serilog;
@@ -23,18 +22,19 @@ public class QuicAcceptor(
 ) : IAcceptor, IAsyncConfigurable
 {
     private const int Backlog = 128;
+    private const int MaxInboundBidirectionalStreams = 1024;
 
     private readonly ConcurrentDictionary<IPEndPoint, QuicAcceptorListener> _listeners = new();
 
-    private readonly Channel<ITransaction> _transactions =
-        Channel.CreateBounded<ITransaction>(new BoundedChannelOptions(4096));
+    private readonly Channel<ITransport> _transports =
+        Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
 
     private ConfigurationScope? _scope;
 
-    public async Task<ITransaction> Accept(CancellationToken ct)
+    public async Task<ITransport> Accept(CancellationToken ct)
     {
         while (true)
-            return await _transactions.Reader.ReadAsync(ct);
+            return await _transports.Reader.ReadAsync(ct);
     }
 
     public async ValueTask Bind(IConfiguration configuration)
@@ -90,19 +90,18 @@ public class QuicAcceptor(
         try
         {
             var port = quicConnection.LocalEndPoint.Port;
-            var remoteAddress = (quicConnection.RemoteEndPoint as IPEndPoint)?.Address;
+            var remoteAddress = quicConnection.RemoteEndPoint?.Address;
 
-            await using var transport = new Http3Transport(quicConnection, port, remoteAddress);
+            var transport = new QuicTransport(quicConnection, port, remoteAddress);
 
-            await foreach (var transaction in transport.AcceptTransactions(ct))
-                await _transactions.Writer.WriteAsync(transaction, ct);
+            await _transports.Writer.WriteAsync(transport, ct);
         }
         catch (OperationCanceledException)
         {
         }
         catch (Exception)
         {
-            await quicConnection.CloseAsync((long)ErrorCode.InternalError, CancellationToken.None);
+            await quicConnection.CloseAsync(1, CancellationToken.None);
         }
     }
 
@@ -151,6 +150,7 @@ public class QuicAcceptor(
         var options = new QuicServerConnectionOptions {
             DefaultStreamErrorCode = 0,
             DefaultCloseErrorCode = 1,
+            MaxInboundBidirectionalStreams = MaxInboundBidirectionalStreams,
             ServerAuthenticationOptions = new SslServerAuthenticationOptions {
                 ClientCertificateRequired = false,
                 ServerCertificate = cert,
