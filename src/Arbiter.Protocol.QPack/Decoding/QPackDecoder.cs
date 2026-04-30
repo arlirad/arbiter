@@ -6,7 +6,6 @@ namespace Arlirad.Infrastructure.QPack.Decoding;
 
 public class QPackDecoder
 {
-    private static readonly TimeSpan InsertIncrementCountWaitTime = TimeSpan.FromMilliseconds(100);
     private readonly SemaphoreSlim _capacitySignal = new(0, 1);
     private readonly Task _decoderOutgoingTask;
     private readonly TaskCompletionSource _decoderOutgoingTcs = new();
@@ -28,6 +27,15 @@ public class QPackDecoder
     private bool _started;
 
     private long _totalEvictionCount;
+
+    public TimeSpan InsertCountIncrementDelay { get; set; } = TimeSpan.FromMilliseconds(100);
+
+    private readonly ManualResetEvent _encoderInstructionsProcessedEvent = new(false);
+
+    public void ResetEncoderInstructionsProcessed()
+    {
+        _encoderInstructionsProcessedEvent.Set();
+    }
 
     public QPackDecoder()
     {
@@ -252,11 +260,7 @@ public class QPackDecoder
                 var referredField = GetField((long)index, isDynamic);
 
                 if (referredField is null)
-                {
-                    // TODO: Throw QPACK_ENCODER_STREAM_ERROR if referredField is null
-                    ;
-                    throw new NotImplementedException();
-                }
+                    throw new InvalidOperationException("QPACK_ENCODER_STREAM_ERROR: invalid table reference");
 
                 Insert(referredField.Name, value, ct);
             }
@@ -278,30 +282,29 @@ public class QPackDecoder
                 var referredField = GetField((long)index, true);
 
                 if (referredField is null)
-                {
-                    // TODO: Throw QPACK_ENCODER_STREAM_ERROR if referredField is null
-                    ;
-                    throw new NotImplementedException();
-                }
+                    throw new InvalidOperationException("QPACK_ENCODER_STREAM_ERROR: invalid table reference");
 
                 Insert(referredField.Name, referredField.Value, ct);
             }
             else
             {
-                throw new NotImplementedException();
+                throw new InvalidOperationException($"QPACK_ENCODER_STREAM_ERROR: unknown instruction 0x{instruction:X2}");
             }
         }
     }
 
     private void Resize(ulong capacity)
     {
-        if (DynamicTableCapacity == 0)
-        {
-            DynamicTableCapacity = (int)capacity;
-            return;
-        }
+        var newCapacity = (long)capacity;
+        DynamicTableCapacity = newCapacity;
 
-        throw new NotImplementedException();
+        while (DynamicTableSize > newCapacity && _dynamicTable.Count > 0)
+        {
+            var first = _dynamicTable[0];
+            _dynamicTable.RemoveAt(0);
+            _totalEvictionCount++;
+            DynamicTableSize -= GetEntrySize(first.Name, first.Value);
+        }
     }
 
     private ulong FromRelative(ulong index)
@@ -329,6 +332,8 @@ public class QPackDecoder
 
         var toRelease = new List<TaskCompletionSource>();
 
+        bool sendImmediately;
+
         lock (_waitersLock)
         {
             TotalInsertCount++;
@@ -343,8 +348,13 @@ public class QPackDecoder
                 _waiters.RemoveAt(i);
             }
 
-            _insertIncrementCountSendTask ??= WaitToSendInsertIncrementCount(ct);
+            sendImmediately = InsertCountIncrementDelay == TimeSpan.Zero;
+            if (!sendImmediately)
+                _insertIncrementCountSendTask ??= WaitToSendInsertIncrementCount(ct);
         }
+
+        if (sendImmediately)
+            SendInsertCountIncrement(ct);
 
         foreach (var taskCompletionSource in toRelease)
             taskCompletionSource.SetResult();
@@ -352,11 +362,26 @@ public class QPackDecoder
         DynamicTableSize += entrySize;
     }
 
+    private void SendInsertCountIncrement(CancellationToken ct)
+    {
+        if (_ackedInsertCount == TotalInsertCount)
+            return;
+
+        var increment = TotalInsertCount - _ackedInsertCount;
+        _ackedInsertCount = TotalInsertCount;
+
+        _decoderOutgoingTask.WaitAsync(ct).GetAwaiter().GetResult();
+        _decoderOutgoingWriter!.WritePrefixedIntAsync(increment, 6,
+            QPackConsts.DecoderInstructionInsertCountIncrement, CancellationToken.None).GetAwaiter().GetResult();
+        _decoderOutgoing!.FlushAsync(ct).GetAwaiter().GetResult();
+    }
+
     private async Task WaitToSendInsertIncrementCount(CancellationToken ct)
     {
         try
         {
-            await Task.Delay(InsertIncrementCountWaitTime, ct);
+            if (InsertCountIncrementDelay > TimeSpan.Zero)
+                await Task.Delay(InsertCountIncrementDelay, ct);
 
             long increment;
 
@@ -370,7 +395,7 @@ public class QPackDecoder
                 _insertIncrementCountSendTask = null;
             }
 
-            await _decoderOutgoingTask.WaitAsync(ct);
+            await _decoderOutgoingTask;
             await _decoderOutgoingWriter!.WritePrefixedIntAsync(increment, 6,
                 QPackConsts.DecoderInstructionInsertCountIncrement, CancellationToken.None);
 
@@ -378,7 +403,6 @@ public class QPackDecoder
         }
         catch (OperationCanceledException)
         {
-            // ignored
         }
     }
 

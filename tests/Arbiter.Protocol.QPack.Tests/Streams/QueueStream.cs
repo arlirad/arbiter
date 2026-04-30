@@ -3,6 +3,7 @@ namespace Arlirad.QPack.Tests.Streams;
 public class QueueStream : Stream
 {
     private readonly Queue<byte> _queue = new();
+    private readonly Lock _lock = new();
     private volatile TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public override bool CanRead => true;
     public override bool CanSeek => true;
@@ -24,21 +25,30 @@ public class QueueStream : Stream
 
     public async override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        if (_queue.Count == 0)
-            await Wait().WaitAsync(cancellationToken);
-
-        var read = 0;
-
-        while (read < buffer.Length && _queue.Count > 0)
+        while (true)
         {
-            buffer.Span[read] = _queue.Dequeue();
-            read++;
+            Task? toAwait;
+            lock (_lock)
+            {
+                if (_queue.Count > 0)
+                {
+                    var read = 0;
+                    while (read < buffer.Length && _queue.Count > 0)
+                    {
+                        buffer.Span[read++] = _queue.Dequeue();
+                    }
+
+                    if (_queue.Count == 0 && _tcs.Task.IsCompleted)
+                        _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                    return read;
+                }
+
+                toAwait = _tcs.Task;
+            }
+
+            await toAwait.WaitAsync(cancellationToken);
         }
-
-        if (_queue.Count == 0)
-            Reset();
-
-        return read;
     }
 
     public override void Write(byte[] buffer, int offset, int count) => throw new NotImplementedException();
@@ -47,10 +57,13 @@ public class QueueStream : Stream
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        for (var i = 0; i < buffer.Length; i++)
-            _queue.Enqueue(buffer.Span[i]);
+        lock (_lock)
+        {
+            for (var i = 0; i < buffer.Length; i++)
+                _queue.Enqueue(buffer.Span[i]);
+        }
 
-        Set();
+        _tcs.TrySetResult();
 
         return ValueTask.CompletedTask;
     }
@@ -58,14 +71,4 @@ public class QueueStream : Stream
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
     public override void SetLength(long value) => throw new NotSupportedException();
-
-    private Task Wait() => _tcs.Task;
-
-    private void Set() => _tcs.TrySetResult();
-
-    private void Reset()
-    {
-        if (_tcs.Task.IsCompleted)
-            _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-    }
 }

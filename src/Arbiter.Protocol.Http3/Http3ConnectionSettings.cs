@@ -17,4 +17,14 @@ public class Http3ConnectionSettings
         get;
         set;
     }
+    public int MaxEncoderDynamicTableCapacity
+    {
+        get;
+        set;
+    } = 8192;
+    public int QPackBlockedStreams
+    {
+        get;
+        set;
+    } = 0;
 }

@@ -6,6 +6,8 @@
         <Nullable>enable</Nullable>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <RootNamespace>Arlirad.Infrastructure.QPack</RootNamespace>
+        <NoWarn>$(NoWarn);IDE0290;IDE0048;IDE0022;IDE0270;IDE0032;IDE2000;IDE0031</NoWarn>
     </PropertyGroup>
+
 
 </Project>

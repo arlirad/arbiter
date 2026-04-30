@@ -64,13 +64,8 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
             using var ms = new MemoryStream(buffer, reserve, buffer.Length - reserve);
             var writer = await connection.Encoder.GetSectionWriter(streamId, ms, ct);
 
-            await writer.WritePrefix(ct);
-
-            foreach (var header in headers)
-            {
-                foreach (var instance in header.Value)
-                    await writer.Write(header.Key, instance, ct);
-            }
+            var flattenedHeaders = headers.SelectMany(h => h.Value.Select(v => (h.Key, v))).ToList();
+            await writer.WriteFieldSection(flattenedHeaders, ct);
 
             var qpackLen = (int)ms.Position;
             var fhLen = 0;

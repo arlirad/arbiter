@@ -16,18 +16,14 @@ public class BackToBackEncoderDecoderTests
         var decoderInstructions = new QueueStream();
 
         var encoder = new QPackEncoder();
-        var decoder = new QPackDecoder();
+        var decoder = new QPackDecoder { InsertCountIncrementDelay = TimeSpan.Zero };
 
-        // Start
         await encoder.Start();
         await decoder.Start();
 
-        // Wire streams both ways
-        // Encoder outgoing -> Decoder incoming
         encoder.SetOutgoingStream(encoderInstructions);
         decoder.SetIncomingStream(encoderInstructions);
 
-        // Decoder outgoing -> Encoder incoming
         decoder.SetOutgoingStream(decoderInstructions);
         encoder.SetIncomingStream(decoderInstructions);
 
@@ -39,17 +35,13 @@ public class BackToBackEncoderDecoderTests
     {
         var (encToDec, decToEnc, encoder, decoder) = await MakePair();
 
-        // Build a field section with Required Insert Count = 0, Base = 0
         var sectionStream = new MemoryStream();
 
-        // Use the encoder's field section writer and write the encoded field section prefix first
         await using (var writer = await encoder.GetSectionWriter(streamId: 0, stream: sectionStream,
             ct: CancellationToken.None))
         {
             await writer.WritePrefix(CancellationToken.None);
-            // Static exact match (:path=/)
             await writer.Write(":path", "/index.html", CancellationToken.None);
-            // Literal name/value
             await writer.Write("custom-key", "custom-value", CancellationToken.None);
         }
 
@@ -64,12 +56,46 @@ public class BackToBackEncoderDecoderTests
                 headers[field.Name] = field.Value!;
         }
 
-        // With RequiredInsertCount = 0, the decoder must not send Section Acknowledgment
         using (Assert.EnterMultipleScope())
         {
             Assert.That(headers[":path"], Is.EqualTo("/index.html"));
             Assert.That(headers["custom-key"], Is.EqualTo("custom-value"));
-            Assert.That(decToEnc.Length, Is.EqualTo(0), "No decoder→encoder instruction expected for RIC=0");
+            Assert.That(decToEnc.Length, Is.EqualTo(0), "No decoder instruction expected for RIC=0");
+        }
+    }
+
+    [Test]
+    public async Task FieldSection_WriteFieldSection_StaticAndLiteral_RoundTrip()
+    {
+        var (encToDec, decToEnc, encoder, decoder) = await MakePair();
+        encoder.Initialize(4096, 0);
+
+        var sectionStream = new MemoryStream();
+
+        await using (var writer = await encoder.GetSectionWriter(streamId: 0, stream: sectionStream,
+            ct: CancellationToken.None))
+        {
+            await writer.WriteFieldSection([
+                (":path", "/index.html"),
+                ("custom-key", "custom-value"),
+            ], CancellationToken.None);
+        }
+
+        var sectionBytes = sectionStream.ToArray();
+
+        var headers = new Dictionary<string, string>();
+
+        await using (var reader = await decoder.GetSectionReader(streamId: 0, buffer: sectionBytes,
+            length: sectionBytes.Length, ct: CancellationToken.None))
+        {
+            foreach (var field in reader)
+                headers[field.Name] = field.Value!;
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(headers[":path"], Is.EqualTo("/index.html"));
+            Assert.That(headers["custom-key"], Is.EqualTo("custom-value"));
         }
     }
 
@@ -78,10 +104,8 @@ public class BackToBackEncoderDecoderTests
     {
         var (encToDec, decToEnc, encoder, decoder) = await MakePair();
 
-        // Send Dynamic Table Capacity and an Insert With Literal Name from encoder→decoder
         var writer = new QPackWriter(encToDec);
 
-        // Set Dynamic Table Capacity = 220 (enough for the entry below)
         await writer.WritePrefixedIntAsync(220, 5, QPackConsts.EncoderInstructionDynamicTableCapacity);
 
         const string name = "custom-key";
@@ -89,7 +113,6 @@ public class BackToBackEncoderDecoderTests
         var nameBytes = System.Text.Encoding.UTF8.GetBytes(name);
         var valueBytes = System.Text.Encoding.UTF8.GetBytes(value);
 
-        // Insert With Literal Name
         await writer.WritePrefixedIntAsync(nameBytes.Length, 5, QPackConsts.EncoderInstructionInsertWithLiteralName,
             CancellationToken.None);
 
@@ -97,18 +120,56 @@ public class BackToBackEncoderDecoderTests
         await writer.WritePrefixedIntAsync(valueBytes.Length, 7, 0b0000_0000);
         await encToDec.WriteAsync(valueBytes);
 
-        // Expect an Insert Count Increment from decoder -> encoder side after a short delay
-        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        var firstByte = new byte[1];
-        await decToEnc.ReadExactlyAsync(new Memory<byte>(firstByte), cts.Token);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(3);
+        while (decoder.TotalInsertCount < 1 && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
 
-        // Verify the decoder state and that at least one instruction byte was sent
-        // (increment = one fits in a single byte)
-        Assert.Multiple(() => {
-            Assert.That(decoder.TotalInsertCount, Is.GreaterThanOrEqualTo(1));
-            Assert.That(decoder.GetDynamicTable().Any(f => f.Name == name && f.Value == value), Is.True);
-            // For small increments (1), the instruction is a single byte with the top two bits being 00
-            Assert.That(firstByte[0] & 0b1100_0000, Is.EqualTo(QPackConsts.DecoderInstructionInsertCountIncrement));
-        });
+        Assert.That(decoder.TotalInsertCount, Is.GreaterThanOrEqualTo(1), "Decoder should have processed the insert");
+        Assert.That(decoder.GetDynamicTable().Any(f => f.Name == name && f.Value == value), Is.True);
+
+        deadline = DateTime.UtcNow + TimeSpan.FromSeconds(3);
+        while (encoder.AckedInsertCount < 1 && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
+
+        Assert.That(encoder.AckedInsertCount, Is.GreaterThanOrEqualTo(1), "Encoder should have received Insert Count Increment");
+    }
+
+    [Test]
+    public async Task WriteFieldSection_WithHuffman_RoundTrip()
+    {
+        var (encToDec, decToEnc, encoder, decoder) = await MakePair();
+        encoder.Initialize(4096, 0);
+
+        var sectionStream = new MemoryStream();
+
+        await using (var writer = await encoder.GetSectionWriter(streamId: 0, stream: sectionStream,
+            ct: CancellationToken.None))
+        {
+            await writer.WriteFieldSection([
+                (":path", "/index.html"),
+                ("content-type", "application/json"),
+                ("cache-control", "no-cache"),
+                ("accept-encoding", "gzip, deflate, br"),
+            ], CancellationToken.None);
+        }
+
+        var sectionBytes = sectionStream.ToArray();
+
+        var headers = new Dictionary<string, string>();
+
+        await using (var reader = await decoder.GetSectionReader(streamId: 0, buffer: sectionBytes,
+            length: sectionBytes.Length, ct: CancellationToken.None))
+        {
+            foreach (var field in reader)
+                headers[field.Name] = field.Value!;
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(headers[":path"], Is.EqualTo("/index.html"));
+            Assert.That(headers["content-type"], Is.EqualTo("application/json"));
+            Assert.That(headers["cache-control"], Is.EqualTo("no-cache"));
+            Assert.That(headers["accept-encoding"], Is.EqualTo("gzip, deflate, br"));
+        }
     }
 }

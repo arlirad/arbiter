@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+        <NoWarn>$(NoWarn);IDE0053;IDE0060;IDE0022;IDE0048;IDE0290;IDE0032;IDE0270;IDE2000</NoWarn>
         <IsPackable>false</IsPackable>
         <RootNamespace>Arlirad.QPack.Tests</RootNamespace>
     </PropertyGroup>

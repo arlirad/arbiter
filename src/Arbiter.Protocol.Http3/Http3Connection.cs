@@ -19,6 +19,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
     private static readonly Dictionary<SettingsParameter, Func<Http3Connection, ulong>> SettingsToWrite = new() {
         [SettingsParameter.QPackMaxTableCapacity] = (conn) => (ulong)conn.LocalSettings.MaxDecoderDynamicTableCapacity,
         [SettingsParameter.MaxFieldSectionSize] = (conn) => (ulong)conn.LocalSettings.MaxFieldSectionSize,
+        [SettingsParameter.QPackBlockedStreams] = (conn) => (ulong)conn.LocalSettings.QPackBlockedStreams,
         [SettingsParameter.EnableConnectProtocol] = (_) => 1,
     };
 
@@ -135,6 +136,8 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         while (frame.Stream.Position < frame.Stream.Length)
             await ReadSetting(reader, ct);
 
+        Encoder.Initialize(_peerSettings.MaxEncoderDynamicTableCapacity, _peerSettings.QPackBlockedStreams);
+
         while (!ct.IsCancellationRequested)
         {
             frame = await frameReader.ReadFrame(ct);
@@ -192,6 +195,9 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
                 _peerSettings.MaxFieldSectionSize = (int)value;
                 break;
             case SettingsParameter.QPackBlockedStreams:
+                if (value > int.MaxValue)
+                    throw new InvalidOperationException("H3_SETTINGS_ERROR: QPackBlockedStreams exceeds maximum");
+                _peerSettings.QPackBlockedStreams = (int)value;
                 break;
             case SettingsParameter.EnableConnectProtocol:
                 _peerSettings.EnableConnectProtocol = value != 0;

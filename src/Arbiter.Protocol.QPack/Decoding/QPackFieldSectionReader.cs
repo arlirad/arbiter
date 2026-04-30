@@ -52,7 +52,8 @@ public class QPackFieldSectionReader(
             else if (QPackConsts.Is(entry, 0b1100_0000, QPackConsts.IndexedDynamicFieldLineMask))
             {
                 var index = (long)reader.ReadPrefixedIntFromProvidedByte(6, entry);
-                yield return parent.GetField(index, true)
+                var absoluteIndex = Base - index - 1;
+                yield return parent.GetField(absoluteIndex, true)
                     ?? throw new NotImplementedException("QPACK_DECOMPRESSION_FAILED");
             }
             else if (QPackConsts.Is(entry, 0b1111_0000, QPackConsts.IndexedFieldLinePostBaseIndex))
@@ -65,10 +66,10 @@ public class QPackFieldSectionReader(
             else if (QPackConsts.Is(entry, 0b1100_0000, QPackConsts.LiteralFieldLineWithNameReference))
             {
                 var index = reader.ReadPrefixedIntFromProvidedByte(4, entry);
-                var nameTableEntry = (entry & QPackConsts.LiteralStaticFieldLineWithNameReference)
-                    == QPackConsts.LiteralStaticFieldLineWithNameReference
-                        ? QPackConsts.StaticTable[(int)index]
-                        : throw new NotImplementedException("Dynamic tables are not yet implemented");
+                var isStatic = (entry & 0b0001_0000) != 0;
+                var nameTableEntry = isStatic
+                    ? QPackConsts.StaticTable[(int)index]
+                    : parent.GetField(Base - (long)index - 1, true) ?? throw new InvalidOperationException("QPACK_DECOMPRESSION_FAILED: invalid dynamic table index");
 
                 var value = reader.ReadString();
 
