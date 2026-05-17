@@ -11,7 +11,7 @@ namespace Arbiter.Api.Sample.Controllers;
 public class UsersController : ControllerBase
 {
     [HttpGet]
-    public IActionResult GetAll()
+    public static IActionResult GetAll()
     {
         var users = new[] {
             new {
@@ -26,7 +26,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public IActionResult GetById(int id)
+    public static IActionResult GetById(int id)
     {
         if (id <= 0)
         {
@@ -67,7 +67,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id) => NoContent();
+    public static IActionResult Delete(int id) => NoContent();
 
     [HttpHead("{id}")]
     public IActionResult Head(int id)

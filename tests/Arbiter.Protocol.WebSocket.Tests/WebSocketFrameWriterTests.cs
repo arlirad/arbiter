@@ -123,7 +123,7 @@ public class WebSocketFrameWriterTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Ping));
-            Assert.That(frame.Payload.Length, Is.EqualTo(0));
+            Assert.That(frame.Payload.Length, Is.Zero);
         }
     }
 
@@ -175,7 +175,7 @@ public class WebSocketFrameWriterTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(bytes[1] & 0x80, Is.EqualTo(0), "Mask bit should be 0 for server frames");
+            Assert.That(bytes[1] & 0x80, Is.Zero, "Mask bit should be 0 for server frames");
         }
     }
 

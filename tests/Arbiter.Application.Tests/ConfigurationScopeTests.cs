@@ -16,9 +16,12 @@ public class ConfigurationScopeTests
 
         var scope = new ConfigurationScope(config, "Sites");
 
-        var section = scope.GetSection("Sites:default");
-        Assert.That(section["Host"], Is.EqualTo("example.com"));
-        Assert.That(section["Port"], Is.EqualTo("443"));
+        var section = scope.GetSection("default");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(section["Host"], Is.EqualTo("example.com"));
+            Assert.That(section["Port"], Is.EqualTo("443"));
+        }
     }
 
     [Test]
@@ -31,10 +34,13 @@ public class ConfigurationScopeTests
 
         var scope = new ConfigurationScope(config, "Sites");
 
-        var section = scope.GetSection("Sites:default");
+        var section = scope.GetSection("default");
 
-        Assert.That(section["Host"], Is.EqualTo("example.com"));
-        Assert.That(section["Port"], Is.EqualTo("443"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(section["Host"], Is.EqualTo("example.com"));
+            Assert.That(section["Port"], Is.EqualTo("443"));
+        }
     }
 
     [Test]
@@ -44,7 +50,6 @@ public class ConfigurationScopeTests
             ["Sites:default:Host"] = "example.com",
         });
 
-        var fireCount = 0;
-        var scope = new ConfigurationScope(config, "Sites");
+        _ = new ConfigurationScope(config, "Sites");
     }
 }

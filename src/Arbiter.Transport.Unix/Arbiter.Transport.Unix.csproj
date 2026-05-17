@@ -9,11 +9,13 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
+        <ProjectReference Include="..\Arbiter.Configuration\Arbiter.Configuration.csproj"/>
         <ProjectReference Include="..\Arbiter.Core\Arbiter.Core.csproj"/>
     </ItemGroup>
     
     <ItemGroup>
         <PackageReference Include="Serilog"/>
+        <PackageReference Include="System.Reactive"/>
     </ItemGroup>
 
 </Project>

@@ -8,7 +8,7 @@ namespace Arbiter.Api.Sample.Controllers;
 public class RoutingController : ControllerBase
 {
     [HttpGet("optional/{id?}")]
-    public IActionResult OptionalParameter(int? id)
+    public static IActionResult OptionalParameter(int? id)
     {
         if (id.HasValue)
         {
@@ -23,17 +23,17 @@ public class RoutingController : ControllerBase
     }
 
     [HttpGet("files/{**path}")]
-    public IActionResult CatchAll(string path)
+    public static IActionResult CatchAll(string path)
     {
         return Ok(new {
             message = "Catch-all path matched",
-            path = path,
+            path,
             segments = path.Split('/'),
         });
     }
 
     [HttpGet("constrained/{id:int}")]
-    public IActionResult IntConstraint(int id)
+    public static IActionResult IntConstraint(int id)
     {
         return Ok(new {
             message = $"Integer ID is {id}",
@@ -42,7 +42,7 @@ public class RoutingController : ControllerBase
     }
 
     [HttpGet("constrained/{id:guid}")]
-    public IActionResult GuidConstraint(Guid id)
+    public static IActionResult GuidConstraint(Guid id)
     {
         return Ok(new {
             message = $"GUID ID is {id}",
@@ -51,20 +51,20 @@ public class RoutingController : ControllerBase
     }
 
     [HttpGet("search")]
-    public IActionResult SearchQuery([FromQuery] string? q, [FromQuery] int? page = 1)
+    public static IActionResult SearchQuery([FromQuery] string? q, [FromQuery] int? page = 1)
     {
         return Ok(new {
             query = q ?? "no query",
-            page = page,
+            page,
             message = q is null ? "No search query provided" : $"Searching for: {q}",
         });
     }
 
     [HttpGet("multi-value")]
-    public IActionResult MultiValueQuery([FromQuery] string[] tags)
+    public static IActionResult MultiValueQuery([FromQuery] string[] tags)
     {
         return Ok(new {
-            tags = tags,
+            tags,
             count = tags.Length,
         });
     }

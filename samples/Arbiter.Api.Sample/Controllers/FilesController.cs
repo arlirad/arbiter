@@ -9,14 +9,14 @@ namespace Arbiter.Api.Sample.Controllers;
 public class FilesController : ControllerBase
 {
     [HttpGet("{fileName}")]
-    public IActionResult Download(string fileName)
+    public static IActionResult Download(string fileName)
     {
         var fileContent = System.Text.Encoding.UTF8.GetBytes($"This is content of {fileName}");
         return File(fileContent, "text/plain", fileName);
     }
 
     [HttpPost("upload")]
-    public IActionResult Upload([FromForm] IFormFile? file)
+    public static IActionResult Upload([FromForm] IFormFile? file)
     {
         if (file is null)
         {
@@ -33,7 +33,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpGet("stream")]
-    public IActionResult StreamFile()
+    public static IActionResult StreamFile()
     {
         return File(() => {
             var stream = new System.IO.MemoryStream();
@@ -46,7 +46,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpGet("error")]
-    public IActionResult ReturnError()
+    public static IActionResult ReturnError()
     {
         var problem = new ProblemDetails {
             Type = "https://example.com/probs/not-found",
@@ -60,7 +60,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpGet("validation-error")]
-    public IActionResult ValidationError()
+    public static IActionResult ValidationError()
     {
         var problem = new ValidationProblemDetails {
             Errors = new Dictionary<string, string[]> {

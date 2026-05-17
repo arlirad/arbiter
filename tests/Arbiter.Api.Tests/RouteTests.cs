@@ -27,8 +27,11 @@ public class RouteTests
         var result = _routeTable.Match(Method.Get, "/api/users/123");
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.Value.Parameters.ContainsKey("id"), Is.True);
-        Assert.That(result.Value.Parameters["id"], Is.EqualTo("123"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Value.Parameters.ContainsKey("id"), Is.True);
+            Assert.That(result.Value.Parameters["id"], Is.EqualTo("123"));
+        }
     }
 
     [Test]
@@ -37,8 +40,11 @@ public class RouteTests
         var result = _routeTable.Match(Method.Get, "/api/users/123/items/456");
 
         Assert.That(result, Is.Not.Null);
-        Assert.That(result.Value.Parameters["id"], Is.EqualTo("123"));
-        Assert.That(result.Value.Parameters["itemId"], Is.EqualTo("456"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Value.Parameters["id"], Is.EqualTo("123"));
+            Assert.That(result.Value.Parameters["itemId"], Is.EqualTo("456"));
+        }
     }
 
     [Test]

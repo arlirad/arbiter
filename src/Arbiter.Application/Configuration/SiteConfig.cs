@@ -5,33 +5,33 @@ public class SiteConfig : IEquatable<SiteConfig?>
     public string? Path
     {
         get;
-        set;
+        init;
     }
     public List<Uri>? Bindings
     {
         get;
-        set;
+        init;
     }
     public List<string>? DefaultFiles
     {
         get;
-        set;
+        init;
     }
     public List<string>? Handlers
     {
         get;
-        set;
+        init;
     }
 
     public List<SiteComponentConfig>? Middleware
     {
         get;
-        set;
+        init;
     }
     public List<SiteComponentConfig>? Workers
     {
         get;
-        set;
+        init;
     }
 
     public bool Equals(SiteConfig? other)

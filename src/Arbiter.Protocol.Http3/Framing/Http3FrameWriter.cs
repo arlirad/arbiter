@@ -9,7 +9,7 @@ internal class Http3FrameWriter(Stream stream)
 
     public async ValueTask WriteFrameHeader(FrameType type, ulong length, CancellationToken ct = default)
     {
-        var writer = new Http3Writer(stream);
+        _ = new Http3Writer(stream);
         var offset = 0;
 
         WriteVarIntSync((ulong)type, _buffer, ref offset);

@@ -87,9 +87,10 @@ public class Http3RequestResponseTests
         var buffer = new byte[100];
         var bytesRead = await serverStream.ReadAsync(buffer);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(bytesRead, Is.EqualTo(requestBody.Length));
             Assert.That(Encoding.UTF8.GetString(buffer, 0, bytesRead), Is.EqualTo("Hello, HTTP/3!"));
-        });
+        }
     }
 }

@@ -53,7 +53,7 @@ internal sealed class RouteTable
         {
             var routePrefix = GetRoutePrefix(type);
 
-            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
             {
                 var attr = method.GetCustomAttribute<HttpMethodAttribute>();
                 if (attr is null)

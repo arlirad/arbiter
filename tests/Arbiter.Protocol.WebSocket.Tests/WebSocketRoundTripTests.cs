@@ -35,8 +35,11 @@ public class WebSocketRoundTripTests
         var reader = new WebSocketFrameReader(ms);
         var frame = await reader.ReadFrame();
 
-        Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Binary));
-        Assert.That(frame.Payload.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Binary));
+            Assert.That(frame.Payload.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
+        }
     }
 
     [Test]
@@ -72,8 +75,11 @@ public class WebSocketRoundTripTests
         var reader = new WebSocketFrameReader(ms);
         var frame = await reader.ReadFrame();
 
-        Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Ping));
-        Assert.That(frame.Payload.ToArray(), Is.EqualTo(pingData));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Ping));
+            Assert.That(frame.Payload.ToArray(), Is.EqualTo(pingData));
+        }
 
         ms.SetLength(0);
         ms.Position = 0;
@@ -82,8 +88,11 @@ public class WebSocketRoundTripTests
         ms.Position = 0;
 
         var pongFrame = await reader.ReadFrame();
-        Assert.That(pongFrame.Opcode, Is.EqualTo(WebSocketOpcode.Pong));
-        Assert.That(pongFrame.Payload.ToArray(), Is.EqualTo(pingData));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pongFrame.Opcode, Is.EqualTo(WebSocketOpcode.Pong));
+            Assert.That(pongFrame.Payload.ToArray(), Is.EqualTo(pingData));
+        }
     }
 
     [Test]
@@ -102,18 +111,30 @@ public class WebSocketRoundTripTests
         WebSocketFrame frame;
 
         frame = await reader.ReadFrame();
-        Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Text));
-        Assert.That(frame.Fin, Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Text));
+            Assert.That(frame.Fin, Is.False);
+        }
+
         sb.Append(System.Text.Encoding.UTF8.GetString(frame.Payload.Span));
 
         frame = await reader.ReadFrame();
-        Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Continuation));
-        Assert.That(frame.Fin, Is.False);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Continuation));
+            Assert.That(frame.Fin, Is.False);
+        }
+
         sb.Append(System.Text.Encoding.UTF8.GetString(frame.Payload.Span));
 
         frame = await reader.ReadFrame();
-        Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Continuation));
-        Assert.That(frame.Fin, Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Continuation));
+            Assert.That(frame.Fin, Is.True);
+        }
+
         sb.Append(System.Text.Encoding.UTF8.GetString(frame.Payload.Span));
 
         Assert.That(sb.ToString(), Is.EqualTo("Hello World"));

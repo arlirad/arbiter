@@ -39,7 +39,7 @@ public class TestConfiguration : IConfiguration
             set => root._data[key] = value;
         }
 
-        public string Key => key.Contains(":") ? key.Split(':').Last() : key;
+        public string Key => key.Contains(':') ? key.Split(':').Last() : key;
 
         public string Path => key;
 

@@ -65,7 +65,7 @@ public class Http3ErrorHandlingTests
         var buffer = new byte[100];
         var bytesRead = await serverStream.ReadAsync(buffer, default);
 
-        Assert.That(bytesRead, Is.EqualTo(0));
+        Assert.That(bytesRead, Is.Zero);
     }
 
     [Test]

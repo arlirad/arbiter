@@ -111,8 +111,11 @@ public class HttpClientIntegrationTests
             var response = await customFixture.Client.GetAsync("/data");
             var body = await response.Content.ReadAsStringAsync();
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(body, Is.EqualTo(expectedBody));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(body, Is.EqualTo(expectedBody));
+            }
         }
         finally
         {
@@ -124,10 +127,11 @@ public class HttpClientIntegrationTests
     public async Task Response_with_multiple_headers()
     {
         var customFixture = await HttpClientServerFixture.CreateAsync(req => {
-            var headers = new Arbiter.Core.ValueObjects.Headers();
-            headers.Add("Content-Type", "application/json");
-            headers.Add("X-Custom-Header", "custom-value");
-            headers.Add("Cache-Control", "no-cache");
+            var headers = new Arbiter.Core.ValueObjects.Headers {
+                { "Content-Type", "application/json" },
+                { "X-Custom-Header", "custom-value" },
+                { "Cache-Control", "no-cache" },
+            };
 
             return Task.FromResult(new ResponseDto {
                 Status = Status.Ok,
@@ -139,9 +143,12 @@ public class HttpClientIntegrationTests
         {
             var response = await customFixture.Client.GetAsync("/headers");
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
-            Assert.That(response.Headers.GetValues("X-Custom-Header").First(), Is.EqualTo("custom-value"));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
+                Assert.That(response.Headers.GetValues("X-Custom-Header").First(), Is.EqualTo("custom-value"));
+            }
         }
         finally
         {

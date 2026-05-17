@@ -11,10 +11,9 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
 {
     public async Task<Site> Orchestrate(SiteConfig siteConfig)
     {
-        siteConfig.Workers ??= [];
-
+        var workers = siteConfig.Workers ?? [];
         var middlewareChain = CreateMiddlewareChain(siteConfig);
-        var workers = siteConfig.Workers
+        var workerInstances = workers
             .Select<SiteComponentConfig, (IWorker Instance, IConfiguration Config)>(w =>
                 (Instance: InstanceWorker(w.Name!),
                     MergeConfigs(configManager.GetDefaultWorkerConfig(w.Name!), w.Config)))
@@ -28,7 +27,7 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
             siteConfig.Path!,
             siteConfig.Bindings!,
             middlewareChain.Select(m => m.Instance),
-            workers.Select(w => w.Instance),
+            workerInstances.Select(w => w.Instance),
             handleDelegate
         );
 
@@ -37,7 +36,7 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
             await Instance.Configure(site.Path, site.Data, Config!);
         }
 
-        foreach (var (Instance, Config) in workers)
+        foreach (var (Instance, Config) in workerInstances)
         {
             await Instance.Configure(site.Path, site.Bindings, site.Data, Config!);
         }

@@ -51,8 +51,11 @@ public class HuffmanRoundTripTests
             var encoded = HPackHuffman.Encode(input);
             var decoded = HPackHuffman.Decode(encoded);
 
-            Assert.That(decoded, Is.EqualTo(input), $"Failed for: {testValue}");
-            Assert.That(System.Text.Encoding.UTF8.GetString(decoded), Is.EqualTo(testValue));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(decoded, Is.EqualTo(input), $"Failed for: {testValue}");
+                Assert.That(System.Text.Encoding.UTF8.GetString(decoded), Is.EqualTo(testValue));
+            }
         }
     }
 
@@ -84,7 +87,7 @@ public class HuffmanRoundTripTests
     [Test]
     public void GetEncodedLength_Returns_CorrectByteCount()
     {
-        var input = System.Text.Encoding.UTF8.GetBytes("text/html");
+        var input = "text/html"u8.ToArray();
         var encoded = HPackHuffman.Encode(input);
 
         var calculatedLength = HPackHuffman.GetEncodedLength(input);
@@ -95,7 +98,7 @@ public class HuffmanRoundTripTests
     [Test]
     public void Padding_Matches_RFC_Requirements()
     {
-        var input = System.Text.Encoding.UTF8.GetBytes("test");
+        var input = "test"u8.ToArray();
         var encoded = HPackHuffman.Encode(input);
 
         var decoded = HPackHuffman.Decode(encoded);

@@ -238,7 +238,7 @@ public class WebSocketConnectionTests
             await client.CloseAsync();
             var result = await server.ReceiveBinaryAsync();
 
-            Assert.That(result.Length, Is.EqualTo(0));
+            Assert.That(result.Length, Is.Zero);
         }
     }
 

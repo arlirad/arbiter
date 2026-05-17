@@ -76,11 +76,14 @@ public class CorsMiddlewareTests
 
         await middleware.Handle(context);
 
-        Assert.That(context.Response.Status, Is.EqualTo(Status.Ok));
-        Assert.That(context.Response.Headers["Access-Control-Allow-Methods"]?.FirstOrDefault(),
-            Is.EqualTo("GET, POST"));
-        Assert.That(context.Response.Headers["Access-Control-Allow-Headers"]?.FirstOrDefault(),
-            Is.EqualTo("Content-Type"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(context.Response.Status, Is.EqualTo(Status.Ok));
+            Assert.That(context.Response.Headers["Access-Control-Allow-Methods"]?.FirstOrDefault(),
+                Is.EqualTo("GET, POST"));
+            Assert.That(context.Response.Headers["Access-Control-Allow-Headers"]?.FirstOrDefault(),
+                Is.EqualTo("Content-Type"));
+        }
     }
 
     private static CorsMiddleware CreateMiddleware(
@@ -92,7 +95,7 @@ public class CorsMiddlewareTests
 
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection([
-                new("AllowOrigin:0", origins[0]),
+                new KeyValuePair<string, string?>("AllowOrigin:0", origins[0]),
                 .. methods?.Select((m, i) => new KeyValuePair<string, string?>($"AllowMethods:{i}", m)) ?? [],
                 .. headers?.Select((h, i) => new KeyValuePair<string, string?>($"AllowHeaders:{i}", h)) ?? [],
             ])

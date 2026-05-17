@@ -2,28 +2,67 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Transport.Tcp;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Primitives;
+using Arbiter.Configuration;
+using Arbiter.Transport.Tcp.Models;
 using Serilog;
 
 namespace Arbiter.Transport.Tcp;
 
-public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IAsyncConfigurable
+public class TcpAcceptor : IAcceptor, IAsyncConfigurable<TcpListenConfig>, IDisposable
 {
     private const int Backlog = 128;
 
+    private readonly ICertificateManager _certificateManager;
+    private readonly ConfigurationProvider _configProvider;
     private readonly ConcurrentDictionary<IPEndPoint, TcpAcceptorSocket> _sockets = new();
-
     private readonly Channel<ITransport> _transports =
         Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
+    private readonly CompositeDisposable _subscriptions = [];
+    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
 
-    private ConfigurationScope? _scope;
+    public TcpAcceptor(ICertificateManager certificateManager, ConfigurationProvider configProvider)
+    {
+        _certificateManager = certificateManager;
+        _configProvider = configProvider;
+
+        var tcpConfig = Observable.CombineLatest(
+            configProvider.Observe<List<string>>("ListenOn"),
+            configProvider.Observe<Dictionary<string, SiteConfig>>("Sites"),
+            (listenOn, sites) => {
+                var ports = sites.SelectMany(s => s.Value.Bindings ?? [])
+                    .Where(b => b.Scheme != "unix").Select(b => b.Port).ToList();
+                var addresses = listenOn.Select(IPAddress.Parse).ToList();
+                return new TcpListenConfig(addresses, ports);
+            }
+        );
+
+        _subscriptions.Add(tcpConfig.Subscribe(async config => {
+            try
+            {
+                await _reconfigureLock.WaitAsync();
+                try
+                {
+                    await ReconfigureAsync(config);
+                }
+                finally
+                {
+                    _reconfigureLock.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to reconfigure TCP acceptor");
+            }
+        }));
+    }
 
     public async Task<ITransport> Accept(CancellationToken ct)
     {
@@ -31,24 +70,7 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
             return await _transports.Reader.ReadAsync(ct);
     }
 
-    public async ValueTask Bind(IConfiguration configuration)
-    {
-        _scope = new ConfigurationScope(configuration, "ListenOn", "Sites");
-        await UpdateBindings();
-        ChangeToken.OnChange(_scope.GetReloadToken, () => _ = UpdateBindingsAsync());
-    }
-
-    private async Task UpdateBindingsAsync()
-    {
-        try
-        {
-            await UpdateBindings();
-        }
-        catch (Exception e)
-        {
-            Log.Error("Failed to reload config: {Exception}", e);
-        }
-    }
+    public async ValueTask ReconfigureAsync(TcpListenConfig config) => await Bind(config.Addresses, config.Ports);
 
     public async Task Bind(IEnumerable<IPAddress> addresses, IEnumerable<int> ports)
     {
@@ -76,7 +98,6 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
         }
         catch (OperationCanceledException)
         {
-            // ignored
         }
     }
 
@@ -128,7 +149,8 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
         return ssl;
     }
 
-    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName) => hostName is null ? certificateManager.GetFallback() : certificateManager.Get(hostName) ?? certificateManager.GetFallback();
+    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName)
+        => hostName is null ? _certificateManager.GetFallback() : _certificateManager.Get(hostName) ?? _certificateManager.GetFallback();
 
     private Task CreateSocket(List<IPEndPoint> endPoints)
     {
@@ -172,43 +194,9 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
             await Task.WhenAll(cancellationTasks);
     }
 
-    private async Task UpdateBindings()
+    public void Dispose()
     {
-        try
-        {
-            if (_scope is null)
-                return;
-
-            var (addresses, ports) = ExtractConfigBindings();
-
-            if (addresses is not null && ports is not null)
-                await Bind(addresses, ports);
-        }
-        catch (Exception e)
-        {
-            Log.Error("Failed to reload config: {Exception}", e);
-        }
-    }
-
-    private (IEnumerable<IPAddress>? addresses, IEnumerable<int>? ports) ExtractConfigBindings()
-    {
-        if (_scope is null)
-            return (null, null);
-
-        var listenOn = _scope.GetSection("ListenOn").Get<List<string>>();
-        var sites = _scope.GetSection("Sites").Get<Dictionary<string, SiteConfig>>();
-
-        if (listenOn is null || sites is null)
-            return (null, null);
-
-        var ports = sites
-            .SelectMany(s => s.Value.Bindings ?? [])
-            .Where(b => b.Scheme != "unix")
-            .Select(b => b.Port);
-
-        return (
-            listenOn.Select(IPAddress.Parse),
-            ports
-        );
+        _subscriptions.Dispose();
+        _reconfigureLock.Dispose();
     }
 }

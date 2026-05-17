@@ -202,7 +202,8 @@ internal sealed class Route
             }
         }
 
-        var result = ActionMethod.Invoke(controller, args);
+        var target = ActionMethod.IsStatic ? null : controller;
+        var result = ActionMethod.Invoke(target, args);
 
         switch (result)
         {

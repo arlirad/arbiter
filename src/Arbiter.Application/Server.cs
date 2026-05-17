@@ -1,12 +1,12 @@
+using System.Reactive.Disposables;
+using System.Threading;
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
-using Arbiter.Application.Mappers;
-using Arbiter.Application.Orchestrators;
+using Arbiter.Configuration;
 using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
-using Arbiter.Core.ValueObjects;
-using Microsoft.Extensions.Configuration;
 using Serilog;
 
 namespace Arbiter.Application;
@@ -16,21 +16,46 @@ internal class Server(
     IProtocolFactory protocolFactory,
     SiteManager siteManager,
     IConfigManager configManager,
-    IConfiguration configuration,
+    ConfigurationProvider configProvider,
     TransactionHandler handler
-) : IServer
+) : IServer, IDisposable
 {
+    private readonly CompositeDisposable _subscriptions = [];
+    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
+
     public async Task Run(CancellationToken ct)
     {
         await configManager.CreateDirectories();
-        await siteManager.Bind(configuration);
 
-        foreach (var acceptor in acceptors.OfType<IAsyncConfigurable>())
-            await acceptor.Bind(configuration);
+        var siteSubscription = configProvider.Observe<Dictionary<string, SiteConfig>>("Sites")
+            .Subscribe(async void (sites) => {
+                try
+                {
+                    await _reconfigureLock.WaitAsync();
+                    try
+                    {
+                        await siteManager.ReconfigureAsync(sites);
+                    }
+                    finally
+                    {
+                        _reconfigureLock.Release();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to reconfigure sites");
+                }
+            });
+        _subscriptions.Add(siteSubscription);
 
-        var tasks = acceptors.Select<IAcceptor, Task>(acceptor => AcceptLoop(acceptor, ct));
-
+        var tasks = acceptors.Select(acceptor => AcceptLoop(acceptor, ct));
         await Task.WhenAll(tasks);
+    }
+
+    public void Dispose()
+    {
+        _subscriptions.Dispose();
+        _reconfigureLock.Dispose();
     }
 
     private async Task AcceptLoop(IAcceptor acceptor, CancellationToken ct)
@@ -45,7 +70,6 @@ internal class Server(
         }
         catch (OperationCanceledException)
         {
-            // ignored
         }
     }
 

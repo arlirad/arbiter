@@ -15,7 +15,7 @@ internal class ContextMapper(IContextFactory contextFactory)
         return context;
     }
 
-    public ResponseDto ToDto(Context context)
+    public static ResponseDto ToDto(Context context)
     {
         return new ResponseDto() {
             Status = context.Response.Status!.Value,

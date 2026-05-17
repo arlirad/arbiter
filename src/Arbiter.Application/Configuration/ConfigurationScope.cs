@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 
@@ -9,6 +8,7 @@ public class ConfigurationScope : IConfiguration
     private readonly string[] _paths;
     private readonly ConfigurationReloadToken _reloadToken = new();
     private readonly IConfiguration _root;
+    private readonly IConfiguration _scoped;
     private string _snapshot = "";
 
     public ConfigurationScope(IConfiguration root, params string[] paths)
@@ -16,21 +16,25 @@ public class ConfigurationScope : IConfiguration
         _root = root ?? throw new ArgumentNullException(nameof(root));
         _paths = paths ?? [];
 
+        _scoped = _paths.Length == 1
+            ? root.GetSection(_paths[0])
+            : root;
+
         UpdateSnapshot();
         ChangeToken.OnChange(root.GetReloadToken, OnRootChanged);
     }
 
     public string this[string key]
     {
-        get => _root[key]!;
-        set => _root[key] = value;
+        get => _scoped[key]!;
+        set => _scoped[key] = value!;
     }
 
-    public IEnumerable<IConfigurationSection> GetChildren() => _root.GetChildren();
+    public IEnumerable<IConfigurationSection> GetChildren() => _scoped.GetChildren();
 
     public IChangeToken GetReloadToken() => _reloadToken;
 
-    public IConfigurationSection GetSection(string key) => _root.GetSection(key);
+    public IConfigurationSection GetSection(string key) => _scoped.GetSection(key);
 
     private void OnRootChanged()
     {

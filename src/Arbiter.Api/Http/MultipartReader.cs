@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Arbiter.Api.Http;
 
-public class MultipartReader(string boundary, Stream stream)
+public partial class MultipartReader(string boundary, Stream stream)
 {
     private readonly string _boundary = boundary;
     private readonly Stream _stream = stream;
@@ -30,8 +30,8 @@ public class MultipartReader(string boundary, Stream stream)
             var headers = part[..headerEnd];
             var body = part[(headerEnd + 4)..];
 
-            var nameMatch = Regex.Match(headers, @"name=""([^""]+)""");
-            var fileNameMatch = Regex.Match(headers, @"filename=""([^""]+)""");
+            var nameMatch = MyRegex().Match(headers);
+            var fileNameMatch = MyRegex1().Match(headers);
             var contentTypeMatch = Regex.Match(headers, @"Content-Type:\s*([^\r\n]+)");
 
             if (fileNameMatch.Success)
@@ -63,8 +63,13 @@ public class MultipartReader(string boundary, Stream stream)
         if (!boundaryMatch.Success)
             return files;
 
-        var boundary = boundaryMatch.Groups[1].Value.Trim('"');
+        _ = boundaryMatch.Groups[1].Value.Trim('"');
 
         return files;
     }
+
+    [GeneratedRegex(@"name=""([^""]+)""")]
+    private static partial Regex MyRegex();
+    [GeneratedRegex(@"filename=""([^""]+)""")]
+    private static partial Regex MyRegex1();
 }

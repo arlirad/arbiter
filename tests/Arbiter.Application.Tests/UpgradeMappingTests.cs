@@ -25,8 +25,12 @@ public class UpgradeMappingTests
         var context = mapper.ToDomain(request);
 
         Assert.That(context, Is.Not.Null);
-        Assert.That(context!.Request.IsUpgrade, Is.True);
-        Assert.That(context.Request.Upgrade, Is.SameAs(upgrade));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(context!.Request.IsUpgrade, Is.True);
+            Assert.That(context.Request.Upgrade, Is.SameAs(upgrade));
+        }
+
         Assert.That(context.Request.Upgrade, Is.Not.AssignableTo<IWebSocketUpgrade>());
     }
 

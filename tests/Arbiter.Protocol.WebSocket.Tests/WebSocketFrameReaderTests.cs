@@ -161,8 +161,11 @@ public class WebSocketFrameReaderTests
         var frame = await reader.ReadFrame();
 
         Assert.That(frame.Payload.Length, Is.EqualTo(256));
-        Assert.That(frame.Payload.Span[0], Is.EqualTo(0));
-        Assert.That(frame.Payload.Span[255], Is.EqualTo(255));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(frame.Payload.Span[0], Is.Zero);
+            Assert.That(frame.Payload.Span[255], Is.EqualTo(255));
+        }
     }
 
     [Test]
@@ -190,7 +193,7 @@ public class WebSocketFrameReaderTests
 
         var frame = await reader.ReadFrame();
 
-        Assert.That(frame.Payload.Length, Is.EqualTo(0));
+        Assert.That(frame.Payload.Length, Is.Zero);
     }
 
     [Test]
@@ -238,7 +241,7 @@ public class WebSocketFrameReaderTests
 
         var frame = await reader.ReadFrame();
 
-        Assert.That(frame.Payload.Length, Is.EqualTo(0));
+        Assert.That(frame.Payload.Length, Is.Zero);
     }
 
     [Test]

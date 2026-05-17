@@ -45,10 +45,11 @@ public class QPackRfcTests
             }
         }
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(buffer0Headers[":path"], Is.EqualTo("/index.html"));
-            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
-        });
+            Assert.That(decoderInstructions.Length, Is.Zero);
+        }
     }
 
     /// <summary>
@@ -113,7 +114,7 @@ public class QPackRfcTests
         await using (var stream4Section = await decoder.GetSectionReader(streamId: 4, buffers[4],
             length: buffers[4].Length))
         {
-            Assert.That(stream4Section.Base, Is.EqualTo(0));
+            Assert.That(stream4Section.Base, Is.Zero);
 
             foreach (var field in stream4Section)
                 headers[field.Name] = field.Value;
@@ -123,7 +124,8 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), CancellationToken.None);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(decoder.DynamicTableCapacity, Is.EqualTo(220));
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(106));
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(2));
@@ -134,8 +136,8 @@ public class QPackRfcTests
             Assert.That(headers[":authority"], Is.EqualTo("www.example.com"));
             Assert.That(headers[":path"], Is.EqualTo("/sample/path"));
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
-            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
-        });
+            Assert.That(decoderInstructions.Length, Is.Zero);
+        }
     }
 
     /// <summary>
@@ -183,15 +185,16 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(3));
             Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
                 new(":authority", "www.example.com"), new(":path", "/sample/path"), new("custom-key", "custom-value"),
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
-            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
-        });
+            Assert.That(decoderInstructions.Length, Is.Zero);
+        }
     }
 
     /// <summary>
@@ -282,7 +285,8 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(4));
             Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
                 new(":authority", "www.example.com"), new(":path", "/sample/path"), new("custom-key", "custom-value"), new(":authority", "www.example.com"),
@@ -290,8 +294,8 @@ public class QPackRfcTests
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
             Assert.That(buffer[1], Is.EqualTo(buffers[RFCHelper.DecoderStream][1]));
-            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
-        });
+            Assert.That(decoderInstructions.Length, Is.Zero);
+        }
     }
 
     public static async Task DynamicTableInsertEviction(
@@ -331,7 +335,8 @@ public class QPackRfcTests
 
         await decoderInstructions.ReadExactlyAsync(new Memory<byte>(buffer), timeouter.Token);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(5));
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(215));
             Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
@@ -339,7 +344,7 @@ public class QPackRfcTests
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
-            Assert.That(decoderInstructions.Length, Is.EqualTo(0));
-        });
+            Assert.That(decoderInstructions.Length, Is.Zero);
+        }
     }
 }

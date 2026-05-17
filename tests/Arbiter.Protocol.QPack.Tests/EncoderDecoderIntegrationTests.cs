@@ -72,13 +72,14 @@ public class EncoderDecoderIntegrationTests
 
         var result = await EncodeDecode(encoder, decoder, 0, headers);
 
-        Assert.Multiple(() => {
-            Assert.That(result.Count, Is.EqualTo(4));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(4));
             Assert.That(result[0], Is.EqualTo((":method", "GET")));
             Assert.That(result[1], Is.EqualTo((":scheme", "https")));
             Assert.That(result[2], Is.EqualTo((":path", "/")));
             Assert.That(result[3], Is.EqualTo((":authority", "www.example.com")));
-        });
+        }
     }
 
     [Test]
@@ -94,12 +95,13 @@ public class EncoderDecoderIntegrationTests
 
         var result = await EncodeDecode(encoder, decoder, 0, headers);
 
-        Assert.Multiple(() => {
-            Assert.That(result.Count, Is.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result[0], Is.EqualTo((":method", "GET")));
             Assert.That(result[1], Is.EqualTo((":path", "/index.html")));
             Assert.That(result[2], Is.EqualTo(("content-type", "text/html; charset=utf-8")));
-        });
+        }
     }
 
     [Test]
@@ -114,18 +116,20 @@ public class EncoderDecoderIntegrationTests
 
         var result = await EncodeDecode(encoder, decoder, 0, headers);
 
-        Assert.Multiple(() => {
-            Assert.That(result.Count, Is.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(("x-custom-name", "x-custom-value")));
             Assert.That(result[1], Is.EqualTo(("x-another", "some data here")));
-        });
+        }
     }
 
     [Test]
     public async Task Encoder_Sends_SetDynamicTableCapacity_On_Initialize()
     {
         var encToDec = new QueueStream();
-        var decToEnc = new QueueStream();
+
+        _ = new QueueStream();
 
         var encoder = new QPackEncoder();
         await encoder.Start();
@@ -138,9 +142,10 @@ public class EncoderDecoderIntegrationTests
 
         var firstByte = buffer[0];
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(QPackConsts.Is(firstByte, 0b1110_0000, QPackConsts.EncoderInstructionDynamicTableCapacity), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -156,16 +161,17 @@ public class EncoderDecoderIntegrationTests
 
         var result1 = await EncodeDecode(encoder, decoder, 0, headers1);
 
-        Assert.Multiple(() => {
-            Assert.That(result1.Count, Is.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result1, Has.Count.EqualTo(3));
             Assert.That(result1[0], Is.EqualTo((":authority", "www.example.com")));
             Assert.That(result1[1], Is.EqualTo((":path", "/")));
             Assert.That(result1[2], Is.EqualTo(("custom-key", "custom-value")));
-        });
+        }
 
         await WaitForDecoderInsertCount(decoder, encoder.TotalInsertCount);
         var dynamicTable = decoder.GetDynamicTable();
-        Assert.That(dynamicTable.Count, Is.GreaterThan(0), "Dynamic table should have entries after first section");
+        Assert.That(dynamicTable, Is.Not.Empty, "Dynamic table should have entries after first section");
     }
 
     [Test]
@@ -183,7 +189,7 @@ public class EncoderDecoderIntegrationTests
         await WaitForDecoderInsertCount(decoder, encoder.TotalInsertCount);
 
         var encTable = encoder.GetDynamicTable();
-        Assert.That(encTable.Count, Is.GreaterThan(0), "Encoder should have dynamic entries");
+        Assert.That(encTable, Is.Not.Empty, "Encoder should have dynamic entries");
 
         var headers2 = new List<(string, string)> {
             ("x-custom", "value-that-gets-inserted"),
@@ -192,11 +198,12 @@ public class EncoderDecoderIntegrationTests
 
         var result2 = await EncodeDecode(encoder, decoder, 4, headers2);
 
-        Assert.Multiple(() => {
-            Assert.That(result2.Count, Is.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result2, Has.Count.EqualTo(2));
             Assert.That(result2[0], Is.EqualTo(("x-custom", "value-that-gets-inserted")));
             Assert.That(result2[1], Is.EqualTo((":path", "/test")));
-        });
+        }
     }
 
     [Test]
@@ -212,12 +219,13 @@ public class EncoderDecoderIntegrationTests
 
         var result = await EncodeDecode(encoder, decoder, 0, headers);
 
-        Assert.Multiple(() => {
-            Assert.That(result.Count, Is.EqualTo(3));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(("content-type", "application/json")));
             Assert.That(result[1], Is.EqualTo(("cache-control", "no-cache")));
             Assert.That(result[2], Is.EqualTo(("accept-encoding", "gzip, deflate, br")));
-        });
+        }
     }
 
     [Test]
@@ -239,24 +247,24 @@ public class EncoderDecoderIntegrationTests
 
         await WaitForDecoderInsertCount(decoder, encoder.TotalInsertCount);
         var decTable = decoder.GetDynamicTable();
-        Assert.That(decTable.Count, Is.EqualTo(1), "Only one entry should fit after eviction");
+        Assert.That(decTable, Has.Count.EqualTo(1), "Only one entry should fit after eviction");
     }
 
     [Test]
     public async Task SectionAcknowledgment_SentByDecoder()
     {
-        var (_, decToEnc, encoder, decoder) = await MakePair(tableCapacity: 4096);
+        var (_, _, encoder, decoder) = await MakePair(tableCapacity: 4096);
 
         var headers = new List<(string, string)> {
             ("x-custom-entry", "some-value-for-insertion"),
             (":path", "/"),
         };
 
-        var _ = await EncodeDecode(encoder, decoder, 0, headers);
+        _ = await EncodeDecode(encoder, decoder, 0, headers);
 
         await WaitForDecoderInsertCount(decoder, encoder.TotalInsertCount);
         var decTable = decoder.GetDynamicTable();
-        Assert.That(decTable.Count, Is.GreaterThan(0), "Decoder should have entries in its table");
+        Assert.That(decTable, Is.Not.Empty, "Decoder should have entries in its table");
     }
 
     [Test]
@@ -273,7 +281,7 @@ public class EncoderDecoderIntegrationTests
         await WaitForDecoderInsertCount(decoder, encoder.TotalInsertCount);
 
         var encDynamicTable = encoder.GetDynamicTable();
-        Assert.That(encDynamicTable.Count, Is.GreaterThan(0), "Encoder should have dynamic entries");
+        Assert.That(encDynamicTable, Is.Not.Empty, "Encoder should have dynamic entries");
 
         var headers2 = new List<(string, string)> {
             ("x-shared-name", "second-value"),
@@ -306,7 +314,7 @@ public class EncoderDecoderIntegrationTests
 
         var result = await EncodeDecode(encoder, decoder, 0, headers);
 
-        Assert.That(result.Count, Is.EqualTo(0));
+        Assert.That(result.Count, Is.Zero);
     }
 
     [Test]
@@ -322,13 +330,13 @@ public class EncoderDecoderIntegrationTests
             };
 
             var result = await EncodeDecode(encoder, decoder, i * 4, headers);
-            Assert.That(result.Count, Is.EqualTo(2), $"Iteration {i}");
+            Assert.That(result, Has.Count.EqualTo(2), $"Iteration {i}");
             Assert.That(result[0], Is.EqualTo(($"x-header-{i}", $"value-{i}")), $"Iteration {i}");
         }
 
         await WaitForDecoderInsertCount(decoder, encoder.TotalInsertCount);
         var decTable = decoder.GetDynamicTable();
-        Assert.That(decTable.Count, Is.GreaterThan(2), "Table should accumulate entries across sections");
+        Assert.That(decTable, Has.Count.GreaterThan(2), "Table should accumulate entries across sections");
     }
 
     [Test]
@@ -364,12 +372,13 @@ public class EncoderDecoderIntegrationTests
 
         var result = await EncodeDecode(encoder, decoder, 0, headers);
 
-        Assert.Multiple(() => {
-            Assert.That(result.Count, Is.EqualTo(4));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result, Has.Count.EqualTo(4));
             Assert.That(result[0], Is.EqualTo((":status", "200")));
             Assert.That(result[1], Is.EqualTo((":method", "GET")));
             Assert.That(result[2], Is.EqualTo((":scheme", "https")));
             Assert.That(result[3], Is.EqualTo((":path", "/")));
-        });
+        }
     }
 }

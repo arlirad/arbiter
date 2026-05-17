@@ -4,6 +4,7 @@ using Arbiter.Application.Managers;
 using Arbiter.Application.Mappers;
 using Arbiter.Application.Middleware;
 using Arbiter.Application.Orchestrators;
+using Arbiter.Configuration;
 using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ public static class DependencyInjection
 {
     public static void AddApplication(this IServiceCollection services)
     {
+        services.AddSingleton<ConfigurationProvider>();
         services.AddSingleton<IServer, Server>();
 
         services.AddSingleton<ICertificateManager, CertificateManager>();

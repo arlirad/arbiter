@@ -42,17 +42,21 @@ public class Http3ConnectionLifecycleTests
     public async Task Start_completes_without_error()
     {
         Assert.That(_fixture, Is.Not.Null);
-        Assert.That(_fixture.ServerProtocol, Is.Not.Null);
-        Assert.That(_fixture.ClientConnection, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_fixture.ServerProtocol, Is.Not.Null);
+            Assert.That(_fixture.ClientConnection, Is.Not.Null);
+        }
     }
 
     [Test]
     public async Task Settings_contain_expected_parameters()
     {
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(_fixture!.ServerProtocol!.LocalSettings.MaxFieldSectionSize, Is.EqualTo(8192));
             Assert.That(_fixture.ServerProtocol.LocalSettings.MaxDecoderDynamicTableCapacity, Is.EqualTo(8192));
-        });
+        }
     }
 
     [Test]
@@ -60,10 +64,11 @@ public class Http3ConnectionLifecycleTests
     {
         await Task.Delay(100);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(_fixture!.ServerProtocol!.LocalSettings.MaxFieldSectionSize, Is.EqualTo(8192));
             Assert.That(_fixture.ServerProtocol.LocalSettings.MaxDecoderDynamicTableCapacity, Is.EqualTo(8192));
-        });
+        }
     }
 
     [Test]

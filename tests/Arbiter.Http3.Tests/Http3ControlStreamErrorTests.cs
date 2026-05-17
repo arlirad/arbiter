@@ -50,7 +50,7 @@ public class Http3ControlStreamErrorTests
     {
         var clientStream = await fixture.OpenClientUnidirectionalStreamAsync();
         var serverStream = await fixture.AcceptServerInboundStream(ct);
-        fixture.FeedInboundStream(serverStream, server);
+        RawQuicFixture.FeedInboundStream(serverStream, server);
         await WriteVarIntToStream(clientStream, 0x00, ct);
 
         using var payload = new MemoryStream();

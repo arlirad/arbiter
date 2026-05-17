@@ -1,47 +1,126 @@
-using System.Threading;
 using Arbiter.Application.Configuration;
-using Arbiter.Application.Interfaces;
 using Arbiter.Application.Orchestrators;
+using Arbiter.Configuration;
 using Arbiter.Core.Aggregates;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Primitives;
 using Serilog;
 
 namespace Arbiter.Application.Managers;
 
 internal class SiteManager(
     IServiceProvider serviceProvider
-) : IAsyncConfigurable
+) : IAsyncConfigurable<Dictionary<string, SiteConfig>>, IDisposable
 {
-    private readonly SemaphoreSlim _reloadLock = new(1, 1);
-    private readonly Dictionary<string, SiteConfig> _siteConfigs = [];
+    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly Dictionary<Site, SiteConfig> _siteConfigs = [];
     private readonly Dictionary<string, Site> _sites = [];
-    private ConfigurationScope? _scope;
+    private Dictionary<(string host, int port), Site> _bindingIndex = [];
 
-    public async ValueTask Bind(IConfiguration configuration)
+    public async ValueTask ReconfigureAsync(Dictionary<string, SiteConfig> configuration)
     {
-        _scope = new ConfigurationScope(configuration, "Sites");
-        await UpdateSites();
-        ChangeToken.OnChange(_scope.GetReloadToken, () => _ = UpdateSitesAsync());
-    }
+        if (configuration is null)
+            throw new InvalidOperationException("config.Sites cannot be null");
 
-    private async Task UpdateSitesAsync()
-    {
-        if (!await _reloadLock.WaitAsync(0))
-            return;
+        List<KeyValuePair<string, SiteConfig>> toCreate;
+        List<string> toRecreate;
+        List<string> toPrune;
 
+        await _lock.WaitAsync();
         try
         {
-            await UpdateSites();
-        }
-        catch (Exception e)
-        {
-            Log.Error("Failed to reload sites: {Exception}", e);
+            var existingKeys = new HashSet<string>(_sites.Keys);
+            var configKeys = new HashSet<string>(configuration.Keys);
+
+            toCreate = [.. configuration.Where(kvp => !existingKeys.Contains(kvp.Key))];
+
+            toRecreate = [.. _sites
+                .Where(kvp => configuration.TryGetValue(kvp.Key, out var newCfg)
+                    && _siteConfigs.TryGetValue(kvp.Value, out var oldCfg)
+                    && !oldCfg.Equals(newCfg))
+                .Select(kvp => kvp.Key)];
+
+            toPrune = [.. existingKeys.Except(configKeys)];
         }
         finally
         {
-            _reloadLock.Release();
+            _lock.Release();
+        }
+
+        var stagedSites = new Dictionary<string, Site>();
+        var sitesToStop = new Dictionary<string, Site>();
+
+        await _lock.WaitAsync();
+        try
+        {
+            foreach (var key in toRecreate)
+            {
+                if (_sites.TryGetValue(key, out var site))
+                {
+                    sitesToStop[key] = site;
+                    _sites.Remove(key);
+                    _siteConfigs.Remove(site);
+                }
+            }
+
+            foreach (var key in toPrune)
+            {
+                if (_sites.TryGetValue(key, out var site))
+                {
+                    sitesToStop[key] = site;
+                    _sites.Remove(key);
+                    _siteConfigs.Remove(site);
+                }
+            }
+
+            stagedSites = new Dictionary<string, Site>(_sites);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        foreach (var kvp in toCreate)
+        {
+            await using var scope = serviceProvider.CreateAsyncScope();
+            var factory = scope.ServiceProvider.GetRequiredService<SiteOrchestrator>();
+            var site = await factory.Orchestrate(kvp.Value);
+            await site.Start();
+            Log.Information("Started site '{Key}'", kvp.Key);
+            stagedSites[kvp.Key] = site;
+        }
+
+        foreach (var key in toRecreate.Where(configuration.ContainsKey))
+        {
+            await using var scope = serviceProvider.CreateAsyncScope();
+            var factory = scope.ServiceProvider.GetRequiredService<SiteOrchestrator>();
+            var site = await factory.Orchestrate(configuration[key]);
+            await site.Start();
+            Log.Information("Recreated site '{Key}'", key);
+            stagedSites[key] = site;
+        }
+
+        await _lock.WaitAsync();
+        try
+        {
+            _sites.Clear();
+            foreach (var kvp in stagedSites)
+                _sites[kvp.Key] = kvp.Value;
+
+            _siteConfigs.Clear();
+            foreach (var kvp in stagedSites)
+                _siteConfigs[kvp.Value] = configuration[kvp.Key];
+
+            _bindingIndex = BuildBindingIndex(_sites);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        foreach (var kvp in sitesToStop)
+        {
+            await kvp.Value.Stop();
+            Log.Information("Stopped site '{Key}'", kvp.Key);
         }
     }
 
@@ -49,18 +128,47 @@ internal class SiteManager(
     {
         var host = StripPort(authority) ?? "*";
 
-        return _sites.FirstOrDefault(s =>
-            s.Value.Bindings.Any(b => b.Host.Equals(host) && b.Port.Equals(port))
-        ).Value;
+        return _bindingIndex.TryGetValue((host, port), out var site)
+            ? site
+            : _bindingIndex.TryGetValue(("*", port), out var wildcardSite) ? wildcardSite : null;
     }
 
     public Site? Find(string? authority)
     {
         var host = StripPort(authority) ?? "*";
 
-        return _sites.FirstOrDefault(s =>
-            s.Value.Bindings.Any(b => b.Host.Equals(host))
-        ).Value;
+        foreach (var key in _bindingIndex.Keys)
+        {
+            if (key.host == host)
+                return _bindingIndex[key];
+        }
+
+        foreach (var key in _bindingIndex.Keys)
+        {
+            if (key.host == "*")
+                return _bindingIndex[key];
+        }
+
+        return null;
+    }
+
+    private static Dictionary<(string host, int port), Site> BuildBindingIndex(Dictionary<string, Site> sites)
+    {
+        var index = new Dictionary<(string, int), Site>();
+
+        foreach (var site in sites.Values)
+        {
+            foreach (var binding in site.Bindings ?? [])
+            {
+                var host = binding.Host;
+                var port = binding.Port;
+
+                if (!index.ContainsKey((host, port)))
+                    index[(host, port)] = site;
+            }
+        }
+
+        return index;
     }
 
     private static string? StripPort(string? authority)
@@ -84,101 +192,5 @@ internal class SiteManager(
         return authority[..colon];
     }
 
-    private async Task UpdateSites()
-    {
-        if (_scope is null)
-            return;
-
-        var sites = _scope.GetSection("Sites").Get<Dictionary<string, SiteConfig>>();
-
-        if (sites is null)
-            return;
-
-        await CreateSites(sites);
-        await RecreateSites(sites);
-        await PruneSites(sites);
-    }
-
-    private async Task CreateSites(Dictionary<string, SiteConfig> sites)
-    {
-        if (sites is null)
-            throw new InvalidOperationException("config.Sites cannot be null");
-
-        var sitesToCreate = sites
-            .Where(s => !_sites.ContainsKey(s.Key))
-            .ToList();
-
-        foreach (var siteToCreate in sitesToCreate)
-        {
-            await using var scope = serviceProvider.CreateAsyncScope();
-
-            var factory = scope.ServiceProvider.GetRequiredService<SiteOrchestrator>();
-            var site = await factory.Orchestrate(siteToCreate.Value);
-
-            await site.Start();
-
-            Log.Information("Started site '{Key}'", siteToCreate.Key);
-
-            _sites[siteToCreate.Key] = site;
-            _siteConfigs[siteToCreate.Key] = siteToCreate.Value;
-        }
-    }
-
-    private async Task RecreateSites(Dictionary<string, SiteConfig> sites)
-    {
-        if (sites is null)
-            throw new InvalidOperationException("config.Sites cannot be null");
-
-        var sitesToRecreate = _siteConfigs
-            .Where(kvp => sites.TryGetValue(kvp.Key, out var newConfig) &&
-                !kvp.Value.Equals(newConfig))
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        foreach (var siteKey in sitesToRecreate)
-        {
-            var oldSite = _sites[siteKey];
-            var newConfig = sites[siteKey];
-
-            await oldSite.Stop();
-
-            Log.Information("Recreating site '{Key}'", siteKey);
-
-            await using var scope = serviceProvider.CreateAsyncScope();
-
-            var factory = scope.ServiceProvider.GetRequiredService<SiteOrchestrator>();
-            var newSite = await factory.Orchestrate(newConfig);
-
-            await newSite.Start();
-
-            _sites[siteKey] = newSite;
-            _siteConfigs[siteKey] = newConfig;
-
-            Log.Information("Recreated site '{Key}'", siteKey);
-        }
-    }
-
-    private async Task PruneSites(Dictionary<string, SiteConfig> sites)
-    {
-        if (sites is null)
-            throw new InvalidOperationException("config.Sites cannot be null");
-
-        var sitesToPrune = _sites
-            .Where(site => !sites.ContainsKey(site.Key))
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        var stopTasks = new List<Task>();
-
-        foreach (var siteKey in sitesToPrune)
-        {
-            var site = _sites[siteKey];
-            _sites.Remove(siteKey);
-            _siteConfigs.Remove(siteKey);
-
-            stopTasks.Add(site.Stop());
-        }
-
-        await Task.WhenAll(stopTasks);
-    }
+    public void Dispose() => _lock.Dispose();
 }

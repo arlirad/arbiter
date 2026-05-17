@@ -1,3 +1,4 @@
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Managers;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
@@ -67,17 +68,75 @@ public class SiteManagerTests
         Assert.That(result, Is.SameAs(site));
     }
 
+    [Test]
+    public async Task ReconfigureAsync_prunes_removed_sites()
+    {
+        var manager = new SiteManager(new ServiceProviderStub());
+
+        var site = new Site("/tmp", [new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
+
+        var sitesField = typeof(SiteManager).GetField("_sites", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var configsField = typeof(SiteManager).GetField("_siteConfigs", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var indexField = typeof(SiteManager).GetField("_bindingIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+
+        var sites = new Dictionary<string, Site> { ["test"] = site };
+        sitesField.SetValue(manager, sites);
+        configsField.SetValue(manager, new Dictionary<Site, SiteConfig> { [site] = new() });
+        indexField.SetValue(manager, BuildIndex(sites));
+
+        await manager.ReconfigureAsync([]);
+
+        var sitesAfter = (Dictionary<string, Site>)sitesField.GetValue(manager)!;
+        var configsAfter = (Dictionary<Site, SiteConfig>)configsField.GetValue(manager)!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(sitesAfter, Is.Empty);
+            Assert.That(configsAfter, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void ReconfigureAsync_with_null_configuration_throws()
+    {
+        var manager = new SiteManager(new ServiceProviderStub());
+
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await manager.ReconfigureAsync(null!));
+    }
+
     private static SiteManager CreateManager(out Site site)
     {
         var manager = new SiteManager(new ServiceProviderStub());
 
         site = new Site("/tmp", [new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
 
+        var sites = new Dictionary<string, Site> { ["test"] = site };
+
         typeof(SiteManager)
             .GetField("_sites", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .SetValue(manager, new Dictionary<string, Site> { ["test"] = site });
+            .SetValue(manager, sites);
+
+        typeof(SiteManager)
+            .GetField("_bindingIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(manager, BuildIndex(sites));
 
         return manager;
+    }
+
+    private static Dictionary<(string host, int port), Site> BuildIndex(Dictionary<string, Site> sites)
+    {
+        var index = new Dictionary<(string, int), Site>();
+
+        foreach (var s in sites.Values)
+        {
+            foreach (var binding in s.Bindings ?? [])
+            {
+                if (!index.ContainsKey((binding.Host, binding.Port)))
+                    index[(binding.Host, binding.Port)] = s;
+            }
+        }
+
+        return index;
     }
 
     private sealed class ServiceProviderStub : IServiceProvider

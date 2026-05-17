@@ -103,8 +103,11 @@ public class UnixSocketApiTests
     {
         var response = await _client.PostAsync("/api/users", null!);
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
-        Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/api/users/1"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+            Assert.That(response.Headers.Location?.ToString(), Is.EqualTo("/api/users/1"));
+        }
     }
 
     [Test]

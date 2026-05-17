@@ -4,15 +4,18 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using Arbiter.Application.DTOs;
+using Arbiter.Configuration;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Transport.Unix.Tests.Helpers;
+using Microsoft.Extensions.Configuration;
+using ArbiterConfig = Arbiter.Configuration.ConfigurationProvider;
 
 namespace Arbiter.Transport.Unix.Tests;
 
 public class UnixSocketIntegrationTests
 {
-    private static readonly ReadOnlyHeaders EmptyHeaders = new(new Core.ValueObjects.Headers());
+    private static readonly ReadOnlyHeaders EmptyHeaders = new([]);
 
     private UnixSocketFixture? _fixture;
 
@@ -63,8 +66,11 @@ public class UnixSocketIntegrationTests
             var response = await customFixture.Client.GetAsync("/data");
             var body = await response.Content.ReadAsStringAsync();
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(body, Is.EqualTo(expectedBody));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(body, Is.EqualTo(expectedBody));
+            }
         }
         finally
         {
@@ -76,9 +82,10 @@ public class UnixSocketIntegrationTests
     public async Task Response_with_headers()
     {
         var customFixture = await UnixSocketFixture.CreateAsync(req => {
-            var headers = new Core.ValueObjects.Headers();
-            headers.Add("Content-Type", "application/json");
-            headers.Add("X-Custom-Header", "custom-value");
+            var headers = new Core.ValueObjects.Headers {
+                { "Content-Type", "application/json" },
+                { "X-Custom-Header", "custom-value" },
+            };
 
             return Task.FromResult(new ResponseDto {
                 Status = Status.Ok,
@@ -90,9 +97,12 @@ public class UnixSocketIntegrationTests
         {
             var response = await customFixture.Client.GetAsync("/headers");
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
-            Assert.That(response.Headers.GetValues("X-Custom-Header").First(), Is.EqualTo("custom-value"));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("application/json"));
+                Assert.That(response.Headers.GetValues("X-Custom-Header").First(), Is.EqualTo("custom-value"));
+            }
         }
         finally
         {
@@ -118,8 +128,11 @@ public class UnixSocketIntegrationTests
 
             var response = await customFixture.Client.SendAsync(request);
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(receivedHeader, Is.EqualTo("test-value"));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(receivedHeader, Is.EqualTo("test-value"));
+            }
         }
         finally
         {
@@ -154,8 +167,11 @@ public class UnixSocketIntegrationTests
             var response = await customFixture.Client.PostAsync("/echo", content);
             var responseBody = await response.Content.ReadAsStringAsync();
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(responseBody, Is.EqualTo(expectedBody));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(responseBody, Is.EqualTo(expectedBody));
+            }
         }
         finally
         {
@@ -177,8 +193,11 @@ public class UnixSocketIntegrationTests
         {
             var response = await customFixture.Client.SendAsync(new HttpRequestMessage(HttpMethod.Patch, "/method-test"));
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(methodReceived, Is.EqualTo(nameof(Method.Patch)));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(methodReceived, Is.EqualTo(nameof(Method.Patch)));
+            }
         }
         finally
         {
@@ -291,7 +310,7 @@ public class UnixSocketAcceptorTests
     public async Task Bind_creates_socket_file()
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"arbiter_test_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor();
+        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
 
         try
         {
@@ -309,7 +328,7 @@ public class UnixSocketAcceptorTests
     public async Task Bind_idempotent()
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"arbiter_test_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor();
+        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
 
         try
         {
@@ -329,21 +348,27 @@ public class UnixSocketAcceptorTests
     {
         var pathA = Path.Combine(Path.GetTempPath(), $"arbiter_test_a_{Guid.NewGuid():N}.sock");
         var pathB = Path.Combine(Path.GetTempPath(), $"arbiter_test_b_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor();
+        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
 
         try
         {
             await acceptor.Bind([pathA, pathB]);
 
-            Assert.That(File.Exists(pathA), Is.True);
-            Assert.That(File.Exists(pathB), Is.True);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(File.Exists(pathA), Is.True);
+                Assert.That(File.Exists(pathB), Is.True);
+            }
 
             await acceptor.Bind([pathA]);
 
             await Task.Delay(100);
 
-            Assert.That(File.Exists(pathA), Is.True);
-            Assert.That(File.Exists(pathB), Is.False);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(File.Exists(pathA), Is.True);
+                Assert.That(File.Exists(pathB), Is.False);
+            }
         }
         finally
         {
@@ -355,7 +380,7 @@ public class UnixSocketAcceptorTests
     [Test]
     public void Port_is_negative_one()
     {
-        var acceptor = new UnixSocketAcceptor();
+        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
 
         var field = acceptor.GetType()
             .GetField("_transports", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);

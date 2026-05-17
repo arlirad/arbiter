@@ -2,14 +2,15 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Runtime.Versioning;
 using System.Security.Authentication;
+using System.Threading;
 using System.Threading.Channels;
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Transport.Quic;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Primitives;
+using Arbiter.Configuration;
+using Arbiter.Transport.Quic.Models;
 using Serilog;
 
 namespace Arbiter.Transport.Quic;
@@ -17,19 +18,50 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class QuicAcceptor(
-    ICertificateManager certificateManager
-) : IAcceptor, IAsyncConfigurable
+public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDisposable
 {
     private const int Backlog = 128;
     private const int MaxInboundBidirectionalStreams = 1024;
 
+    private readonly ICertificateManager _certificateManager;
     private readonly ConcurrentDictionary<IPEndPoint, QuicAcceptorListener> _listeners = new();
-
     private readonly Channel<ITransport> _transports =
         Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
+    private readonly CompositeDisposable _subscriptions = [];
+    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
 
-    private ConfigurationScope? _scope;
+    public QuicAcceptor(ICertificateManager certificateManager, ConfigurationProvider configProvider)
+    {
+        _certificateManager = certificateManager;
+
+        var quicConfig = Observable.CombineLatest(
+            configProvider.Observe<List<string>>("ListenOn"),
+            configProvider.Observe<List<int>>("QuicPorts"),
+            (listenOn, quicPorts) => {
+                var addresses = listenOn.Select(IPAddress.Parse).ToList();
+                return new QuicListenConfig(addresses, quicPorts);
+            }
+        );
+
+        _subscriptions.Add(quicConfig.Subscribe(async config => {
+            try
+            {
+                await _reconfigureLock.WaitAsync();
+                try
+                {
+                    await ReconfigureAsync(config);
+                }
+                finally
+                {
+                    _reconfigureLock.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to reconfigure QUIC acceptor");
+            }
+        }));
+    }
 
     public async Task<ITransport> Accept(CancellationToken ct)
     {
@@ -37,23 +69,16 @@ public class QuicAcceptor(
             return await _transports.Reader.ReadAsync(ct);
     }
 
-    public async ValueTask Bind(IConfiguration configuration)
+    public async ValueTask ReconfigureAsync(QuicListenConfig config)
     {
-        _scope = new ConfigurationScope(configuration, "ListenOn", "QuicPorts");
-        await UpdateEndpoints();
-        ChangeToken.OnChange(_scope.GetReloadToken, () => _ = UpdateEndpointsAsync());
-    }
+        var endpoints = new List<IPEndPoint>();
+        foreach (var address in config.Addresses)
+        {
+            foreach (var port in config.Ports)
+                endpoints.Add(new IPEndPoint(address, port));
+        }
 
-    private async Task UpdateEndpointsAsync()
-    {
-        try
-        {
-            await UpdateEndpoints();
-        }
-        catch (Exception e)
-        {
-            Log.Error("Failed to reload config: {Exception}", e);
-        }
+        await Bind(endpoints);
     }
 
     public async Task Bind(IEnumerable<IPEndPoint> endpoints)
@@ -75,13 +100,11 @@ public class QuicAcceptor(
                 }
                 catch (QuicException)
                 {
-                    // ignored
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            // ignored
         }
     }
 
@@ -98,6 +121,7 @@ public class QuicAcceptor(
         }
         catch (OperationCanceledException)
         {
+            // ignored
         }
         catch (Exception)
         {
@@ -146,7 +170,7 @@ public class QuicAcceptor(
         SslClientHelloInfo clientHello,
         CancellationToken ct)
     {
-        var cert = certificateManager.Get(clientHello.ServerName) ?? certificateManager.GetFallback();
+        var cert = _certificateManager.Get(clientHello.ServerName) ?? _certificateManager.GetFallback();
         var options = new QuicServerConnectionOptions {
             DefaultStreamErrorCode = 0,
             DefaultCloseErrorCode = 1,
@@ -162,43 +186,9 @@ public class QuicAcceptor(
         return ValueTask.FromResult(options);
     }
 
-    private async Task UpdateEndpoints()
+    public void Dispose()
     {
-        try
-        {
-            if (_scope is null)
-                return;
-
-            var endpoints = ExtractConfigBindings();
-
-            if (endpoints.Any())
-                await Bind(endpoints);
-        }
-        catch (Exception e)
-        {
-            Log.Error("Failed to reload config: {Exception}", e);
-        }
-    }
-
-    private IEnumerable<IPEndPoint> ExtractConfigBindings()
-    {
-        if (_scope is null)
-            return [];
-
-        var listenOn = _scope.GetSection("ListenOn").Get<List<string>>();
-        var quicPorts = _scope.GetSection("QuicPorts").Get<List<int>>();
-
-        if (listenOn is null || quicPorts is null)
-            return [];
-
-        var endpoints = new List<IPEndPoint>();
-
-        foreach (var address in listenOn)
-        {
-            foreach (var port in quicPorts)
-                endpoints.Add(new IPEndPoint(IPAddress.Parse(address), port));
-        }
-
-        return endpoints;
+        _subscriptions.Dispose();
+        _reconfigureLock.Dispose();
     }
 }

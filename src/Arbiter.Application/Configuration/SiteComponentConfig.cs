@@ -7,12 +7,12 @@ public class SiteComponentConfig : IEquatable<SiteComponentConfig?>
     public string? Name
     {
         get;
-        set;
+        init;
     }
     public IConfigurationSection? Config
     {
         get;
-        set;
+        init;
     }
 
     public bool Equals(SiteComponentConfig? other)

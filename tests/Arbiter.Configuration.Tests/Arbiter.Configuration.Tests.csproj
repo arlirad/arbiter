@@ -5,7 +5,7 @@
         <LangVersion>latest</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <IsPackable>false</IsPackable>
     </PropertyGroup>
 
@@ -14,6 +14,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="NUnit"/>
         <PackageReference Include="NUnit.Analyzers">
@@ -21,6 +22,7 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="NUnit3TestAdapter"/>
+        <PackageReference Include="System.Reactive"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -29,9 +31,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Arbiter.Configuration\Arbiter.Configuration.csproj"/>
-        <ProjectReference Include="..\..\src\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
-        <ProjectReference Include="..\..\src\Arbiter.Application\Arbiter.Application.csproj"/>
-        <ProjectReference Include="..\..\src\Arbiter.Protocol.Http11\Arbiter.Protocol.Http11.csproj"/>
     </ItemGroup>
 
 </Project>

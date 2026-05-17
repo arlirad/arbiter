@@ -232,7 +232,7 @@ public class ProxyMiddleware : IMiddleware
         return (status, responseHeaders, responseStream);
     }
 
-    private void CopyHeaders(Context context, Headers responseHeaders)
+    private static void CopyHeaders(Context context, Headers responseHeaders)
     {
         List<string>? connectionHeaders = null;
 
@@ -286,7 +286,7 @@ public class ProxyMiddleware : IMiddleware
         await context.Response.Set(status.Value, new ResponseStream(responseStream, response));
     }
 
-    private void CopyHeaders(Context context, HttpResponseMessage response)
+    private static void CopyHeaders(Context context, HttpResponseMessage response)
     {
         List<string>? connectionHeaders = null;
 

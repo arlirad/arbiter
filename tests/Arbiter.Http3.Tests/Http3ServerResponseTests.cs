@@ -69,10 +69,11 @@ public class Http3ServerResponseTests
         await foreach (var header in clientStream.ReadHeaders(default))
             responseHeaders.Add(header);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(responseHeaders.Any(h => h.Key == ":status" && h.Value == "200"), Is.True);
             Assert.That(responseHeaders.Any(h => h.Key == "content-type" && h.Value == "text/plain"), Is.True);
-        });
+        }
     }
 
     [Test]
@@ -109,10 +110,11 @@ public class Http3ServerResponseTests
         var buffer = new byte[256];
         var bytesRead = await clientStream.ReadAsync(buffer, CancellationToken.None);
 
-        Assert.Multiple(() => {
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(bytesRead, Is.EqualTo(responseBody.Length));
             Assert.That(Encoding.UTF8.GetString(buffer, 0, bytesRead), Is.EqualTo("Hello from server!"));
-        });
+        }
     }
 
     [Test]
@@ -226,7 +228,7 @@ public class Http3ServerResponseTests
             ["x-echo"] = ["true"],
         }, CancellationToken.None);
 
-        await serverStream.WriteAsync(receivedBody[..receivedBytes], CancellationToken.None);
+        await serverStream.WriteAsync(receivedBody.AsMemory()[..receivedBytes], CancellationToken.None);
 
         await serverStream.FinishAsync();
 

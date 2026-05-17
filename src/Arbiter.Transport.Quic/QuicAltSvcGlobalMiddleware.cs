@@ -7,7 +7,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace Arbiter.Transport.Quic;
 
-internal class QuicAltSvcGlobalMiddleware : IGlobalMiddleware, IConfigurable
+internal class QuicAltSvcGlobalMiddleware : IGlobalMiddleware
 {
     private readonly HandleDelegate _next;
     private List<int> _quicPorts = [];
@@ -18,10 +18,10 @@ internal class QuicAltSvcGlobalMiddleware : IGlobalMiddleware, IConfigurable
         IConfiguration configuration)
     {
         _next = next;
-        Bind(configuration);
+        Initialize(configuration);
     }
 
-    public void Bind(IConfiguration configuration)
+    private void Initialize(IConfiguration configuration)
     {
         _scope = new ConfigurationScope(configuration, "QuicPorts");
         UpdatePorts();
@@ -48,7 +48,7 @@ internal class QuicAltSvcGlobalMiddleware : IGlobalMiddleware, IConfigurable
 
     private void UpdatePorts()
     {
-        var quicPorts = _scope?.GetSection("QuicPorts").Get<List<int>>();
+        var quicPorts = _scope?.Get<List<int>>();
 
         if (quicPorts != null)
             _quicPorts = [.. quicPorts];

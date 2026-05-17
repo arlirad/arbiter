@@ -1,26 +1,56 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Sockets;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Threading;
 using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Transport.Unix;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Primitives;
+using Arbiter.Configuration;
+using Arbiter.Transport.Unix.Models;
 using Serilog;
 
 namespace Arbiter.Transport.Unix;
 
-public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable
+public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixListenConfig>, IDisposable
 {
     private const int Backlog = 128;
 
     private readonly ConcurrentDictionary<string, UnixSocketAcceptorSocket> _sockets = new();
-
     private readonly Channel<ITransport> _transports =
         Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
+    private readonly CompositeDisposable _subscriptions = [];
+    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
 
-    private ConfigurationScope? _scope;
+    public UnixSocketAcceptor(ConfigurationProvider configProvider)
+    {
+        var unixConfig = configProvider.Observe<Dictionary<string, SiteConfig>>("Sites")
+            .Select(sites => {
+                var paths = sites.SelectMany(s => s.Value.Bindings ?? [])
+                    .Where(b => b.Scheme == "unix").Select(b => b.AbsolutePath).Distinct().ToList();
+                return new UnixListenConfig(paths);
+            });
+
+        _subscriptions.Add(unixConfig.Subscribe(async config => {
+            try
+            {
+                await _reconfigureLock.WaitAsync();
+                try
+                {
+                    await ReconfigureAsync(config);
+                }
+                finally
+                {
+                    _reconfigureLock.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to reconfigure Unix acceptor");
+            }
+        }));
+    }
 
     public async Task<ITransport> Accept(CancellationToken ct)
     {
@@ -28,24 +58,7 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable
             return await _transports.Reader.ReadAsync(ct);
     }
 
-    public async ValueTask Bind(IConfiguration configuration)
-    {
-        _scope = new ConfigurationScope(configuration, "Sites");
-        await UpdateBindings();
-        ChangeToken.OnChange(_scope.GetReloadToken, () => _ = UpdateBindingsAsync());
-    }
-
-    private async Task UpdateBindingsAsync()
-    {
-        try
-        {
-            await UpdateBindings();
-        }
-        catch (Exception e)
-        {
-            Log.Error("Failed to reload config: {Exception}", e);
-        }
-    }
+    public async ValueTask ReconfigureAsync(UnixListenConfig config) => await Bind(config.Paths);
 
     public async Task Bind(IEnumerable<string> paths)
     {
@@ -138,35 +151,9 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable
             await Task.WhenAll(cancellationTasks);
     }
 
-    private async Task UpdateBindings()
+    public void Dispose()
     {
-        try
-        {
-            if (_scope is null)
-                return;
-
-            var paths = ExtractSocketPaths();
-
-            if (paths is not null)
-                await Bind(paths);
-        }
-        catch (Exception e)
-        {
-            Log.Error("Failed to reload config: {Exception}", e);
-        }
-    }
-
-    private IEnumerable<string>? ExtractSocketPaths()
-    {
-        var sites = _scope?.GetSection("Sites").Get<Dictionary<string, SiteConfig>>();
-        if (sites is null)
-            return null;
-
-        var paths = sites
-            .SelectMany(s => s.Value.Bindings ?? [])
-            .Where(uri => uri.Scheme == "unix")
-            .Select(uri => uri.AbsolutePath);
-
-        return paths.Distinct().ToList();
+        _subscriptions.Dispose();
+        _reconfigureLock.Dispose();
     }
 }

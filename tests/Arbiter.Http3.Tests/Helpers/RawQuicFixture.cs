@@ -125,7 +125,7 @@ public class RawQuicFixture : IAsyncDisposable
         return stream;
     }
 
-    public void FeedInboundStream(QuicStream stream, Http3Connection connection)
+    public static void FeedInboundStream(QuicStream stream, Http3Connection connection)
         => connection.FeedInboundStream(stream);
 
     public async Task<QuicStream> AcceptServerInboundStream(CancellationToken ct = default)

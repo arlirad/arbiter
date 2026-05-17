@@ -8,7 +8,7 @@ namespace Arbiter.Api.Sample.Controllers;
 public class ContentController : ControllerBase
 {
     [HttpGet("negotiate")]
-    public IActionResult ContentNegotiation()
+    public static IActionResult ContentNegotiation()
     {
         var data = new {
             Message = "Hello, world!",
@@ -22,10 +22,10 @@ public class ContentController : ControllerBase
     }
 
     [HttpGet("text")]
-    public IActionResult PlainText() => Ok("This is plain text content");
+    public static IActionResult PlainText() => Ok("This is plain text content");
 
     [HttpGet("json")]
-    public IActionResult JsonContent()
+    public static IActionResult JsonContent()
     {
         return Json(new {
             Type = "json",

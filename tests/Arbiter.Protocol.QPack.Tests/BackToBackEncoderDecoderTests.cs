@@ -33,7 +33,7 @@ public class BackToBackEncoderDecoderTests
     [Test]
     public async Task FieldSection_RoundTrip_StaticAndLiteral_ZeroRequiredInsertCount()
     {
-        var (encToDec, decToEnc, encoder, decoder) = await MakePair();
+        var (_, decToEnc, encoder, decoder) = await MakePair();
 
         var sectionStream = new MemoryStream();
 
@@ -60,14 +60,14 @@ public class BackToBackEncoderDecoderTests
         {
             Assert.That(headers[":path"], Is.EqualTo("/index.html"));
             Assert.That(headers["custom-key"], Is.EqualTo("custom-value"));
-            Assert.That(decToEnc.Length, Is.EqualTo(0), "No decoder instruction expected for RIC=0");
+            Assert.That(decToEnc.Length, Is.Zero, "No decoder instruction expected for RIC=0");
         }
     }
 
     [Test]
     public async Task FieldSection_WriteFieldSection_StaticAndLiteral_RoundTrip()
     {
-        var (encToDec, decToEnc, encoder, decoder) = await MakePair();
+        var (_, _, encoder, decoder) = await MakePair();
         encoder.Initialize(4096, 0);
 
         var sectionStream = new MemoryStream();
@@ -124,8 +124,11 @@ public class BackToBackEncoderDecoderTests
         while (decoder.TotalInsertCount < 1 && DateTime.UtcNow < deadline)
             await Task.Delay(10);
 
-        Assert.That(decoder.TotalInsertCount, Is.GreaterThanOrEqualTo(1), "Decoder should have processed the insert");
-        Assert.That(decoder.GetDynamicTable().Any(f => f.Name == name && f.Value == value), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(decoder.TotalInsertCount, Is.GreaterThanOrEqualTo(1), "Decoder should have processed the insert");
+            Assert.That(decoder.GetDynamicTable().Any(f => f.Name == name && f.Value == value), Is.True);
+        }
 
         deadline = DateTime.UtcNow + TimeSpan.FromSeconds(3);
         while (encoder.AckedInsertCount < 1 && DateTime.UtcNow < deadline)
@@ -137,7 +140,7 @@ public class BackToBackEncoderDecoderTests
     [Test]
     public async Task WriteFieldSection_WithHuffman_RoundTrip()
     {
-        var (encToDec, decToEnc, encoder, decoder) = await MakePair();
+        var (_, _, encoder, decoder) = await MakePair();
         encoder.Initialize(4096, 0);
 
         var sectionStream = new MemoryStream();

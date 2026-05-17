@@ -1,9 +1,11 @@
 using System.Net.Sockets;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
+using Arbiter.Configuration;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Protocol.Http11;
+using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Transport.Unix.Tests.Helpers;
 
@@ -17,7 +19,7 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
     private UnixSocketAcceptor? _acceptor;
     private readonly Func<RequestDto, Task<ResponseDto>> _requestHandler = requestHandler ?? (req => Task.FromResult(new ResponseDto {
         Status = Status.Ok,
-        Headers = new ReadOnlyHeaders(new Headers()),
+        Headers = new ReadOnlyHeaders([]),
     }));
     private Task _serverLoop = null!;
     private HttpClient? _client;
@@ -26,7 +28,7 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
 
     private async Task InitializeAsync()
     {
-        _acceptor = new UnixSocketAcceptor();
+        _acceptor = new UnixSocketAcceptor(new Arbiter.Configuration.ConfigurationProvider(new ConfigurationBuilder().Build()));
         await _acceptor.Bind([SocketPath]);
 
         await Task.Yield();

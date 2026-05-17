@@ -54,9 +54,9 @@ internal class TransactionHandler(SiteManager siteManager, ContextMapper context
         }
     }
 
-    private async Task SendResponse(ITransaction transaction, Context context)
+    private static async Task SendResponse(ITransaction transaction, Context context)
     {
-        var response = contextMapper.ToDto(context);
+        var response = ContextMapper.ToDto(context);
 
         await transaction.SetResponse(response);
     }

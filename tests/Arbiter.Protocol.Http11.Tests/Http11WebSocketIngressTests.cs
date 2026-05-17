@@ -96,9 +96,10 @@ public class Http11WebSocketIngressTests
             var request = await transaction.GetRequest();
             var upgrade = (Arbiter.Core.Interfaces.IWebSocketUpgrade)request!.Upgrade!;
 
-            var headers = new Arbiter.Core.ValueObjects.Headers();
-            headers.Add("Upgrade", "websocket");
-            headers.Add("Connection", "upgrade");
+            var headers = new Arbiter.Core.ValueObjects.Headers {
+                { "Upgrade", "websocket" },
+                { "Connection", "upgrade" },
+            };
 
             await upgrade.AcceptAsync(new Arbiter.Core.ValueObjects.ReadOnlyHeaders(headers));
 
