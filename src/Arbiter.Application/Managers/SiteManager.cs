@@ -95,7 +95,7 @@ internal class SiteManager(
             var factory = scope.ServiceProvider.GetRequiredService<SiteOrchestrator>();
             var site = await factory.Orchestrate(configuration[key]);
             await site.Start();
-            Log.Information("Recreated site '{Key}'", key);
+            Log.Information("Reloaded site '{Key}'", key);
             stagedSites[key] = site;
         }
 
@@ -120,7 +120,9 @@ internal class SiteManager(
         foreach (var kvp in sitesToStop)
         {
             await kvp.Value.Stop();
-            Log.Information("Stopped site '{Key}'", kvp.Key);
+
+            if (!stagedSites.ContainsKey(kvp.Key))
+                Log.Information("Removed site '{Key}'", kvp.Key);
         }
     }
 

@@ -9,28 +9,49 @@ public class SiteComponentConfig : IEquatable<SiteComponentConfig?>
         get;
         init;
     }
+
+    private readonly IConfiguration? _frozenConfig;
+
     public IConfigurationSection? Config
     {
         get;
-        init;
+        init {
+            field = value;
+            _frozenConfig = value is null ? null : Freeze(value);
+        }
     }
 
-    public bool Equals(SiteComponentConfig? other)
+    public bool Equals(SiteComponentConfig? other) => other is not null && (ReferenceEquals(this, other) || (Name == other.Name && ConfigEquals(_frozenConfig, other._frozenConfig)));
+    public override bool Equals(object? obj) => Equals(obj as SiteComponentConfig);
+    public override int GetHashCode() => HashCode.Combine(Name, ConfigGetHashCode(_frozenConfig));
+
+    private static IConfiguration Freeze(IConfiguration config)
     {
-        if (other is null)
-            return false;
-        if (ReferenceEquals(this, other))
-            return true;
-        if (Name != other.Name)
-            return false;
+        var dict = config.AsEnumerable()
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-        var a = Config?.AsEnumerable().OrderBy(kv => kv.Key).ToList() ?? [];
-        var b = other.Config?.AsEnumerable().OrderBy(kv => kv.Key).ToList() ?? [];
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(dict!)
+            .Build();
+    }
 
-        return a.Count == b.Count && a.Zip(b).All(pair =>
+    private static bool ConfigEquals(IConfiguration? a, IConfiguration? b) => (a is null && b is null) || (a is not null && b is not null && ConfigEqualsContent(a, b));
+
+    private static bool ConfigEqualsContent(IConfiguration a, IConfiguration b)
+    {
+        var ae = a.AsEnumerable().OrderBy(kv => kv.Key).ToList();
+        var be = b.AsEnumerable().OrderBy(kv => kv.Key).ToList();
+
+        return ae.Count == be.Count && ae.Zip(be).All(pair =>
             pair.First.Key == pair.Second.Key && pair.First.Value == pair.Second.Value);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as SiteComponentConfig);
-    public override int GetHashCode() => Name?.GetHashCode() ?? 0;
+    private static int ConfigGetHashCode(IConfiguration? config)
+    {
+        return config is not null
+            ? config.AsEnumerable()
+                .OrderBy(kv => kv.Key)
+                .Aggregate(0, (hash, kvp) => HashCode.Combine(hash, kvp.Key, kvp.Value))
+            : 0;
+    }
 }
