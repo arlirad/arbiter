@@ -1,4 +1,5 @@
-﻿using Arbiter.Application;
+﻿using System.Reflection;
+using Arbiter.Application;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Constants;
 using Arbiter.Infrastructure;
@@ -17,7 +18,8 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-Log.Information("Starting {Name}/{Version}", AppConstants.Name, typeof(Program).Assembly.GetName().Version?.ToString(3));
+var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0];
+Log.Information("Starting {Name}/{Version}", AppConstants.Name, version);
 
 try
 {

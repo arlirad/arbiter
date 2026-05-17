@@ -4,7 +4,9 @@ This product includes the following third-party software:
 
 Apache License 2.0:
 
+- MinVer (https://github.com/adamralph/minver) - Version 6.1.0
 - Serilog (https://github.com/serilog/serilog) - Version 4.3.1
+- Serilog.Extensions.Logging (https://github.com/serilog/serilog-extensions-logging) - Version 8.0.0
 - Serilog.Sinks.Console (https://github.com/serilog/serilog-sinks-console) - Version 6.1.1
 
 The Apache License, Version 2.0
@@ -25,8 +27,23 @@ limitations under the License.
 
 MIT License:
 
-- NetEscapades.Configuration.Yaml (https://github.com/NickStrupat/NetEscapades.Configuration.Yaml) - Version 3.1.0
-- Webprofusion.Certify.ACME.Anvil (https://github.com/Webprofusion/Certify) - Version 3.3.3
+- Microsoft.Extensions.Configuration (https://github.com/dotnet/runtime) - Version 10.0.3
+- Microsoft.Extensions.Configuration.Binder (https://github.com/dotnet/runtime) - Version 10.0.3
+- Microsoft.Extensions.Configuration.Json (https://github.com/dotnet/runtime) - Version 10.0.3
+- Microsoft.Extensions.DependencyInjection (https://github.com/dotnet/runtime) - Version 10.0.3
+- Microsoft.Extensions.DependencyInjection.Abstractions (https://github.com/dotnet/runtime) - Version 10.0.3
+- Microsoft.Extensions.Hosting (https://github.com/dotnet/runtime) - Version 10.0.0
+- Microsoft.Extensions.Logging (https://github.com/dotnet/runtime) - Version 10.0.0
+- Microsoft.Extensions.Logging.Abstractions (https://github.com/dotnet/runtime) - Version 10.0.0
+- Microsoft.Extensions.Options (https://github.com/dotnet/runtime) - Version 10.0.3
+- Microsoft.NET.Test.Sdk (https://github.com/microsoft/vstest) - Version 18.0.1
+- NUnit (https://nunit.org/) - Version 4.4.0
+- NUnit.Analyzers (https://github.com/nunit/nunit.analyzers) - Version 4.11.2
+- NUnit3TestAdapter (https://github.com/nunit/nunit3testadapter) - Version 6.1.0
+- NetEscapades.Configuration.Yaml (https://github.com/andrewlock/NetEscapades.Configuration) - Version 3.1.0
+- System.Reactive (https://github.com/dotnet/reactive) - Version 6.1.0
+- Webprofusion.Certify.ACME.Anvil (https://github.com/webprofusion/anvil) - Version 3.3.3
+- coverlet.collector (https://github.com/coverlet-coverage/coverlet) - Version 8.0.0
 
 The MIT License
 
