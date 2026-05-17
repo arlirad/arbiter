@@ -5,7 +5,8 @@ WORKDIR /src
 
 COPY . .
 
-RUN dotnet publish src/Arbiter/Arbiter.csproj -c Release -o /app
+ARG VERSION=0.0.0
+RUN dotnet publish src/Arbiter/Arbiter.csproj -c Release -o /app /p:Version=${VERSION}
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
 

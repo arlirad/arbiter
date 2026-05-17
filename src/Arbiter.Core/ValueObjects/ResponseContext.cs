@@ -7,7 +7,6 @@ public class ResponseContext
     internal ResponseContext()
     {
         Headers = [];
-        Headers.Add("Server", "Arbiter");
     }
 
     public Status? Status

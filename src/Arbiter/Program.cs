@@ -1,5 +1,6 @@
 ﻿using Arbiter.Application;
 using Arbiter.Application.Interfaces;
+using Arbiter.Core.Constants;
 using Arbiter.Infrastructure;
 using Arbiter.Infrastructure.Acme;
 using Arbiter.Infrastructure.Cors;
@@ -16,7 +17,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-Log.Information("Starting Arbiter");
+Log.Information("Starting {Name}/{Version}", AppConstants.Name, typeof(Program).Assembly.GetName().Version?.ToString(3));
 
 try
 {
@@ -45,7 +46,7 @@ try
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Arbiter terminated unexpectedly");
+    Log.Fatal(ex, "{Name} terminated unexpectedly", AppConstants.Name);
 }
 finally
 {
