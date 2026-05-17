@@ -27,7 +27,6 @@ public class ProxyToUnixSocketTests
     private CancellationTokenSource _apiCts = null!;
     private string _socketPath = null!;
     private ProxyMiddleware _proxy = null!;
-    private Site _site = null!;
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -85,8 +84,7 @@ public class ProxyToUnixSocketTests
         var configDict = new Dictionary<string, string?> { { "Target", $"unix://{_socketPath}" } };
         var config = new ConfigurationBuilder().AddInMemoryCollection(configDict).Build();
 
-        _site = new Site("proxy-test", [], [], [], _ => Task.CompletedTask);
-        await _proxy.Configure(_site, config);
+        await _proxy.Configure("proxy-test", new ComponentDataContainer(), config);
     }
 
     [TearDown]

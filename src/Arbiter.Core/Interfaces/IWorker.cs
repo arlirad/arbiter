@@ -5,7 +5,7 @@ namespace Arbiter.Core.Interfaces;
 
 public interface IWorker
 {
-    Task Configure(Site site, IConfiguration config);
+    Task Configure(string path, List<Uri> bindings, ComponentDataContainer data, IConfiguration config);
     Task Start();
     Task Stop();
 }

@@ -34,12 +34,12 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
 
         foreach (var (Instance, Config) in middlewareChain)
         {
-            await Instance.Configure(site, Config!);
+            await Instance.Configure(site.Path, site.Data, Config!);
         }
 
         foreach (var (Instance, Config) in workers)
         {
-            await Instance.Configure(site, Config!);
+            await Instance.Configure(site.Path, site.Bindings, site.Data, Config!);
         }
 
         return site;

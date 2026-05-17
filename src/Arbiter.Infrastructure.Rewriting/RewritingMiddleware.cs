@@ -9,7 +9,7 @@ public class RewritingMiddleware(HandleDelegate next) : IMiddleware
 {
     private List<CompiledRule> _compiledRules = [];
 
-    public Task Configure(Site site, IConfiguration config)
+    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
     {
         var typedConfig = config.Get<ConfigModel>();
 

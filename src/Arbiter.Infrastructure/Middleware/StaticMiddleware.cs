@@ -17,13 +17,13 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
     private Dictionary<string, string> _mimeTypes = [];
     private string _root = null!;
 
-    public Task Configure(Site site, IConfiguration config)
+    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
     {
         var typedConfig = config.Get<StaticMiddlewareConfig>();
 
         _defaultFiles = typedConfig?.DefaultFiles ?? [];
         _mimeTypes = typedConfig?.Mime ?? [];
-        _root = site.Path;
+        _root = path;
 
         return Task.CompletedTask;
     }

@@ -7,6 +7,6 @@ public delegate Task HandleDelegate(Context context);
 
 public interface IMiddleware
 {
-    Task Configure(Site site, IConfiguration config);
+    Task Configure(string path, ComponentDataContainer data, IConfiguration config);
     Task Handle(Context context);
 }

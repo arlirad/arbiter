@@ -93,10 +93,10 @@ internal sealed class Api(
         for (var i = 0; i < builder.MiddlewareEntries.Count; i++)
         {
             var config = builder.MiddlewareEntries[i].Config ?? emptyConfig;
-            await pipelineMiddleware[i].Configure(site, config);
+            await pipelineMiddleware[i].Configure(site.Path, site.Data, config);
         }
 
-        await apiMiddleware.Configure(site, emptyConfig);
+        await apiMiddleware.Configure(site.Path, site.Data, emptyConfig);
 
         return site;
     }

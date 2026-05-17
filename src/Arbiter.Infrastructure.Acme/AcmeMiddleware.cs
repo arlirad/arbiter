@@ -13,9 +13,9 @@ internal class AcmeMiddleware(HandleDelegate next) : IMiddleware
     private const string AcmeChallengePathPrefix = "/.well-known/acme-challenge/";
     private DataModel? _data;
 
-    public Task Configure(Site site, IConfiguration config)
+    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
     {
-        _data = site.GetComponentData<DataModel>();
+        _data = data.Get<DataModel>();
         return Task.CompletedTask;
     }
 

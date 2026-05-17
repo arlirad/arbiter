@@ -9,7 +9,7 @@ namespace Arbiter.Api.Middleware;
 
 public class RequestLoggingMiddleware(HandleDelegate next) : IMiddleware
 {
-    public Task Configure(Site site, IConfiguration config) => Task.CompletedTask;
+    public Task Configure(string path, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
 
     public async Task Handle(Context context)
     {

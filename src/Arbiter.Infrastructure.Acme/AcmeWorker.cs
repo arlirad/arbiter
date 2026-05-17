@@ -29,7 +29,7 @@ internal class AcmeWorker(
     private Task? _orderTask;
     private bool _tosAccepted;
 
-    public Task Configure(Site site, IConfiguration config)
+    public Task Configure(string path, List<Uri> bindings, ComponentDataContainer data, IConfiguration config)
     {
         var typedConfig = config.Get<ConfigModel>();
 
@@ -42,9 +42,9 @@ internal class AcmeWorker(
         _acmeDirectoryUrl = typedConfig.AcmeDirectoryUrl ?? throw new Exception("acmeUrl is not set");
         _accountName = typedConfig.AccountName;
         _tosAccepted = typedConfig.TosAccepted.Value;
-        _data = site.GetComponentData<DataModel>();
+        _data = data.Get<DataModel>();
         _domains = [
-            .. site.Bindings
+            .. bindings
                 .Where(b => b.Scheme == Uri.UriSchemeHttps)
                 .Select(b => b.Host),
         ];

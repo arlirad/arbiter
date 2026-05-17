@@ -45,8 +45,7 @@ public class WebSocketProxyTests
         _proxy = new ProxyMiddleware();
         var configDict = new Dictionary<string, string?> { { "Target", $"http://localhost:{_backendPort}" } };
         var config = new ConfigurationBuilder().AddInMemoryCollection(configDict).Build();
-        var site = new Site("ws-proxy-test", [], [], [], _ => Task.CompletedTask);
-        await _proxy.Configure(site, config);
+        await _proxy.Configure("ws-proxy-test", new ComponentDataContainer(), config);
     }
 
     [TearDown]

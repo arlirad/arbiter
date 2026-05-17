@@ -17,7 +17,7 @@ public class ApiMiddleware(IReadOnlyList<Type> controllerTypes, IServiceProvider
     private JsonSerializerOptions _jsonOptions = null!;
     private OutputFormatterSelector _outputFormatterSelector = null!;
 
-    public Task Configure(Site site, IConfiguration config)
+    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
     {
         _jsonOptions = serviceProvider.GetRequiredService<JsonSerializerOptions>();
         _outputFormatterSelector = serviceProvider.GetRequiredService<OutputFormatterSelector>();
