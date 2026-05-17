@@ -1,6 +1,6 @@
 namespace Arlirad.Infrastructure.QPack.Streams;
 
-public class BitStream(byte[] buffer)
+public class BitStream(byte[] buffer, int length = -1)
 {
     private const int ByteSize = sizeof(byte) * 8;
 
@@ -13,7 +13,7 @@ public class BitStream(byte[] buffer)
     {
         get;
         set;
-    } = buffer.Length * ByteSize;
+    } = (length < 0 ? buffer.Length : length) * ByteSize;
 
     public long ReadNotAdvancing(int n)
     {

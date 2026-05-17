@@ -55,7 +55,7 @@ public class Http3StreamAbortTests
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
-        await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
+        foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
 
@@ -85,7 +85,7 @@ public class Http3StreamAbortTests
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
-        await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
+        foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
 
@@ -125,7 +125,7 @@ public class Http3StreamAbortTests
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
-        await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
+        foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
 
@@ -134,7 +134,7 @@ public class Http3StreamAbortTests
         }, CancellationToken.None);
         await serverStream.FinishAsync();
 
-        await foreach (var _ in clientStream.ReadHeaders(CancellationToken.None))
+        foreach (var _ in await clientStream.ReadHeaders(CancellationToken.None))
         {
         }
 

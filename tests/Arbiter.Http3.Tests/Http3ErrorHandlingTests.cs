@@ -57,7 +57,7 @@ public class Http3ErrorHandlingTests
         var serverStream = await fixture.AcceptRequestStream(default);
 
         var headerCount = 0;
-        await foreach (var _ in serverStream.ReadHeaders(default))
+        foreach (var _ in await serverStream.ReadHeaders(default))
             headerCount++;
 
         Assert.That(headerCount, Is.GreaterThan(0));
@@ -84,7 +84,7 @@ public class Http3ErrorHandlingTests
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
 
         var headers = new List<KeyValuePair<string, string?>>();
-        await foreach (var header in serverStream.ReadHeaders(CancellationToken.None))
+        foreach (var header in await serverStream.ReadHeaders(CancellationToken.None))
             headers.Add(header);
 
         using (Assert.EnterMultipleScope())

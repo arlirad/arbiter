@@ -1,4 +1,6 @@
+using System.IO;
 using System.Net;
+using System.Net.Quic;
 using System.Runtime.Versioning;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
@@ -29,11 +31,27 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
 
     public async Task<RequestDto?> GetRequest()
     {
+        try
+        {
+            return await GetRequestCore();
+        }
+        catch (QuicException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<RequestDto?> GetRequestCore()
+    {
         var headers = new Headers();
 
         string? method = null, scheme = null, authority = null, path = null, protocol = null;
 
-        await foreach (var header in requestStream.ReadHeaders())
+        foreach (var header in await requestStream.ReadHeaders())
         {
             switch (header.Key)
             {
@@ -154,7 +172,21 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
 
     public async Task SetResponse(ResponseDto response)
     {
-        await WriteStatusAndHeaders((int)response.Status, response.Headers);
+        try
+        {
+            await WriteStatusAndHeaders((int)response.Status, response.Headers);
+        }
+        catch (QuicException)
+        {
+            await AbortCleanup(response);
+            return;
+        }
+        catch (IOException)
+        {
+            await AbortCleanup(response);
+            return;
+        }
+
         await Finish(response);
     }
 
@@ -197,20 +229,47 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
                 await response.Stream.FlushAsync();
             }
         }
+        catch (QuicException) { }
+        catch (IOException) { }
         finally
         {
             if (response.Stream is not null)
                 await response.Stream.DisposeAsync();
-
-            try
-            {
-                await requestStream.FinishAsync();
-            }
-            finally
-            {
-                await requestStream.RetireAsync();
-            }
         }
+
+        try
+        {
+            await requestStream.FinishAsync();
+        }
+        catch (QuicException) { }
+        catch (IOException) { }
+
+        try
+        {
+            await requestStream.RetireAsync();
+        }
+        catch (QuicException) { }
+        catch (IOException) { }
+    }
+
+    private async Task AbortCleanup(ResponseDto response)
+    {
+        if (response.Stream is not null)
+            await response.Stream.DisposeAsync();
+
+        try
+        {
+            await requestStream.FinishAsync();
+        }
+        catch (QuicException) { }
+        catch (IOException) { }
+
+        try
+        {
+            await requestStream.RetireAsync();
+        }
+        catch (QuicException) { }
+        catch (IOException) { }
     }
 
     private async Task<string?> ParseAuthority(string authority, int expectedPort)

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Security;
@@ -130,10 +131,16 @@ public class TcpAcceptor : IAcceptor, IAsyncConfigurable<TcpListenConfig>, IDisp
 
     private static async Task<bool> CheckForSsl(Socket socket)
     {
-        var buffer = new byte[1];
-        var length = await socket.ReceiveAsync(buffer, SocketFlags.Peek);
-
-        return length != 0 && buffer[0] == 22;
+        var buffer = ArrayPool<byte>.Shared.Rent(1);
+        try
+        {
+            var length = await socket.ReceiveAsync(buffer, SocketFlags.Peek);
+            return length != 0 && buffer[0] == 22;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     private async Task<Stream> WrapInSsl(Stream stream)

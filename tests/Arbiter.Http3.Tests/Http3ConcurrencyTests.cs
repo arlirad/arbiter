@@ -64,7 +64,7 @@ public class Http3ConcurrencyTests
         {
             var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
 
-            await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
+            foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
             {
             }
 

@@ -24,7 +24,17 @@ public sealed class QuicTransport(QuicConnection connection, int port, IPAddress
     {
         while (!ct.IsCancellationRequested)
         {
-            var stream = await connection.AcceptInboundStreamAsync(ct);
+            QuicStream? stream;
+
+            try
+            {
+                stream = await connection.AcceptInboundStreamAsync(ct);
+            }
+            catch (QuicException)
+            {
+                break;
+            }
+
             yield return new TransportStream(stream, stream.Id);
         }
     }

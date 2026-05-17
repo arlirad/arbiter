@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net.Quic;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
@@ -26,7 +27,19 @@ public class Http3Protocol : IProtocol
             throw new InvalidOperationException("Http3Protocol requires QuicTransport");
 
         _connection = new Http3Connection(quicTransport.Connection);
-        await _connection.Start();
+
+        try
+        {
+            await _connection.Start();
+        }
+        catch (QuicException)
+        {
+            yield break;
+        }
+        catch (IOException)
+        {
+            yield break;
+        }
 
         await foreach (var transportStream in transport.GetStreams(ct))
         {

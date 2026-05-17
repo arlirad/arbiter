@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Net.Quic;
-using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Arlirad.Http3.Enums;
 using Arlirad.Http3.Framing;
@@ -34,22 +33,31 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         set => throw new NotSupportedException();
     }
 
-    public async IAsyncEnumerable<KeyValuePair<string, string?>> ReadHeaders(
-        [EnumeratorCancellation] CancellationToken ct = default)
+    public async Task<List<KeyValuePair<string, string?>>> ReadHeaders(CancellationToken ct = default)
     {
         var headersFrame = await _reader.ReadFrame(ct);
-        var reader = await connection.Decoder.GetSectionReader(streamId, headersFrame.Stream, ct);
-        _currentHeaderReader = reader;
+        var length = (int)headersFrame.Stream.Length;
+        var buffer = ArrayPool<byte>.Shared.Rent(length);
 
+        QPackFieldSectionReader? reader = null;
         try
         {
+            await headersFrame.Stream.ReadExactlyAsync(buffer, 0, length, ct);
+            reader = await connection.Decoder.GetSectionReader(streamId, buffer, length, ct);
+            _currentHeaderReader = reader;
+
+            var headers = new List<KeyValuePair<string, string?>>();
             foreach (var field in reader)
-                yield return new KeyValuePair<string, string?>(field.Name, field.Value);
+                headers.Add(new KeyValuePair<string, string?>(field.Name, field.Value));
+
+            return headers;
         }
         finally
         {
-            await reader.DisposeAsync();
+            if (reader is not null)
+                await reader.DisposeAsync();
             _currentHeaderReader = null;
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
         }
     }
 

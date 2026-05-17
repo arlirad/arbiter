@@ -2,7 +2,7 @@ namespace Arlirad.Http3;
 
 public class Http3ConnectionSettings
 {
-    public int MaxFieldSectionSize
+    public ulong MaxFieldSectionSize
     {
         get;
         set;

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using Arbiter.Core.ValueObjects;
 
@@ -9,36 +10,49 @@ public static class HeadersFinder
 
     public static async Task<(Stream? headers, Stream? remainder)> GetHeadersClampedStream(Stream inner)
     {
-        var buffer = new byte[16368];
-        var offset = 0;
-
-        while (true)
+        var buffer = ArrayPool<byte>.Shared.Rent(16368);
+        try
         {
-            var length = await inner.ReadAsync(buffer.AsMemory(offset));
-            var searchStart = Math.Max(0, offset - (Pattern.Length - 1));
-            var pattern = Pattern.AsSpan();
-            var index = buffer.AsSpan(searchStart).IndexOf(pattern);
+            var offset = 0;
 
-            offset += length;
-
-            if (index != -1)
+            while (true)
             {
-                var actualIndex = index + searchStart;
-                var endIndex = actualIndex + pattern.Length;
-                var remainderLength = offset - endIndex;
-                var headers = new MemoryStream(buffer, 0, endIndex);
-                var remainder = remainderLength > 0
-                    ? new MemoryStream(buffer, endIndex, remainderLength)
-                    : null;
+                var length = await inner.ReadAsync(buffer.AsMemory(offset));
+                var searchStart = Math.Max(0, offset - (Pattern.Length - 1));
+                var pattern = Pattern.AsSpan();
+                var index = buffer.AsSpan(searchStart).IndexOf(pattern);
 
-                return (headers, remainder);
+                offset += length;
+
+                if (index != -1)
+                {
+                    var actualIndex = index + searchStart;
+                    var endIndex = actualIndex + pattern.Length;
+                    var remainderLength = offset - endIndex;
+                    var headersBytes = new byte[endIndex];
+                    buffer.AsSpan(0, endIndex).CopyTo(headersBytes);
+                    var headers = new MemoryStream(headersBytes);
+                    Stream? remainder = null;
+                    if (remainderLength > 0)
+                    {
+                        var remainderBytes = new byte[remainderLength];
+                        buffer.AsSpan(endIndex, remainderLength).CopyTo(remainderBytes);
+                        remainder = new MemoryStream(remainderBytes);
+                    }
+
+                    return (headers, remainder);
+                }
+
+                if (length == 0)
+                    break;
             }
 
-            if (length == 0)
-                break;
+            return (null, null);
         }
-
-        return (null, null);
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     public static async Task<Headers?> ParseHeaders(StreamReader reader)

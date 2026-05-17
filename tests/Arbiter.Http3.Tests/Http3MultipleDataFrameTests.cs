@@ -60,7 +60,7 @@ public class Http3MultipleDataFrameTests
         await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(default);
-        await foreach (var _ in serverStream.ReadHeaders(default))
+        foreach (var _ in await serverStream.ReadHeaders(default))
         {
         }
 
@@ -96,7 +96,7 @@ public class Http3MultipleDataFrameTests
         await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(default);
-        await foreach (var _ in serverStream.ReadHeaders(default))
+        foreach (var _ in await serverStream.ReadHeaders(default))
         {
         }
 
@@ -131,7 +131,7 @@ public class Http3MultipleDataFrameTests
         await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
-        await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
+        foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
 
@@ -172,7 +172,7 @@ public class Http3MultipleDataFrameTests
         await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
-        await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
+        foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
 

@@ -68,11 +68,19 @@ public class WebSocketFrameWriter(Stream stream)
     public async Task WriteClose(WebSocketCloseStatusCode code = WebSocketCloseStatusCode.Normal, string? reason = null, CancellationToken ct = default)
     {
         var reasonBytes = reason is not null ? System.Text.Encoding.UTF8.GetBytes(reason) : [];
-        var payload = new byte[2 + reasonBytes.Length];
-        payload[0] = (byte)(((ushort)code >> 8) & 0xFF);
-        payload[1] = (byte)((ushort)code & 0xFF);
-        reasonBytes.CopyTo(payload, 2);
-        await WriteFrame(WebSocketOpcode.Close, true, payload, ct);
+        var payload = ArrayPool<byte>.Shared.Rent(2 + reasonBytes.Length);
+
+        try
+        {
+            payload[0] = (byte)(((ushort)code >> 8) & 0xFF);
+            payload[1] = (byte)((ushort)code & 0xFF);
+            reasonBytes.CopyTo(payload, 2);
+            await WriteFrame(WebSocketOpcode.Close, true, payload.AsMemory(0, 2 + reasonBytes.Length), ct);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(payload);
+        }
     }
 
     public async Task WriteText(string text, CancellationToken ct = default) => await WriteFrame(WebSocketOpcode.Text, true, System.Text.Encoding.UTF8.GetBytes(text), ct);

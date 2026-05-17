@@ -1,12 +1,9 @@
 using System.Reactive.Disposables;
-using System.Threading;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
 using Arbiter.Configuration;
-using Arbiter.Core.Factories;
-using Arbiter.Core.Interfaces;
 using Serilog;
 
 namespace Arbiter.Application;
@@ -83,6 +80,7 @@ internal class Server(
         }
         catch (OperationCanceledException)
         {
+            // ignored
         }
         catch (Exception e)
         {

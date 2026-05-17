@@ -103,7 +103,7 @@ public class H3WebSocketIngressTests
         await request.Upgrade!.AcceptAsync();
 
         var responseHeaders = new List<KeyValuePair<string, string>>();
-        await foreach (var header in clientStream.ReadHeaders(_cts.Token))
+        foreach (var header in await clientStream.ReadHeaders(_cts.Token))
             responseHeaders.Add(new KeyValuePair<string, string>(header.Key, header.Value ?? string.Empty));
 
         var statusHeader = responseHeaders.FirstOrDefault(h => h.Key == ":status");
@@ -121,7 +121,7 @@ public class H3WebSocketIngressTests
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
-        await foreach (var _ in clientStream.ReadHeaders(_cts.Token))
+        foreach (var _ in await clientStream.ReadHeaders(_cts.Token))
         {
         }
 
@@ -151,7 +151,7 @@ public class H3WebSocketIngressTests
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
-        await foreach (var _ in clientStream.ReadHeaders(_cts.Token))
+        foreach (var _ in await clientStream.ReadHeaders(_cts.Token))
         {
         }
 
@@ -181,7 +181,7 @@ public class H3WebSocketIngressTests
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
-        await foreach (var _ in clientStream.ReadHeaders(_cts.Token))
+        foreach (var _ in await clientStream.ReadHeaders(_cts.Token))
         {
         }
 
@@ -208,7 +208,7 @@ public class H3WebSocketIngressTests
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
-        await foreach (var _ in clientStream.ReadHeaders(_cts.Token))
+        foreach (var _ in await clientStream.ReadHeaders(_cts.Token))
         {
         }
 

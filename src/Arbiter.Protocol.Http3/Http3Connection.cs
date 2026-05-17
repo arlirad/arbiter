@@ -1,4 +1,5 @@
-﻿using System.Net.Quic;
+﻿using System.Buffers;
+using System.Net.Quic;
 using System.Runtime.Versioning;
 using System.Threading.Channels;
 using Arlirad.Http3.Enums;
@@ -6,6 +7,7 @@ using Arlirad.Http3.Framing;
 using Arlirad.Http3.Streams;
 using Arlirad.Infrastructure.QPack.Decoding;
 using Arlirad.Infrastructure.QPack.Encoding;
+using Serilog;
 
 namespace Arlirad.Http3;
 
@@ -18,7 +20,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 
     private static readonly Dictionary<SettingsParameter, Func<Http3Connection, ulong>> SettingsToWrite = new() {
         [SettingsParameter.QPackMaxTableCapacity] = (conn) => (ulong)conn.LocalSettings.MaxDecoderDynamicTableCapacity,
-        [SettingsParameter.MaxFieldSectionSize] = (conn) => (ulong)conn.LocalSettings.MaxFieldSectionSize,
+        [SettingsParameter.MaxFieldSectionSize] = (conn) => conn.LocalSettings.MaxFieldSectionSize,
         [SettingsParameter.QPackBlockedStreams] = (conn) => (ulong)conn.LocalSettings.QPackBlockedStreams,
         [SettingsParameter.EnableConnectProtocol] = (_) => 1,
     };
@@ -82,8 +84,8 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         try
         {
             var ct = _cts.Token;
-            var buffer = new byte[16];
 
+            var buffer = new byte[16];
             var reader = new Http3Reader(stream);
             var type = (StreamType)await reader.ReadVarInt(buffer, ct);
 
@@ -111,10 +113,15 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
                     break;
             }
         }
+        catch (QuicException)
+        {
+        }
+        catch (IOException)
+        {
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            System.Console.Error.WriteLine($"HandleUnidirectionalStream error: {ex}");
-            throw;
+            Log.Error(ex, "HandleUnidirectionalStream error stream {StreamId}", stream.Id);
         }
     }
 
@@ -122,6 +129,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
     {
         var ct = _cts.Token;
 
+        var varIntBuffer = new byte[8];
         var frameReader = new Http3FrameReader(stream);
         var frame = await frameReader.ReadFrame(ct);
 
@@ -134,9 +142,9 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         var reader = new Http3Reader(frame.Stream);
 
         while (frame.Stream.Position < frame.Stream.Length)
-            await ReadSetting(reader, ct);
+            await ReadSetting(reader, varIntBuffer, ct);
 
-        Encoder.Initialize(_peerSettings.MaxEncoderDynamicTableCapacity, _peerSettings.QPackBlockedStreams);
+        await Encoder.Initialize(_peerSettings.MaxDecoderDynamicTableCapacity, _peerSettings.QPackBlockedStreams);
 
         while (!ct.IsCancellationRequested)
         {
@@ -166,19 +174,25 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 
     private static async Task DrainFrame(Http3Frame frame, CancellationToken ct)
     {
-        var buffer = new byte[4096];
+        var buffer = ArrayPool<byte>.Shared.Rent(4096);
 
-        while (frame.Stream.Position < frame.Stream.Length)
+        try
         {
-            var remaining = (int)(frame.Stream.Length - frame.Stream.Position);
-            var toRead = Math.Min(remaining, buffer.Length);
-            await frame.Stream.ReadExactlyAsync(new Memory<byte>(buffer, 0, toRead), ct);
+            while (frame.Stream.Position < frame.Stream.Length)
+            {
+                var remaining = (int)(frame.Stream.Length - frame.Stream.Position);
+                var toRead = Math.Min(remaining, buffer.Length);
+                await frame.Stream.ReadExactlyAsync(new Memory<byte>(buffer, 0, toRead), ct);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
-    private async Task ReadSetting(Http3Reader reader, CancellationToken ct)
+    private async Task ReadSetting(Http3Reader reader, byte[] buffer, CancellationToken ct)
     {
-        var buffer = new byte[8];
         var setting = (SettingsParameter)await reader.ReadVarInt(buffer, ct);
         var value = await reader.ReadVarInt(buffer, ct);
 
@@ -190,9 +204,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
                 _peerSettings.MaxDecoderDynamicTableCapacity = (int)value;
                 break;
             case SettingsParameter.MaxFieldSectionSize:
-                if (value > int.MaxValue)
-                    throw new InvalidOperationException("H3_SETTINGS_ERROR: MaxFieldSectionSize exceeds maximum");
-                _peerSettings.MaxFieldSectionSize = (int)value;
+                _peerSettings.MaxFieldSectionSize = (ulong)value;
                 break;
             case SettingsParameter.QPackBlockedStreams:
                 if (value > int.MaxValue)
@@ -222,13 +234,18 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         await writer.WriteVarInt(value, buffer, ct);
     }
 
-    private async Task RaiseConnectionError(ErrorCode streamCreationError)
+    private async Task RaiseConnectionError(ErrorCode errorCode)
     {
         await _cts.CancelAsync();
-        await connection.CloseAsync((long)streamCreationError, CancellationToken.None);
+        await connection.CloseAsync((long)errorCode, CancellationToken.None);
     }
 
-    private async Task OpenOutgoingStreams() => await Task.WhenAll(OpenControlStream(), OpenEncoderStream(), OpenDecoderStream());
+    private async Task OpenOutgoingStreams()
+    {
+        await OpenControlStream();
+        await OpenEncoderStream();
+        await OpenDecoderStream();
+    }
 
     private async Task<QuicStream> OpenOutgoingStream(StreamType type)
     {
@@ -246,8 +263,8 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
     private async Task OpenControlStream()
     {
         var ct = _cts.Token;
+        var varIntBuffer = new byte[8];
 
-        var buffer = new byte[8];
         var stream = await OpenOutgoingStream(StreamType.Control);
         var frameWriter = new Http3FrameWriter(stream);
 
@@ -256,7 +273,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
             var payloadWriter = new Http3Writer(payload);
 
             foreach (var (parameter, func) in SettingsToWrite)
-                await WriteSetting(payloadWriter, buffer, parameter, func(this), ct);
+                await WriteSetting(payloadWriter, varIntBuffer, parameter, func(this), ct);
 
             payload.Position = 0;
             await frameWriter.WriteFrame(FrameType.Settings, payload, ct);

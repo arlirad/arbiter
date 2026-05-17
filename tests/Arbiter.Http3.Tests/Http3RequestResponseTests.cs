@@ -55,7 +55,7 @@ public class Http3RequestResponseTests
         var serverStream = await fixture.AcceptRequestStream(default);
         var hasHeaders = false;
 
-        await foreach (var _ in serverStream.ReadHeaders(CancellationToken.None))
+        foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
             hasHeaders = true;
 
         Assert.That(hasHeaders, Is.True);
@@ -80,7 +80,7 @@ public class Http3RequestResponseTests
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
 
-        await foreach (var _ in serverStream.ReadHeaders())
+        foreach (var _ in await serverStream.ReadHeaders())
         {
         }
 

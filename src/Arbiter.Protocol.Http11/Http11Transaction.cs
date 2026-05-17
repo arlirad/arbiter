@@ -61,6 +61,18 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
 
     public async Task<RequestDto?> GetRequest()
     {
+        try
+        {
+            return await GetRequestCore();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<RequestDto?> GetRequestCore()
+    {
         var (headerStream, remainder) = await HeadersFinder.GetHeadersClampedStream(stream);
         if (headerStream is null)
             return null;
@@ -118,51 +130,81 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
 
     public async Task SetResponse(ResponseDto response)
     {
-        await using (var writer = new StreamWriter(stream, leaveOpen: true))
+        try
         {
-            writer.NewLine = NewLine;
-
-            var version = Mappers.VersionMapper.ToString(_version);
-            var statusCode = (int)response.Status;
-            var statusPhrase = StatusCodeMapper.ToReasonPhrase(response.Status);
-            var responseLine = $"{version} {statusCode} {statusPhrase}";
-
-            await writer.WriteLineAsync(responseLine);
-
-            foreach (var header in response.Headers)
+            StreamWriter? writer = null;
+            try
             {
-                if (header.Key.Equals("content-length", StringComparison.OrdinalIgnoreCase)
+                writer = new StreamWriter(stream, leaveOpen: true) {
+                    NewLine = NewLine,
+                };
+
+                var version = Mappers.VersionMapper.ToString(_version);
+                var statusCode = (int)response.Status;
+                var statusPhrase = StatusCodeMapper.ToReasonPhrase(response.Status);
+                var responseLine = $"{version} {statusCode} {statusPhrase}";
+
+                await writer.WriteLineAsync(responseLine);
+
+                foreach (var header in response.Headers)
+                {
+                    if (header.Key.Equals("content-length", StringComparison.OrdinalIgnoreCase)
+                        && response.Stream is not null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var instance in header.Value)
+                        await writer.WriteLineAsync($"{header.Key}: {instance}");
+
+                }
+
+                if (!response.Status.IsBodyForbidden()
                     && response.Stream is not null)
                 {
-                    continue;
+                    _responseStream = response.Stream;
+
+                    if (_responseStream.CanSeek || _responseStream is ClampedStream)
+                    {
+                        await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
+                    }
+                    else
+                    {
+                        await writer.WriteLineAsync($"Transfer-Encoding: {ChunkedEncoding}");
+                        _chunked = true;
+                    }
                 }
-
-                foreach (var instance in header.Value)
-                    await writer.WriteLineAsync($"{header.Key}: {instance}");
-
-            }
-
-            if (!response.Status.IsBodyForbidden()
-                && response.Stream is not null)
-            {
-                _responseStream = response.Stream;
-
-                if (_responseStream.CanSeek || _responseStream is ClampedStream)
+                else if (ShouldSendZeroContentLength(response.Status))
                 {
-                    await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
+                    await writer.WriteLineAsync("Content-Length: 0");
                 }
-                else
-                {
-                    await writer.WriteLineAsync($"Transfer-Encoding: {ChunkedEncoding}");
-                    _chunked = true;
-                }
-            }
-            else if (ShouldSendZeroContentLength(response.Status))
-            {
-                await writer.WriteLineAsync("Content-Length: 0");
-            }
 
-            await writer.WriteLineAsync();
+                await writer.WriteLineAsync();
+            }
+            catch (IOException)
+            {
+                if (_responseStream is not null)
+                {
+                    await _responseStream.DisposeAsync();
+                    _responseStream = null;
+                }
+
+                _tcs.SetResult();
+                return;
+            }
+            finally
+            {
+                try
+                {
+                    if (writer is not null)
+                        await writer.DisposeAsync();
+                }
+                catch (IOException) { }
+            }
+        }
+        catch (IOException)
+        {
+            return;
         }
 
         _ = Finish();
@@ -224,6 +266,7 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
                 await stream.FlushAsync();
             }
         }
+        catch (IOException) { }
         finally
         {
             if (_responseStream is not null)

@@ -5,9 +5,9 @@ namespace Arlirad.Infrastructure.QPack.Huffman;
 
 public static class HPackHuffman
 {
-    public static byte[] Decode(byte[] buffer)
+    public static byte[] Decode(byte[] buffer, int length)
     {
-        var bs = new BitStream(buffer);
+        var bs = new BitStream(buffer, length);
         var ms = new MemoryStream();
 
         while (bs.Position < bs.Length)
@@ -50,7 +50,7 @@ public static class HPackHuffman
         foreach (var b in input)
             totalBits += HuffmanEncodeTable.Table[b].BitLength;
 
-        var writer = new BitWriter(totalBits / 8 + 2);
+        var writer = new BitWriter((totalBits / 8) + 2);
 
         foreach (var b in input)
         {

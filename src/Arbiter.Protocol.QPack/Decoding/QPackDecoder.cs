@@ -9,6 +9,7 @@ public class QPackDecoder
     private readonly SemaphoreSlim _capacitySignal = new(0, 1);
     private readonly Task _decoderOutgoingTask;
     private readonly TaskCompletionSource _decoderOutgoingTcs = new();
+    private readonly byte[] _instructionBuffer = new byte[1];
 
     private readonly List<QPackField> _dynamicTable = [];
     private readonly List<(long Required, TaskCompletionSource Tcs)> _waiters = [];
@@ -31,11 +32,6 @@ public class QPackDecoder
     public TimeSpan InsertCountIncrementDelay { get; set; } = TimeSpan.FromMilliseconds(100);
 
     private readonly ManualResetEvent _encoderInstructionsProcessedEvent = new(false);
-
-    public void ResetEncoderInstructionsProcessed()
-    {
-        _encoderInstructionsProcessedEvent.Set();
-    }
 
     public QPackDecoder()
     {
@@ -225,18 +221,17 @@ public class QPackDecoder
     private async Task EncoderInstructionsRead()
     {
         var ct = _cts!.Token;
-        var buffer = new byte[1];
 
         while (!_cts.IsCancellationRequested)
         {
-            await _encoderIncoming!.ReadExactlyAsync(buffer, ct);
+            await _encoderIncoming!.ReadExactlyAsync(_instructionBuffer, ct);
 
-            var instruction = buffer[0];
+            var instruction = _instructionBuffer[0];
 
             if (QPackConsts.Is(instruction, 0b1110_0000, QPackConsts.EncoderInstructionDynamicTableCapacity))
             {
                 var capacity =
-                    await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(5, instruction, buffer, ct);
+                    await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(5, instruction, _instructionBuffer, ct);
 
                 Resize(capacity);
                 _capacitySignaled = 1;
@@ -246,10 +241,10 @@ public class QPackDecoder
                 QPackConsts.EncoderInstructionInsertWithNameReference))
             {
                 var index = await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(6, instruction,
-                    buffer,
+                    _instructionBuffer,
                     ct);
 
-                var value = await _encoderIncomingReader!.ReadStringAsync(buffer, ct);
+                var value = await _encoderIncomingReader!.ReadStringAsync(_instructionBuffer, ct);
 
                 var isDynamic = !QPackConsts.Is(instruction, 0b1100_0000,
                     QPackConsts.EncoderInstructionInsertWithStaticNameReference);
@@ -266,15 +261,15 @@ public class QPackDecoder
             }
             else if (QPackConsts.Is(instruction, 0b1100_0000, QPackConsts.EncoderInstructionInsertWithLiteralName))
             {
-                var name = await _encoderIncomingReader!.ReadStringAsync(buffer, 5, instruction, 5, ct);
-                var value = await _encoderIncomingReader!.ReadStringAsync(buffer, ct);
+                var name = await _encoderIncomingReader!.ReadStringAsync(_instructionBuffer, 5, instruction, 5, ct);
+                var value = await _encoderIncomingReader!.ReadStringAsync(_instructionBuffer, ct);
 
                 Insert(name, value, ct);
             }
             else if (QPackConsts.Is(instruction, 0b1110_0000, QPackConsts.EncoderInstructionDuplicate))
             {
                 var index = await _encoderIncomingReader!.ReadPrefixedIntFromProvidedByteAsync(5, instruction,
-                    buffer,
+                    _instructionBuffer,
                     ct);
 
                 index = FromRelative(index);

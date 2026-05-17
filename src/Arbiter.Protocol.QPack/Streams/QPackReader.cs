@@ -1,4 +1,5 @@
-﻿using Arlirad.Infrastructure.QPack.Common;
+﻿using System.Buffers;
+using Arlirad.Infrastructure.QPack.Common;
 using Arlirad.Infrastructure.QPack.Huffman;
 
 namespace Arlirad.Infrastructure.QPack.Streams;
@@ -81,26 +82,40 @@ public class QPackReader(Stream inner)
         var mask = 1 << huffmanBit;
         var length = ReadPrefixedIntFromProvidedByte(prefix, firstByte);
         var isHuffman = (firstByte & mask) == mask;
-        var buffer = new byte[length];
+        var buffer = ArrayPool<byte>.Shared.Rent((int)length);
 
-        inner.ReadExactly(buffer, 0, (int)length);
+        try
+        {
+            inner.ReadExactly(buffer, 0, (int)length);
 
-        return System.Text.Encoding.UTF8.GetString(isHuffman
-            ? HPackHuffman.Decode(buffer)
-            : buffer);
+            return System.Text.Encoding.UTF8.GetString(isHuffman
+                ? HPackHuffman.Decode(buffer, (int)length)
+                : buffer.AsSpan(0, (int)length));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
     }
 
     public async ValueTask<string> ReadStringAsync(byte[] varIntBuffer, CancellationToken ct)
     {
         var (length, firstByte) = await ReadPrefixedIntAsync(7, varIntBuffer, ct);
         var isHuffman = (firstByte & QPackConsts.HuffmanStringMask) == QPackConsts.HuffmanStringMask;
-        var buffer = new byte[length];
+        var buffer = ArrayPool<byte>.Shared.Rent((int)length);
 
-        await inner.ReadExactlyAsync(buffer, 0, (int)length, ct);
+        try
+        {
+            await inner.ReadExactlyAsync(buffer, 0, (int)length, ct);
 
-        return System.Text.Encoding.UTF8.GetString(isHuffman
-            ? HPackHuffman.Decode(buffer)
-            : buffer);
+            return System.Text.Encoding.UTF8.GetString(isHuffman
+                ? HPackHuffman.Decode(buffer, (int)length)
+                : buffer.AsSpan(0, (int)length));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
     }
 
     public async ValueTask<string> ReadStringAsync(
@@ -113,13 +128,20 @@ public class QPackReader(Stream inner)
         var mask = 1 << huffmanBit;
         var length = await ReadPrefixedIntFromProvidedByteAsync(prefix, firstByte, varIntBuffer, ct);
         var isHuffman = (firstByte & mask) == mask;
-        var buffer = new byte[length];
+        var buffer = ArrayPool<byte>.Shared.Rent((int)length);
 
-        await inner.ReadExactlyAsync(buffer, 0, (int)length, ct);
+        try
+        {
+            await inner.ReadExactlyAsync(buffer, 0, (int)length, ct);
 
-        return System.Text.Encoding.UTF8.GetString(isHuffman
-            ? HPackHuffman.Decode(buffer)
-            : buffer);
+            return System.Text.Encoding.UTF8.GetString(isHuffman
+                ? HPackHuffman.Decode(buffer, (int)length)
+                : buffer.AsSpan(0, (int)length));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
     }
 
     private ulong ReadPrefixedIntVariablePart()

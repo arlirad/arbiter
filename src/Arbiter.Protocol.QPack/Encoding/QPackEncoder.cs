@@ -12,6 +12,7 @@ public class QPackEncoder
     private QPackWriter? _encoderOutgoingWriter;
 
     private readonly List<QPackField> _dynamicTable = [];
+    private readonly byte[] _instructionBuffer = new byte[8];
     private long _dynamicTableCapacity;
     private long _dynamicTableSize;
     private long _totalInsertCount;
@@ -20,16 +21,17 @@ public class QPackEncoder
     private int _blockedStreamCount;
     private readonly HashSet<long> _blockedStreams = [];
     private readonly Lock _tableLock = new();
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
     private CancellationTokenSource? _cts;
     private Task? _decoderReadTask;
 
     public ValueTask Start()
     {
-        _cts = new();
+        _cts = new CancellationTokenSource();
         return ValueTask.CompletedTask;
     }
 
-    public void Initialize(int maxTableCapacity, int blockedStreams)
+    public async Task Initialize(int maxTableCapacity, int blockedStreams)
     {
         lock (_tableLock)
         {
@@ -45,8 +47,18 @@ public class QPackEncoder
         }
 
         if (_encoderOutgoingWriter is not null)
-            _encoderOutgoingWriter.WritePrefixedIntAsync(maxTableCapacity, 5,
-                QPackConsts.EncoderInstructionDynamicTableCapacity).GetAwaiter().GetResult();
+        {
+            await _writeLock.WaitAsync();
+            try
+            {
+                await _encoderOutgoingWriter.WritePrefixedIntAsync(maxTableCapacity, 5,
+                    QPackConsts.EncoderInstructionDynamicTableCapacity, CancellationToken.None);
+            }
+            finally
+            {
+                _writeLock.Release();
+            }
+        }
     }
 
     public int PeerMaxTableCapacity
@@ -92,7 +104,15 @@ public class QPackEncoder
         if (_encoderOutgoing is null)
             return;
 
-        await _encoderOutgoing.FlushAsync(ct);
+        await _writeLock.WaitAsync(ct);
+        try
+        {
+            await _encoderOutgoing.FlushAsync(ct);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     private static int GetEntrySize(string name, string? value) => name.Length + (value?.Length ?? 0) + 32;
@@ -116,7 +136,9 @@ public class QPackEncoder
     public List<QPackField> GetDynamicTable()
     {
         lock (_tableLock)
+        {
             return [.. _dynamicTable];
+        }
     }
 
     public long? FindDynamicExact(string name, string value)
@@ -124,8 +146,10 @@ public class QPackEncoder
         lock (_tableLock)
         {
             for (var i = _dynamicTable.Count - 1; i >= 0; i--)
+            {
                 if (_dynamicTable[i].Name.Equals(name, StringComparison.OrdinalIgnoreCase) && _dynamicTable[i].Value == value)
                     return _totalInsertCount - _dynamicTable.Count + i;
+            }
 
             return null;
         }
@@ -136,8 +160,10 @@ public class QPackEncoder
         lock (_tableLock)
         {
             for (var i = _dynamicTable.Count - 1; i >= 0; i--)
+            {
                 if (_dynamicTable[i].Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                     return _totalInsertCount - _dynamicTable.Count + i;
+            }
 
             return null;
         }
@@ -162,10 +188,7 @@ public class QPackEncoder
         await WriteStringValue(valueBytes, ct);
     }
 
-    private async Task SendDuplicate(long relativeIndex, CancellationToken ct)
-    {
-        await _encoderOutgoingWriter!.WritePrefixedIntAsync(relativeIndex, 5, 0b0000_0000, ct);
-    }
+    private async Task SendDuplicate(long relativeIndex, CancellationToken ct) => await _encoderOutgoingWriter!.WritePrefixedIntAsync(relativeIndex, 5, 0b0000_0000, ct);
 
     private async Task WriteStringValue(byte[] valueBytes, CancellationToken ct)
     {
@@ -183,23 +206,31 @@ public class QPackEncoder
         var valueBytes = System.Text.Encoding.UTF8.GetBytes(value);
         var entrySize = GetEntrySize(name, value);
 
-        if (QPackConsts.StaticNameIndex.TryGetValue(name, out var staticIndex))
+        await _writeLock.WaitAsync(ct);
+        try
         {
-            await SendInsertWithStaticNameRef(staticIndex, valueBytes, ct);
-        }
-        else
-        {
-            var dynamicNameIndex = FindDynamicName(name);
-            if (dynamicNameIndex is not null)
+            if (QPackConsts.StaticNameIndex.TryGetValue(name, out var staticIndex))
             {
-                var relativeIndex = ToRelativeIndex(dynamicNameIndex.Value);
-                await SendInsertWithDynamicNameRef(relativeIndex, valueBytes, ct);
+                await SendInsertWithStaticNameRef(staticIndex, valueBytes, ct);
             }
             else
             {
-                var nameBytes = System.Text.Encoding.UTF8.GetBytes(name.ToLowerInvariant());
-                await SendInsertWithLiteralName(nameBytes, valueBytes, ct);
+                var dynamicNameIndex = FindDynamicName(name);
+                if (dynamicNameIndex is not null)
+                {
+                    var relativeIndex = ToRelativeIndex(dynamicNameIndex.Value);
+                    await SendInsertWithDynamicNameRef(relativeIndex, valueBytes, ct);
+                }
+                else
+                {
+                    var nameBytes = System.Text.Encoding.UTF8.GetBytes(name.ToLowerInvariant());
+                    await SendInsertWithLiteralName(nameBytes, valueBytes, ct);
+                }
             }
+        }
+        finally
+        {
+            _writeLock.Release();
         }
 
         EvictFor(entrySize);
@@ -219,23 +250,23 @@ public class QPackEncoder
         if (_decoderIncoming is null || _decoderIncomingReader is null)
             return;
 
-        var buffer = new byte[8];
-
         while (!ct.IsCancellationRequested)
         {
-            await _decoderIncoming.ReadExactlyAsync(buffer, 0, 1, ct);
+            await _decoderIncoming.ReadExactlyAsync(_instructionBuffer, 0, 1, ct);
 
-            var firstByte = buffer[0];
+            var firstByte = _instructionBuffer[0];
 
             if (QPackConsts.Is(firstByte, 0b0000_0000, 0b0000_0000))
             {
-                var increment = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(6, firstByte, buffer, ct);
+                var increment = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(6, firstByte, _instructionBuffer, ct);
                 lock (_tableLock)
+                {
                     _ackedInsertCount += (long)increment;
+                }
             }
             else if (QPackConsts.Is(firstByte, 0b1000_0000, 0b1000_0000))
             {
-                var streamIdValue = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(7, firstByte, buffer, ct);
+                var streamIdValue = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(7, firstByte, _instructionBuffer, ct);
                 lock (_tableLock)
                 {
                     _blockedStreams.Remove((long)streamIdValue);
@@ -244,7 +275,7 @@ public class QPackEncoder
             }
             else if (QPackConsts.Is(firstByte, 0b0100_0000, 0b0100_0000))
             {
-                var streamIdValue = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(6, firstByte, buffer, ct);
+                var streamIdValue = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(6, firstByte, _instructionBuffer, ct);
                 lock (_tableLock)
                 {
                     _blockedStreams.Remove((long)streamIdValue);

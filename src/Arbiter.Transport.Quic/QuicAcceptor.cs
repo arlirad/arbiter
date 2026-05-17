@@ -22,6 +22,7 @@ public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDi
 {
     private const int Backlog = 128;
     private const int MaxInboundBidirectionalStreams = 1024;
+    private const int MaxInboundUnidirectionalStreams = 128;
 
     private readonly ICertificateManager _certificateManager;
     private readonly ConcurrentDictionary<IPEndPoint, QuicAcceptorListener> _listeners = new();
@@ -175,6 +176,7 @@ public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDi
             DefaultStreamErrorCode = 0,
             DefaultCloseErrorCode = 1,
             MaxInboundBidirectionalStreams = MaxInboundBidirectionalStreams,
+            MaxInboundUnidirectionalStreams = MaxInboundUnidirectionalStreams,
             ServerAuthenticationOptions = new SslServerAuthenticationOptions {
                 ClientCertificateRequired = false,
                 ServerCertificate = cert,

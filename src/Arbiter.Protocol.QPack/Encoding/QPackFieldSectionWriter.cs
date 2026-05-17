@@ -12,7 +12,7 @@ public enum HeaderEncodingDecision
     DynamicExactAcked,
     DynamicExactBlocking,
     DynamicNameRef,
-    FullLiteral
+    FullLiteral,
 }
 
 public record struct HeaderEncodingPlan(
@@ -102,18 +102,15 @@ public class QPackFieldSectionWriter(
             : 0;
 
         var requiredInsertCount = hasDynamicRefs ? maxDynamicIndex + 1 : 0;
-        var baseIndex = requiredInsertCount;
 
-        await WritePrefix(requiredInsertCount, baseIndex, ct);
-
-        var insertedIndices = new HashSet<long>();
+        await WritePrefix(requiredInsertCount, requiredInsertCount, ct);
 
         foreach (var plan in plans)
         {
             if (plan.ShouldInsert)
                 await parent.InsertEntry(plan.Name, plan.Value, ct);
 
-            await WriteEncodedField(plan, baseIndex, ct);
+            await WriteEncodedField(plan, requiredInsertCount, ct);
         }
 
         await parent.FlushEncoderStream(ct);

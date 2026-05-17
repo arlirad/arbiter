@@ -11,7 +11,7 @@ public class HuffmanRoundTripTests
         {
             var input = new byte[] { (byte)b };
             var encoded = HPackHuffman.Encode(input);
-            var decoded = HPackHuffman.Decode(encoded);
+            var decoded = HPackHuffman.Decode(encoded, encoded.Length);
 
             Assert.That(decoded, Is.EqualTo(input), $"Failed for byte {b}");
         }
@@ -22,7 +22,7 @@ public class HuffmanRoundTripTests
     {
         var input = Array.Empty<byte>();
         var encoded = HPackHuffman.Encode(input);
-        var decoded = HPackHuffman.Decode(encoded);
+        var decoded = HPackHuffman.Decode(encoded, encoded.Length);
 
         Assert.That(decoded, Is.EqualTo(input));
     }
@@ -49,7 +49,7 @@ public class HuffmanRoundTripTests
         {
             var input = System.Text.Encoding.UTF8.GetBytes(testValue);
             var encoded = HPackHuffman.Encode(input);
-            var decoded = HPackHuffman.Decode(encoded);
+            var decoded = HPackHuffman.Decode(encoded, encoded.Length);
 
             using (Assert.EnterMultipleScope())
             {
@@ -101,7 +101,7 @@ public class HuffmanRoundTripTests
         var input = "test"u8.ToArray();
         var encoded = HPackHuffman.Encode(input);
 
-        var decoded = HPackHuffman.Decode(encoded);
+        var decoded = HPackHuffman.Decode(encoded, encoded.Length);
 
         Assert.That(decoded, Is.EqualTo(input));
     }

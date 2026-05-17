@@ -24,11 +24,11 @@ public class Http11Protocol : IProtocol
                 if (transaction.Upgraded)
                 {
                     await transaction.UpgradeCompleted;
-                    yield break;
+                    break;
                 }
 
                 if (transaction.Finished || transaction.Faulted)
-                    yield break;
+                    break;
             }
         }
     }
