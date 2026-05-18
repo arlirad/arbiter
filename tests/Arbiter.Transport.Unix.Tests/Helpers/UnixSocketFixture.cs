@@ -1,7 +1,6 @@
 using System.Net.Sockets;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
-using Arbiter.Configuration;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Protocol.Http11;
@@ -28,8 +27,8 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
 
     private async Task InitializeAsync()
     {
-        _acceptor = new UnixSocketAcceptor(new Arbiter.Configuration.ConfigurationProvider(new ConfigurationBuilder().Build()));
-        await _acceptor.Bind([SocketPath]);
+        _acceptor = new UnixSocketAcceptor();
+        await _acceptor.Bind([SocketPath], 128);
 
         await Task.Yield();
 

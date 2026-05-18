@@ -2,15 +2,14 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
 using System.Runtime.Versioning;
 using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Channels;
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Configuration;
-using Arbiter.Transport.Quic.Models;
+using Arbiter.Core.Enums;
 using Serilog;
 
 namespace Arbiter.Transport.Quic;
@@ -18,73 +17,47 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDisposable
+public class QuicAcceptor(ICertificateManager certificateManager, QuicPortService quicPortService) : IAcceptor, IAsyncConfigurable<List<IPAddress>, QuicTransportConfig, HashSet<Protocol>>, IDisposable
 {
-    private const int Backlog = 128;
-    private const int MaxInboundBidirectionalStreams = 1024;
-    private const int MaxInboundUnidirectionalStreams = 128;
-
-    private readonly ICertificateManager _certificateManager;
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "quic");
+    private readonly ICertificateManager _certificateManager = certificateManager;
+    private readonly QuicPortService _quicPortService = quicPortService;
     private readonly ConcurrentDictionary<IPEndPoint, QuicAcceptorListener> _listeners = new();
-    private readonly Channel<ITransport> _transports =
-        Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
-    private readonly CompositeDisposable _subscriptions = [];
-    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
+    private Channel<ITransport>? _transports;
 
-    public QuicAcceptor(ICertificateManager certificateManager, ConfigurationProvider configProvider)
+    public async Task<ITransport> Accept(CancellationToken ct) => await _transports!.Reader.ReadAsync(ct);
+
+    public async ValueTask ReconfigureAsync(List<IPAddress> addresses, QuicTransportConfig config, HashSet<Protocol> protocols)
     {
-        _certificateManager = certificateManager;
+        if (!protocols.Contains(Protocol.Http3))
+            return;
 
-        var quicConfig = Observable.CombineLatest(
-            configProvider.Observe<List<string>>("ListenOn"),
-            configProvider.Observe<List<int>>("QuicPorts"),
-            (listenOn, quicPorts) => {
-                var addresses = listenOn.Select(IPAddress.Parse).ToList();
-                return new QuicListenConfig(addresses, quicPorts);
-            }
-        );
+        if (config.Ports is null || config.Ports.Count == 0)
+            Log.Warning("No ports configured");
 
-        _subscriptions.Add(quicConfig.Subscribe(async config => {
-            try
-            {
-                await _reconfigureLock.WaitAsync();
-                try
-                {
-                    await ReconfigureAsync(config);
-                }
-                finally
-                {
-                    _reconfigureLock.Release();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to reconfigure QUIC acceptor");
-            }
-        }));
-    }
+        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(config.QueueSize));
+        _quicPortService.Ports = config.Ports;
 
-    public async Task<ITransport> Accept(CancellationToken ct)
-    {
-        while (true)
-            return await _transports.Reader.ReadAsync(ct);
-    }
+        if (_quicPortService.Announce != config.Announce)
+        {
+            _quicPortService.Announce = config.Announce;
+            Log.Information("Alt-Svc announce {State}", config.Announce ? "enabled" : "disabled");
+        }
 
-    public async ValueTask ReconfigureAsync(QuicListenConfig config)
-    {
         var endpoints = new List<IPEndPoint>();
-        foreach (var address in config.Addresses)
+        foreach (var address in addresses)
         {
             foreach (var port in config.Ports)
                 endpoints.Add(new IPEndPoint(address, port));
         }
 
-        await Bind(endpoints);
+        await Bind(endpoints, config.Backlog, config.MaxInboundBiStreams);
     }
 
-    public async Task Bind(IEnumerable<IPEndPoint> endpoints)
+    public async Task Bind(IEnumerable<IPEndPoint> endpoints, int backlog, int maxInboundBiStreams)
     {
-        await CreateListeners(endpoints);
+        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
+        await CreateListeners(endpoints, backlog, maxInboundBiStreams);
         await PruneListeners(endpoints);
     }
 
@@ -130,15 +103,21 @@ public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDi
         }
     }
 
-    private async Task CreateListeners(IEnumerable<IPEndPoint> endpoints)
+    private async Task CreateListeners(IEnumerable<IPEndPoint> endpoints, int backlog, int maxInboundBiStreams)
     {
-        foreach (var endpoint in endpoints.Where(e => !_listeners.ContainsKey(e)))
+        var newEndpoints = endpoints.Where(e => !_listeners.ContainsKey(e)).ToList();
+
+        if (newEndpoints.Count > 0)
+            Log.Information("Binding {Count} endpoint(s): {Endpoints}", newEndpoints.Count, newEndpoints);
+
+        foreach (var endpoint in newEndpoints)
         {
+
             var listener = await QuicListener.ListenAsync(new QuicListenerOptions() {
                 ApplicationProtocols = [SslApplicationProtocol.Http3],
-                ListenBacklog = Backlog,
+                ListenBacklog = backlog,
                 ListenEndPoint = endpoint,
-                ConnectionOptionsCallback = ConnectionOptionsCallback,
+                ConnectionOptionsCallback = (_, clientHello, _) => ConnectionOptionsCallback(clientHello, maxInboundBiStreams),
             });
 
             var acceptorSocket = new QuicAcceptorListener(listener);
@@ -151,6 +130,10 @@ public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDi
     private async Task PruneListeners(IEnumerable<IPEndPoint> endpoints)
     {
         var toRemove = _listeners.Keys.Where(e => !endpoints.Contains(e)).ToList();
+
+        if (toRemove.Count > 0)
+            Log.Information("Pruning {Count} endpoint(s): {Endpoints}", toRemove.Count, toRemove);
+
         var cancellationTasks = new List<Task>();
 
         foreach (var endpoint in toRemove)
@@ -167,16 +150,15 @@ public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDi
     }
 
     private ValueTask<QuicServerConnectionOptions> ConnectionOptionsCallback(
-        QuicConnection connection,
         SslClientHelloInfo clientHello,
-        CancellationToken ct)
+        int maxInboundBiStreams)
     {
         var cert = _certificateManager.Get(clientHello.ServerName) ?? _certificateManager.GetFallback();
         var options = new QuicServerConnectionOptions {
             DefaultStreamErrorCode = 0,
             DefaultCloseErrorCode = 1,
-            MaxInboundBidirectionalStreams = MaxInboundBidirectionalStreams,
-            MaxInboundUnidirectionalStreams = MaxInboundUnidirectionalStreams,
+            MaxInboundBidirectionalStreams = maxInboundBiStreams,
+            MaxInboundUnidirectionalStreams = 128,
             ServerAuthenticationOptions = new SslServerAuthenticationOptions {
                 ClientCertificateRequired = false,
                 ServerCertificate = cert,
@@ -190,7 +172,12 @@ public class QuicAcceptor : IAcceptor, IAsyncConfigurable<QuicListenConfig>, IDi
 
     public void Dispose()
     {
-        _subscriptions.Dispose();
-        _reconfigureLock.Dispose();
+        foreach (var listener in _listeners.Values)
+        {
+            listener.Stop();
+            listener.Close();
+        }
+
+        _listeners.Clear();
     }
 }

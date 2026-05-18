@@ -5,6 +5,7 @@
 
 # Key Features
  - **Modern Protocol Support**: Native **HTTP/3** and **HTTP/1.1**.
+ - **Transport Layer**: Centralized transport management supporting **TCP**, **QUIC**, and **Unix domain sockets** — independently configurable and hot-reloadable.
  - **Reverse Proxy**: Forward requests with header transformation and TLS termination.
  - **Automatic SSL (ACME)**: Built-in support for ACME protocol to automatically issue and renew TLS certificates.
  - **Static File Hosting**: Serve static content with configurable MIME types.
@@ -34,6 +35,35 @@ Here is a quick look at how you can set up a proxy with ACME and CORS:
 
 ```yaml
 # /etc/arbiter/arbiter.yaml
+
+# Addresses to listen on (shared across IP transports)
+listenOn: 
+  - "0.0.0.0"
+  - "::"
+
+# Enable/disable protocols globally
+protocols:
+  http11: true
+  http2: false
+  http3: true
+
+# Transport-specific configuration (hot-reloadable)
+transports:
+  tcp:
+    backlog: 128
+    queueSize: 4096
+    ports: [80, 443]
+  quic:
+    backlog: 128
+    queueSize: 4096
+    ports: [443]
+    announce: true
+    maxInboundBiStreams: 1024
+  # unix:
+  #   backlog: 128
+  #   queueSize: 4096
+  #   paths: ["/tmp/arbiter/thighhigh"]
+
 sites:
   example-app:
     bindings:
@@ -54,11 +84,6 @@ sites:
           accountName: admin@example.com
           acmeDirectoryUrl: https://acme-v02.api.letsencrypt.org/directory
           tosAccepted: false # Must be set to true to indicate agreement with the CA's Terms of Service
-listenOn: 
-  - "0.0.0.0"
-  - "::"
-quicPorts:
-  - 443
 ```
 
 

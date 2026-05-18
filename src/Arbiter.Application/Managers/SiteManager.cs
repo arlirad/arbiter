@@ -11,6 +11,7 @@ internal class SiteManager(
     IServiceProvider serviceProvider
 ) : IAsyncConfigurable<Dictionary<string, SiteConfig>>, IDisposable
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "site");
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly Dictionary<Site, SiteConfig> _siteConfigs = [];
     private readonly Dictionary<string, Site> _sites = [];

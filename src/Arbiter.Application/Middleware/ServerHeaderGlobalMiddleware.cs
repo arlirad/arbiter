@@ -1,3 +1,4 @@
+using System.Reflection;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Constants;
@@ -6,7 +7,7 @@ namespace Arbiter.Application.Middleware;
 
 public class ServerHeaderGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
 {
-    private static readonly string ServerHeader = $"{AppConstants.Name}/{typeof(ServerHeaderGlobalMiddleware).Assembly.GetName().Version?.ToString(fieldCount: 3)}";
+    private static readonly string ServerHeader = $"{AppConstants.Name}/{typeof(ServerHeaderGlobalMiddleware).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0]}";
 
     public async Task Handle(ITransaction transaction, Site? site, Context context)
     {

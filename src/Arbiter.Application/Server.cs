@@ -9,7 +9,7 @@ using Serilog;
 namespace Arbiter.Application;
 
 internal class Server(
-    IEnumerable<IAcceptor> acceptors,
+    TransportManager transportManager,
     IProtocolFactory protocolFactory,
     SiteManager siteManager,
     IConfigManager configManager,
@@ -17,12 +17,15 @@ internal class Server(
     TransactionHandler handler
 ) : IServer, IDisposable
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
     private readonly CompositeDisposable _subscriptions = [];
     private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
 
     public async Task Run(CancellationToken ct)
     {
         await configManager.CreateDirectories();
+
+        transportManager.Initialize();
 
         var siteSubscription = configProvider.Observe<Dictionary<string, SiteConfig>>("Sites")
             .Subscribe(async void (sites) => {
@@ -45,8 +48,18 @@ internal class Server(
             });
         _subscriptions.Add(siteSubscription);
 
-        var tasks = acceptors.Select(acceptor => AcceptLoop(acceptor, ct));
-        await Task.WhenAll(tasks);
+        _subscriptions.Add(transportManager.NewAcceptor.Subscribe(acceptor => _ = AcceptLoop(acceptor, ct)));
+
+        foreach (var acceptor in transportManager.ActiveAcceptors)
+            _ = AcceptLoop(acceptor, ct);
+
+        try
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     public void Dispose()

@@ -1,3 +1,4 @@
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
@@ -23,6 +24,7 @@ public static class DependencyInjection
         services.AddSingleton<TransactionHandler>();
         services.AddSingleton<ContextMapper>();
         services.AddSingleton<SiteManager>();
+        services.AddSingleton<TransportManager>();
 
         services.AddScoped<MiddlewareChainDelegateOrchestrator>();
         services.AddScoped<SiteOrchestrator>();
@@ -33,6 +35,14 @@ public static class DependencyInjection
             var factory = sp.GetRequiredService<MiddlewareChainDelegateOrchestrator>();
             return factory.GetNext();
         });
+    }
+
+    public static void AddTransport<TAcceptor, TConfig>(this IServiceCollection services, string key)
+        where TAcceptor : class, IAcceptor
+        where TConfig : class
+    {
+        services.AddKeyedSingleton<IAcceptor, TAcceptor>(key);
+        services.AddSingleton(new TransportDescriptor(key, typeof(TAcceptor), typeof(TConfig)));
     }
 
     public static void AddApplicationGlobalMiddleware(this IServiceCollection services)

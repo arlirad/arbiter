@@ -18,11 +18,15 @@ public static class HeadersFinder
             while (true)
             {
                 var length = await inner.ReadAsync(buffer.AsMemory(offset));
-                var searchStart = Math.Max(0, offset - (Pattern.Length - 1));
-                var pattern = Pattern.AsSpan();
-                var index = buffer.AsSpan(searchStart).IndexOf(pattern);
+
+                if (length == 0)
+                    break;
 
                 offset += length;
+
+                var searchStart = Math.Max(0, offset - length - (Pattern.Length - 1));
+                var pattern = Pattern.AsSpan();
+                var index = buffer.AsSpan(searchStart, offset - searchStart).IndexOf(pattern);
 
                 if (index != -1)
                 {
@@ -42,9 +46,6 @@ public static class HeadersFinder
 
                     return (headers, remainder);
                 }
-
-                if (length == 0)
-                    break;
             }
 
             return (null, null);

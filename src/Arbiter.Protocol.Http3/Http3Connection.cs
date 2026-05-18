@@ -16,6 +16,7 @@ namespace Arlirad.Http3;
 [SupportedOSPlatform("windows")]
 public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "http3");
     private const int MaxWaitingStreams = 64;
 
     private static readonly Dictionary<SettingsParameter, Func<Http3Connection, ulong>> SettingsToWrite = new() {

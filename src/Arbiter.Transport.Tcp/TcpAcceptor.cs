@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -12,69 +10,37 @@ using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Configuration;
-using Arbiter.Transport.Tcp.Models;
+using Arbiter.Core.Enums;
 using Serilog;
 
 namespace Arbiter.Transport.Tcp;
 
-public class TcpAcceptor : IAcceptor, IAsyncConfigurable<TcpListenConfig>, IDisposable
+public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IAsyncConfigurable<List<IPAddress>, IpTransportConfig, HashSet<Protocol>>, IDisposable
 {
-    private const int Backlog = 128;
-
-    private readonly ICertificateManager _certificateManager;
-    private readonly ConfigurationProvider _configProvider;
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "tcp");
     private readonly ConcurrentDictionary<IPEndPoint, TcpAcceptorSocket> _sockets = new();
-    private readonly Channel<ITransport> _transports =
-        Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
-    private readonly CompositeDisposable _subscriptions = [];
-    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
+    private Channel<ITransport>? _transports;
 
-    public TcpAcceptor(ICertificateManager certificateManager, ConfigurationProvider configProvider)
+    public async Task<ITransport> Accept(CancellationToken ct) => await _transports!.Reader.ReadAsync(ct);
+
+    public async ValueTask ReconfigureAsync(List<IPAddress> addresses, IpTransportConfig config, HashSet<Protocol> protocols)
     {
-        _certificateManager = certificateManager;
-        _configProvider = configProvider;
+        var hasHttp11 = protocols.Contains(Protocol.Http11);
+        var hasHttp2 = protocols.Contains(Protocol.Http2);
 
-        var tcpConfig = Observable.CombineLatest(
-            configProvider.Observe<List<string>>("ListenOn"),
-            configProvider.Observe<Dictionary<string, SiteConfig>>("Sites"),
-            (listenOn, sites) => {
-                var ports = sites.SelectMany(s => s.Value.Bindings ?? [])
-                    .Where(b => b.Scheme != "unix").Select(b => b.Port).ToList();
-                var addresses = listenOn.Select(IPAddress.Parse).ToList();
-                return new TcpListenConfig(addresses, ports);
-            }
-        );
+        if (!hasHttp11 && !hasHttp2)
+            return;
 
-        _subscriptions.Add(tcpConfig.Subscribe(async config => {
-            try
-            {
-                await _reconfigureLock.WaitAsync();
-                try
-                {
-                    await ReconfigureAsync(config);
-                }
-                finally
-                {
-                    _reconfigureLock.Release();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to reconfigure TCP acceptor");
-            }
-        }));
+        if (config.Ports is null || config.Ports.Count == 0)
+            Log.Warning("No ports configured");
+
+        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(config.QueueSize));
+        await Bind(addresses, config.Ports, config.Backlog);
     }
 
-    public async Task<ITransport> Accept(CancellationToken ct)
+    public async Task Bind(IEnumerable<IPAddress> addresses, IEnumerable<int> ports, int backlog)
     {
-        while (true)
-            return await _transports.Reader.ReadAsync(ct);
-    }
-
-    public async ValueTask ReconfigureAsync(TcpListenConfig config) => await Bind(config.Addresses, config.Ports);
-
-    public async Task Bind(IEnumerable<IPAddress> addresses, IEnumerable<int> ports)
-    {
+        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
         var endPoints = new List<IPEndPoint>();
 
         foreach (var address in addresses)
@@ -83,7 +49,7 @@ public class TcpAcceptor : IAcceptor, IAsyncConfigurable<TcpListenConfig>, IDisp
                 endPoints.Add(new IPEndPoint(address, port));
         }
 
-        await CreateSocket(endPoints);
+        await CreateSocket(endPoints, backlog);
         await PruneSockets(endPoints);
     }
 
@@ -157,19 +123,22 @@ public class TcpAcceptor : IAcceptor, IAsyncConfigurable<TcpListenConfig>, IDisp
     }
 
     private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName)
-        => hostName is null ? _certificateManager.GetFallback() : _certificateManager.Get(hostName) ?? _certificateManager.GetFallback();
+        => hostName is null ? certificateManager.GetFallback() : certificateManager.Get(hostName) ?? certificateManager.GetFallback();
 
-    private Task CreateSocket(List<IPEndPoint> endPoints)
+    private Task CreateSocket(List<IPEndPoint> endPoints, int backlog)
     {
-        foreach (var endPoint in endPoints)
+        var newEndpoints = endPoints.Where(e => !_sockets.ContainsKey(e)).ToList();
+
+        if (newEndpoints.Count > 0)
+            Log.Information("Binding {Count} endpoint(s): {Endpoints}", newEndpoints.Count, newEndpoints);
+
+        foreach (var endPoint in newEndpoints)
         {
-            if (_sockets.ContainsKey(endPoint))
-                continue;
 
             var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
             socket.Bind(endPoint);
-            socket.Listen(Backlog);
+            socket.Listen(backlog);
 
             var acceptorSocket = new TcpAcceptorSocket(socket);
 
@@ -185,6 +154,9 @@ public class TcpAcceptor : IAcceptor, IAsyncConfigurable<TcpListenConfig>, IDisp
         var toRemove = _sockets.Keys
             .Where(e => !endPoints.Any(ep => ep.Equals(e)))
             .ToList();
+
+        if (toRemove.Count > 0)
+            Log.Information("Pruning {Count} endpoint(s): {Endpoints}", toRemove.Count, toRemove);
 
         var cancellationTasks = new List<Task>();
 
@@ -203,7 +175,12 @@ public class TcpAcceptor : IAcceptor, IAsyncConfigurable<TcpListenConfig>, IDisp
 
     public void Dispose()
     {
-        _subscriptions.Dispose();
-        _reconfigureLock.Dispose();
+        foreach (var socket in _sockets.Values)
+        {
+            socket.Stop();
+            socket.Close();
+        }
+
+        _sockets.Clear();
     }
 }

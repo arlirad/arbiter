@@ -12,7 +12,6 @@ using Arbiter.Transport.Unix;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using ArbiterConfig = Arbiter.Configuration.ConfigurationProvider;
 using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Api;
@@ -24,8 +23,8 @@ internal sealed class Api(
     IServiceProvider serviceProvider
 ) : IApi
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "api");
     private Site? _site;
-    private readonly ArbiterConfig _configProvider = new(new ConfigurationBuilder().Build());
 
     public async Task Run(CancellationToken ct)
     {
@@ -33,8 +32,8 @@ internal sealed class Api(
 
         if (!string.IsNullOrEmpty(builder.UnixSocketPath))
         {
-            var unixAcceptor = new UnixSocketAcceptor(_configProvider);
-            await unixAcceptor.Bind([builder.UnixSocketPath]);
+            var unixAcceptor = new UnixSocketAcceptor();
+            await unixAcceptor.Bind([builder.UnixSocketPath], 128);
             Log.Information("API listening on unix://{Path}", builder.UnixSocketPath);
 
             while (!ct.IsCancellationRequested)
@@ -49,8 +48,8 @@ internal sealed class Api(
                 ? builder.Addresses
                 : [IPAddress.Any];
 
-            var tcpAcceptor = new TcpAcceptor(certificateManager, _configProvider);
-            await tcpAcceptor.Bind(addresses, [builder.Port]);
+            var tcpAcceptor = new TcpAcceptor(certificateManager);
+            await tcpAcceptor.Bind(addresses, [builder.Port], 128);
             Log.Information("API listening on {Addresses}:{Port}", string.Join(", ", addresses), builder.Port);
 
             while (!ct.IsCancellationRequested)

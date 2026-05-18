@@ -20,7 +20,7 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
     private readonly TaskCompletionSource _upgradeTcs = new();
     private bool _chunked;
     private Stream? _responseStream;
-    private Core.Enums.HttpVersion _version = Core.Enums.HttpVersion.Http11;
+    private HttpVersion _version = HttpVersion.Http11;
 
     internal bool Finished
     {
@@ -54,7 +54,8 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
     public int Id
     {
         get;
-    } = Interlocked.Increment(ref _nextId);
+        private set;
+    }
     public bool IsSecure => isSecure;
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
@@ -112,6 +113,8 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
         RequestPath = path;
 
         var isWebSocketUpgrade = DetectWebSocketUpgrade(method.Value, headers);
+
+        Id = Interlocked.Increment(ref _nextId);
 
         return new RequestDto {
             TransactionId = Id,

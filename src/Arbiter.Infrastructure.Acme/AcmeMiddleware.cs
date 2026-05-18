@@ -10,6 +10,7 @@ namespace Arbiter.Infrastructure.Acme;
 
 internal class AcmeMiddleware(HandleDelegate next) : IMiddleware
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "acme");
     private const string AcmeChallengePathPrefix = "/.well-known/acme-challenge/";
     private DataModel? _data;
 
@@ -32,11 +33,11 @@ internal class AcmeMiddleware(HandleDelegate next) : IMiddleware
 
         if (challenge is null)
         {
-            Log.Warning("acme: Received a challenge query for '{Token}', which we have not requested", token);
+            Log.Warning("Received a challenge query for '{Token}', which we have not requested", token);
             return;
         }
 
-        Log.Information("acme: Received challenge query for '{Token}'", token);
+        Log.Information("Received challenge query for '{Token}'", token);
         await context.Response.Set(Status.Ok, new MemoryStream(Encoding.ASCII.GetBytes(challenge.KeyAuthz)));
     }
 }

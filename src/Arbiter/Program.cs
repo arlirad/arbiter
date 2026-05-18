@@ -15,11 +15,13 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
+var log = Log.ForContext("SourceContext", "arbiter");
+
 var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0];
-Log.Information("Starting {Name}/{Version}", AppConstants.Name, version);
+log.Information("Starting {Name}/{Version}", AppConstants.Name, version);
 
 try
 {
@@ -48,7 +50,7 @@ try
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "{Name} terminated unexpectedly", AppConstants.Name);
+    log.Fatal(ex, "{Name} terminated unexpectedly", AppConstants.Name);
 }
 finally
 {

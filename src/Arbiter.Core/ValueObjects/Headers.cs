@@ -52,16 +52,33 @@ public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
             return;
         }
 
-        _headers[name] = value;
+        _headers[Canonicalize(name)] = value;
     }
 
     public void Add(string headerKey, string headerValue)
     {
-        if (_headers.TryGetValue(headerKey, out var list))
+        var key = Canonicalize(headerKey);
+        if (_headers.TryGetValue(key, out var list))
             list.Add(headerValue);
         else
-            _headers[headerKey] = [headerValue];
+            _headers[key] = [headerValue];
     }
 
-    public void Replace(string headerKey, string headerValue) => _headers[headerKey] = [headerValue];
+    public void Replace(string headerKey, string headerValue) => _headers[Canonicalize(headerKey)] = [headerValue];
+
+    private static string Canonicalize(string name)
+    {
+        var span = name.AsSpan();
+        Span<char> result = stackalloc char[span.Length];
+        var nextUpper = true;
+
+        for (var i = 0; i < span.Length; i++)
+        {
+            var c = span[i];
+            result[i] = nextUpper ? char.ToUpperInvariant(c) : char.ToLowerInvariant(c);
+            nextUpper = c == '-';
+        }
+
+        return new string(result);
+    }
 }

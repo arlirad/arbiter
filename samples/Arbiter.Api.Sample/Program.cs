@@ -7,8 +7,10 @@ using Serilog;
 var builder = Host.CreateApplicationBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
+
+var log = Log.ForContext("SourceContext", "arbiter");
 
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog();
@@ -31,7 +33,7 @@ var api = apiBuilder.Build();
 var cts = new CancellationTokenSource();
 
 Console.CancelKeyPress += (_, _) => {
-    Log.Information("Shutting down...");
+    log.Information("Shutting down...");
     cts.Cancel();
 };
 

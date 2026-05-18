@@ -16,6 +16,7 @@ internal class AcmeWorker(
     ICertificateManager certificateManager
 ) : IWorker
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "acme");
     private const double RenewalTimeRemainingFraction = 0.80;
     private const string CertificatePassword = "";
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(6);
@@ -212,7 +213,7 @@ internal class AcmeWorker(
         if (File.Exists(keyPath))
         {
             var key = KeyFactory.FromPem(await File.ReadAllTextAsync(keyPath));
-            Log.Information("acme: Loaded account '{AccountName}' keys", _accountName);
+            Log.Information("Loaded account '{AccountName}' keys", _accountName);
 
             return new AcmeContext(_acmeDirectoryUrl!, key);
         }
@@ -222,7 +223,7 @@ internal class AcmeWorker(
         await context.NewAccount(_accountName, _tosAccepted);
         await File.WriteAllTextAsync(keyPath, context.AccountKey.ToPem());
 
-        Log.Information("acme: Created account '{AccountName}'", _accountName);
+        Log.Information("Created account '{AccountName}'", _accountName);
 
         return context;
     }

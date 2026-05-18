@@ -1,69 +1,43 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Sockets;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Configuration;
-using Arbiter.Transport.Unix.Models;
+using Arbiter.Core.Enums;
 using Serilog;
 
 namespace Arbiter.Transport.Unix;
 
-public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixListenConfig>, IDisposable
+public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportConfig, HashSet<Protocol>>, IDisposable
 {
-    private const int Backlog = 128;
-
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "unix");
     private readonly ConcurrentDictionary<string, UnixSocketAcceptorSocket> _sockets = new();
-    private readonly Channel<ITransport> _transports =
-        Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
-    private readonly CompositeDisposable _subscriptions = [];
-    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
+    private Channel<ITransport>? _transports;
 
-    public UnixSocketAcceptor(ConfigurationProvider configProvider)
+    public UnixSocketAcceptor()
     {
-        var unixConfig = configProvider.Observe<Dictionary<string, SiteConfig>>("Sites")
-            .Select(sites => {
-                var paths = sites.SelectMany(s => s.Value.Bindings ?? [])
-                    .Where(b => b.Scheme == "unix").Select(b => b.AbsolutePath).Distinct().ToList();
-                return new UnixListenConfig(paths);
-            });
-
-        _subscriptions.Add(unixConfig.Subscribe(async config => {
-            try
-            {
-                await _reconfigureLock.WaitAsync();
-                try
-                {
-                    await ReconfigureAsync(config);
-                }
-                finally
-                {
-                    _reconfigureLock.Release();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to reconfigure Unix acceptor");
-            }
-        }));
     }
 
-    public async Task<ITransport> Accept(CancellationToken ct)
+    public async Task<ITransport> Accept(CancellationToken ct) => await _transports!.Reader.ReadAsync(ct);
+
+    public async ValueTask ReconfigureAsync(UnixTransportConfig config, HashSet<Protocol> protocols)
     {
-        while (true)
-            return await _transports.Reader.ReadAsync(ct);
+        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(config.QueueSize));
+
+        if (config.Paths is null || config.Paths.Count == 0)
+            Log.Warning("No paths configured");
+
+        await Bind(config.Paths, config.Backlog);
     }
 
-    public async ValueTask ReconfigureAsync(UnixListenConfig config) => await Bind(config.Paths);
-
-    public async Task Bind(IEnumerable<string> paths)
+    public async Task Bind(IEnumerable<string> paths, int backlog)
     {
+        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
         var pathList = paths.ToList();
-        await CreateSockets(pathList);
+        await CreateSockets(pathList, backlog);
         await PruneSockets(pathList);
     }
 
@@ -105,12 +79,15 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixListenConfig
         }
     }
 
-    private Task CreateSockets(List<string> paths)
+    private Task CreateSockets(List<string> paths, int backlog)
     {
-        foreach (var path in paths)
+        var newPaths = paths.Where(p => !_sockets.ContainsKey(p)).ToList();
+
+        if (newPaths.Count > 0)
+            Log.Information("Binding {Count} path(s): {Paths}", newPaths.Count, newPaths);
+
+        foreach (var path in newPaths)
         {
-            if (_sockets.ContainsKey(path))
-                continue;
 
             if (File.Exists(path))
                 File.Delete(path);
@@ -119,7 +96,7 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixListenConfig
             var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Unspecified);
 
             socket.Bind(endPoint);
-            socket.Listen(Backlog);
+            socket.Listen(backlog);
 
             var acceptorSocket = new UnixSocketAcceptorSocket(socket, path);
 
@@ -135,6 +112,9 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixListenConfig
         var toRemove = _sockets.Keys
             .Where(p => !paths.Contains(p))
             .ToList();
+
+        if (toRemove.Count > 0)
+            Log.Information("Pruning {Count} path(s): {Paths}", toRemove.Count, toRemove);
 
         var cancellationTasks = new List<Task>();
 
@@ -153,7 +133,12 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixListenConfig
 
     public void Dispose()
     {
-        _subscriptions.Dispose();
-        _reconfigureLock.Dispose();
+        foreach (var socket in _sockets.Values)
+        {
+            socket.Stop();
+            socket.Close();
+        }
+
+        _sockets.Clear();
     }
 }

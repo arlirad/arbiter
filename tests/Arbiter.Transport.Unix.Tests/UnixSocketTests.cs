@@ -4,12 +4,10 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using Arbiter.Application.DTOs;
-using Arbiter.Configuration;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Transport.Unix.Tests.Helpers;
 using Microsoft.Extensions.Configuration;
-using ArbiterConfig = Arbiter.Configuration.ConfigurationProvider;
 
 namespace Arbiter.Transport.Unix.Tests;
 
@@ -310,11 +308,11 @@ public class UnixSocketAcceptorTests
     public async Task Bind_creates_socket_file()
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"arbiter_test_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
+        var acceptor = new UnixSocketAcceptor();
 
         try
         {
-            await acceptor.Bind([tempPath]);
+            await acceptor.Bind([tempPath], 128);
 
             Assert.That(File.Exists(tempPath), Is.True);
         }
@@ -328,12 +326,12 @@ public class UnixSocketAcceptorTests
     public async Task Bind_idempotent()
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"arbiter_test_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
+        var acceptor = new UnixSocketAcceptor();
 
         try
         {
-            await acceptor.Bind([tempPath]);
-            await acceptor.Bind([tempPath]);
+            await acceptor.Bind([tempPath], 128);
+            await acceptor.Bind([tempPath], 128);
 
             Assert.That(File.Exists(tempPath), Is.True);
         }
@@ -348,11 +346,11 @@ public class UnixSocketAcceptorTests
     {
         var pathA = Path.Combine(Path.GetTempPath(), $"arbiter_test_a_{Guid.NewGuid():N}.sock");
         var pathB = Path.Combine(Path.GetTempPath(), $"arbiter_test_b_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
+        var acceptor = new UnixSocketAcceptor();
 
         try
         {
-            await acceptor.Bind([pathA, pathB]);
+            await acceptor.Bind([pathA, pathB], 128);
 
             using (Assert.EnterMultipleScope())
             {
@@ -360,7 +358,7 @@ public class UnixSocketAcceptorTests
                 Assert.That(File.Exists(pathB), Is.True);
             }
 
-            await acceptor.Bind([pathA]);
+            await acceptor.Bind([pathA], 128);
 
             await Task.Delay(100);
 
@@ -380,7 +378,7 @@ public class UnixSocketAcceptorTests
     [Test]
     public void Port_is_negative_one()
     {
-        var acceptor = new UnixSocketAcceptor(new ArbiterConfig(new ConfigurationBuilder().Build()));
+        var acceptor = new UnixSocketAcceptor();
 
         var field = acceptor.GetType()
             .GetField("_transports", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);

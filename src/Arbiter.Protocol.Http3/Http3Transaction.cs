@@ -22,7 +22,8 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
     public int Id
     {
         get;
-    } = Interlocked.Increment(ref _nextId);
+        private set;
+    }
     public bool IsSecure => true;
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
@@ -92,7 +93,12 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
 
             var parsedAuthority = await ParseAuthority(authority, port);
 
-            return parsedAuthority is null ? null : new RequestDto {
+            if (parsedAuthority is null)
+                return null;
+
+            Id = Interlocked.Increment(ref _nextId);
+
+            return new RequestDto {
                 TransactionId = Id,
                 Method = Method.Get,
                 Authority = parsedAuthority,
@@ -157,6 +163,8 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
             await EarlyAbort(Status.BadRequest);
             return null;
         }
+
+        Id = Interlocked.Increment(ref _nextId);
 
         return new RequestDto {
             TransactionId = Id,

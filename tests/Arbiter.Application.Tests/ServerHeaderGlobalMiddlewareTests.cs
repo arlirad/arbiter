@@ -45,8 +45,8 @@ public class ServerHeaderGlobalMiddlewareTests
         await sut.Handle(new TransactionStub(), null, context);
 
         var headerValue = context.Response.Headers["Server"]![0];
-        Assert.That(Regex.IsMatch(headerValue, @"^Arbiter/\d+\.\d+\.\d+$"), Is.True,
-            $"Expected header to match 'Arbiter/X.Y.Z' but was '{headerValue}'");
+        Assert.That(Regex.IsMatch(headerValue, @"^Arbiter/\d+\.\d+\.\d+(-[\w.]+)?$"), Is.True,
+            $"Expected header to match 'Arbiter/X.Y.Z[-suffix]' but was '{headerValue}'");
     }
 
     private static Context CreateContext()

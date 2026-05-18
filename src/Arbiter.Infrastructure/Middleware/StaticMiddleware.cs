@@ -9,6 +9,7 @@ namespace Arbiter.Infrastructure.Middleware;
 
 public class StaticMiddleware(HandleDelegate next) : IMiddleware
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "static");
     private readonly StringComparison _stringComparison = Environment.OSVersion.Platform == PlatformID.Unix
         ? StringComparison.Ordinal
         : StringComparison.OrdinalIgnoreCase;
@@ -57,7 +58,7 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
         }
         catch (UnauthorizedAccessException e)
         {
-            Log.Error(e, "StaticMiddleware: access denied for {Path}", context.Request.Path);
+            Log.Error(e, "Access denied for {Path}", context.Request.Path);
             await context.Response.Set(Status.InternalServerError, Stream.Null);
         }
     }

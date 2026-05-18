@@ -9,6 +9,7 @@ namespace Arbiter.Application.Handlers;
 
 internal class TransactionHandler(SiteManager siteManager, ContextMapper contextMapper, HandleDelegate handleDelegate)
 {
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
     public async Task Handle(ITransaction transaction)
     {
         var request = await transaction.GetRequest();

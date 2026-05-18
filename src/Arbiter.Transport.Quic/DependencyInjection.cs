@@ -1,4 +1,6 @@
 using System.Net.Quic;
+using Arbiter.Application;
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Middleware;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,8 +14,13 @@ public static class DependencyInjection
         if (!QuicListener.IsSupported)
             return;
 
-        services.AddSingleton<IAcceptor, QuicAcceptor>();
+        services.AddSingleton<QuicPortService>();
+        services.AddTransport<QuicAcceptor, QuicTransportConfig>("quic");
     }
 
-    public static void AddQuicGlobalMiddleware(this IServiceCollection services) => services.AddGlobalMiddleware<QuicAltSvcGlobalMiddleware>();
+    public static void AddQuicGlobalMiddleware(this IServiceCollection services)
+    {
+        if (QuicListener.IsSupported)
+            services.AddGlobalMiddleware<QuicAltSvcGlobalMiddleware>();
+    }
 }
