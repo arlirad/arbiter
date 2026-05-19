@@ -5,6 +5,7 @@ using Arbiter.Application.Managers;
 using Arbiter.Application.Mappers;
 using Arbiter.Application.Middleware;
 using Arbiter.Application.Orchestrators;
+using Arbiter.Application.Services;
 using Arbiter.Configuration;
 using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
@@ -25,11 +26,12 @@ public static class DependencyInjection
         services.AddSingleton<ContextMapper>();
         services.AddSingleton<SiteManager>();
         services.AddSingleton<TransportManager>();
+        services.AddSingleton<TransactionIdProvider>();
+        services.AddSingleton<GlobalMiddlewareChain>();
+        services.AddSingleton<AltSvcService>();
 
         services.AddScoped<MiddlewareChainDelegateOrchestrator>();
         services.AddScoped<SiteOrchestrator>();
-
-        services.AddSingleton(GlobalMiddlewareInjection.GetHandleDelegate);
 
         services.AddTransient<Core.Interfaces.HandleDelegate>(sp => {
             var factory = sp.GetRequiredService<MiddlewareChainDelegateOrchestrator>();
@@ -45,10 +47,12 @@ public static class DependencyInjection
         services.AddSingleton(new TransportDescriptor(key, typeof(TAcceptor), typeof(TConfig)));
     }
 
-    public static void AddApplicationGlobalMiddleware(this IServiceCollection services)
+    public static void AddGlobalMiddleware<T>(this IServiceCollection services) where T : class, IGlobalMiddleware
+        => services.AddSingleton(new GlobalMiddlewareDescriptor(typeof(T)));
+
+    public static void ConfigureGlobalMiddlewareChain(GlobalMiddlewareChain chain)
     {
-        services.AddGlobalMiddleware<ServerHeaderGlobalMiddleware>();
-        services.AddGlobalMiddleware<ExceptionCatcherGlobalMiddleware>();
-        services.AddGlobalMiddleware<NullSiteGlobalMiddleware>();
+        chain.Add(next => new ExceptionCatcherGlobalMiddleware(next).Handle);
+        chain.Add(next => new NullSiteGlobalMiddleware(next).Handle);
     }
 }

@@ -3,6 +3,7 @@ using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
+using Arbiter.Application.Middleware;
 using Arbiter.Configuration;
 using Serilog;
 
@@ -14,7 +15,10 @@ internal class Server(
     SiteManager siteManager,
     IConfigManager configManager,
     ConfigurationProvider configProvider,
-    TransactionHandler handler
+    TransactionHandler handler,
+    GlobalMiddlewareChain chain,
+    IServiceProvider serviceProvider,
+    Action<ServerHeadersConfig, GlobalMiddlewareChain> configureMiddleware
 ) : IServer, IDisposable
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
@@ -47,6 +51,27 @@ internal class Server(
                 }
             });
         _subscriptions.Add(siteSubscription);
+
+        var headersSubscription = configProvider.Observe<ServerHeadersConfig>("headers")
+            .Subscribe(headersConfig => {
+                try
+                {
+                    chain.Rebuild(serviceProvider, c => {
+                        DependencyInjection.ConfigureGlobalMiddlewareChain(c);
+                        configureMiddleware(headersConfig, c);
+                    });
+                    Log.Information("Header configuration: Server={Server}, Date={Date}, RequestId={RequestId}",
+                        headersConfig.Server, headersConfig.Date, headersConfig.RequestId);
+                    if (headersConfig.StrictTransportSecurity is { } hsts)
+                        Log.Information("Strict-Transport-Security: MaxAge={MaxAge}, IncludeSubDomains={IncludeSubDomains}, Preload={Preload}",
+                            hsts.MaxAge, hsts.IncludeSubDomains, hsts.Preload);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to rebuild global middleware chain");
+                }
+            });
+        _subscriptions.Add(headersSubscription);
 
         _subscriptions.Add(transportManager.NewAcceptor.Subscribe(acceptor => _ = AcceptLoop(acceptor, ct)));
 

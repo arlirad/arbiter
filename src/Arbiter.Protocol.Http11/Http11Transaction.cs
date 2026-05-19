@@ -1,5 +1,6 @@
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
+using Arbiter.Application.Middleware;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Mappers;
@@ -9,13 +10,12 @@ using IPAddress = System.Net.IPAddress;
 
 namespace Arbiter.Protocol.Http11;
 
-public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress? remoteAddress, CancellationToken ct)
+public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stream stream, bool isSecure, int port, IPAddress? remoteAddress, CancellationToken ct)
     : ITransaction
 {
     private const string NewLine = "\r\n";
     private const string ChunkedEncoding = "chunked";
 
-    private static int _nextId;
     private readonly TaskCompletionSource _tcs = new();
     private readonly TaskCompletionSource _upgradeTcs = new();
     private bool _chunked;
@@ -114,7 +114,7 @@ public class Http11Transaction(Stream stream, bool isSecure, int port, IPAddress
 
         var isWebSocketUpgrade = DetectWebSocketUpgrade(method.Value, headers);
 
-        Id = Interlocked.Increment(ref _nextId);
+        Id = transactionIdProvider.Next();
 
         return new RequestDto {
             TransactionId = Id,

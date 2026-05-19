@@ -2,12 +2,13 @@ using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
 using Arbiter.Application.Mappers;
+using Arbiter.Application.Middleware;
 using Arbiter.Core.Aggregates;
 using Serilog;
 
 namespace Arbiter.Application.Handlers;
 
-internal class TransactionHandler(SiteManager siteManager, ContextMapper contextMapper, HandleDelegate handleDelegate)
+internal class TransactionHandler(SiteManager siteManager, ContextMapper contextMapper, GlobalMiddlewareChain chain)
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
     public async Task Handle(ITransaction transaction)
@@ -34,8 +35,7 @@ internal class TransactionHandler(SiteManager siteManager, ContextMapper context
 
     private async Task Handle(ITransaction transaction, Site? site, Context context, RequestDto request)
     {
-
-        var handleTask = handleDelegate(transaction, site, context);
+        var handleTask = chain.Delegate(transaction, site, context);
 
         if (!handleTask.IsCompleted)
         {

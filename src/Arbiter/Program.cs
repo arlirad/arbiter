@@ -1,15 +1,19 @@
 ﻿using System.Reflection;
 using Arbiter.Application;
+using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
+using Arbiter.Application.Middleware;
 using Arbiter.Core.Constants;
 using Arbiter.Infrastructure;
 using Arbiter.Infrastructure.Acme;
 using Arbiter.Infrastructure.Cors;
+using Arbiter.Infrastructure.Headers;
 using Arbiter.Infrastructure.Proxy;
 using Arbiter.Infrastructure.Rewriting;
 using Arbiter.Transport.Quic;
 using Arbiter.Transport.Tcp;
 using Arbiter.Transport.Unix;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -27,7 +31,7 @@ try
 {
     using var host = Host
         .CreateDefaultBuilder(args)
-        .ConfigureServices((_, services) => {
+        .ConfigureServices((context, services) => {
             services.AddConfiguration(args);
             services.AddTcpTransport();
             services.AddQuicTransport();
@@ -39,13 +43,23 @@ try
             services.AddProxyInfrastructure();
             services.AddRewritingInfrastructure();
             services.AddApplication();
-
-            services.AddApplicationGlobalMiddleware();
-            services.AddQuicGlobalMiddleware();
+            services.AddSingleton<Action<ServerHeadersConfig, GlobalMiddlewareChain>>((hc, c) => {
+                Arbiter.Application.DependencyInjection.ConfigureGlobalMiddlewareChain(c);
+                c.ConfigureHeaderMiddleware(hc);
+            });
         })
         .Build();
 
-    var server = host.Services.GetRequiredService<IServer>();
+    var sp = host.Services;
+    var config = sp.GetRequiredService<IConfiguration>();
+    var headersConfig = config.GetSection("headers").Get<ServerHeadersConfig>() ?? new ServerHeadersConfig();
+
+    var chain = sp.GetRequiredService<GlobalMiddlewareChain>();
+    Arbiter.Application.DependencyInjection.ConfigureGlobalMiddlewareChain(chain);
+    chain.ConfigureHeaderMiddleware(headersConfig);
+    chain.Build(sp);
+
+    var server = sp.GetRequiredService<IServer>();
     await server.Run(CancellationToken.None);
 }
 catch (Exception ex)

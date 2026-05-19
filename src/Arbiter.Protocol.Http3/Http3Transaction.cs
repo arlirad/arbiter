@@ -4,6 +4,7 @@ using System.Net.Quic;
 using System.Runtime.Versioning;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
+using Arbiter.Application.Middleware;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Mappers;
@@ -14,10 +15,8 @@ namespace Arlirad.Http3;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddress? remoteAddress) : ITransaction
+public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3RequestStream requestStream, int port, IPAddress? remoteAddress) : ITransaction
 {
-    private static int _nextId;
-
     public Protocol Protocol => Protocol.Http3;
     public int Id
     {
@@ -96,7 +95,7 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
             if (parsedAuthority is null)
                 return null;
 
-            Id = Interlocked.Increment(ref _nextId);
+            Id = transactionIdProvider.Next();
 
             return new RequestDto {
                 TransactionId = Id,
@@ -164,7 +163,7 @@ public class Http3Transaction(Http3RequestStream requestStream, int port, IPAddr
             return null;
         }
 
-        Id = Interlocked.Increment(ref _nextId);
+        Id = transactionIdProvider.Next();
 
         return new RequestDto {
             TransactionId = Id,

@@ -57,14 +57,14 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(request, Is.Not.Null);
             Assert.That(request!.Upgrade, Is.AssignableTo<Arbiter.Core.Interfaces.IWebSocketUpgrade>());
-            Assert.That(request.Method, Is.EqualTo(Arbiter.Core.Enums.Method.Get));
+            Assert.That(request.Method, Is.EqualTo(Core.Enums.Method.Get));
             Assert.That(request.Path, Is.EqualTo("/ws"));
         }
     }
@@ -82,7 +82,7 @@ public class H3WebSocketIngressTests
         await clientStream.FinishAsync(_cts.Token);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
 
         Assert.That(request!.Upgrade, Is.Null);
@@ -95,7 +95,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
 
         Assert.That(request!.Upgrade, Is.AssignableTo<Arbiter.Core.Interfaces.IWebSocketUpgrade>());
@@ -117,7 +117,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -147,7 +147,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -177,7 +177,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -204,7 +204,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 

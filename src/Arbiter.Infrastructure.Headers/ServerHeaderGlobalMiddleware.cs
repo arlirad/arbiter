@@ -3,7 +3,7 @@ using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Constants;
 
-namespace Arbiter.Application.Middleware;
+namespace Arbiter.Infrastructure.Headers;
 
 public class ServerHeaderGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
 {

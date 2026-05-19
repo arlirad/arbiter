@@ -1,8 +1,9 @@
 using Arbiter.Application.Interfaces;
+using Arbiter.Application.Middleware;
 
 namespace Arbiter.Protocol.Http11;
 
-public class Http11Protocol : IProtocol
+public class Http11Protocol(TransactionIdProvider transactionIdProvider) : IProtocol
 {
     public async IAsyncEnumerable<ITransaction> AcceptTransactions(
         ITransport transport,
@@ -17,7 +18,7 @@ public class Http11Protocol : IProtocol
 
             while (true)
             {
-                var transaction = new Http11Transaction(stream, isSecure, port, remoteAddress, ct);
+                var transaction = new Http11Transaction(transactionIdProvider, stream, isSecure, port, remoteAddress, ct);
                 yield return transaction;
                 await transaction.ResponseSet;
 

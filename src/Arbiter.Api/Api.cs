@@ -62,7 +62,7 @@ internal sealed class Api(
 
     private async Task HandleConnection(ITransport transport, CancellationToken ct)
     {
-        await using var protocol = new Http11Protocol();
+        await using var protocol = new Http11Protocol(new Arbiter.Application.Middleware.TransactionIdProvider());
 
         await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
             _ = HandleTransaction(transaction, ct);

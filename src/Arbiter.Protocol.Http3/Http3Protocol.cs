@@ -3,6 +3,7 @@ using System.Net.Quic;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Arbiter.Application.Interfaces;
+using Arbiter.Application.Middleware;
 using Arbiter.Transport.Quic;
 
 namespace Arlirad.Http3;
@@ -10,7 +11,7 @@ namespace Arlirad.Http3;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class Http3Protocol : IProtocol
+public class Http3Protocol(TransactionIdProvider transactionIdProvider) : IProtocol
 {
     private Http3Connection? _connection;
 
@@ -49,7 +50,7 @@ public class Http3Protocol : IProtocol
             if (requestStream is null)
                 continue;
 
-            yield return new Http3Transaction(requestStream, quicTransport.Port, quicTransport.RemoteAddress);
+            yield return new Http3Transaction(transactionIdProvider, requestStream, quicTransport.Port, quicTransport.RemoteAddress);
         }
     }
 

@@ -1,11 +1,11 @@
 using System.Text.RegularExpressions;
+using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Factories;
 
-namespace Arbiter.Application.Tests;
+namespace Arbiter.Infrastructure.Headers.Tests;
 
 public class ServerHeaderGlobalMiddlewareTests
 {
@@ -62,7 +62,7 @@ public class ServerHeaderGlobalMiddlewareTests
         public bool IsSecure => false;
         public int Port => 80;
         public System.Net.IPAddress? RemoteAddress => null;
-        public Task<DTOs.RequestDto?> GetRequest() => Task.FromResult<DTOs.RequestDto?>(null);
-        public Task SetResponse(DTOs.ResponseDto response) => Task.CompletedTask;
+        public Task<RequestDto?> GetRequest() => Task.FromResult<RequestDto?>(null);
+        public Task SetResponse(ResponseDto response) => Task.CompletedTask;
     }
 }

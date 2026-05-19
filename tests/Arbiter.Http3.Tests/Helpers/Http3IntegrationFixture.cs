@@ -90,7 +90,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         var serverQuicConnection = await _listener.AcceptConnectionAsync(CancellationToken.None);
 
         var serverTransport = new Arbiter.Transport.Quic.QuicTransport(serverQuicConnection, Port, null);
-        _serverProtocol = new Http3Protocol();
+        _serverProtocol = new Http3Protocol(new Arbiter.Application.Middleware.TransactionIdProvider());
 
         _ = ServeRequests(serverTransport);
     }

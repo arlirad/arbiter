@@ -72,7 +72,7 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
 
     private async Task HandleConnection(ITransport transport, CancellationToken ct)
     {
-        await using var protocol = new Http11Protocol();
+        await using var protocol = new Http11Protocol(new Arbiter.Application.Middleware.TransactionIdProvider());
 
         await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
         {

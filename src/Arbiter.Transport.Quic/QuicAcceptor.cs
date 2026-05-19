@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Channels;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
+using Arbiter.Application.Services;
 using Arbiter.Configuration;
 using Arbiter.Core.Enums;
 using Serilog;
@@ -17,11 +18,11 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class QuicAcceptor(ICertificateManager certificateManager, QuicPortService quicPortService) : IAcceptor, IAsyncConfigurable<List<IPAddress>, QuicTransportConfig, HashSet<Protocol>>, IDisposable
+public class QuicAcceptor(ICertificateManager certificateManager, AltSvcService altSvcService) : IAcceptor, IAsyncConfigurable<List<IPAddress>, QuicTransportConfig, HashSet<Protocol>>, IDisposable
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "quic");
     private readonly ICertificateManager _certificateManager = certificateManager;
-    private readonly QuicPortService _quicPortService = quicPortService;
+    private readonly AltSvcService _altSvcService = altSvcService;
     private readonly ConcurrentDictionary<IPEndPoint, QuicAcceptorListener> _listeners = new();
     private Channel<ITransport>? _transports;
 
@@ -36,12 +37,16 @@ public class QuicAcceptor(ICertificateManager certificateManager, QuicPortServic
             Log.Warning("No ports configured");
 
         _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(config.QueueSize));
-        _quicPortService.Ports = config.Ports;
 
-        if (_quicPortService.Announce != config.Announce)
+        if (config.Announce is not null)
         {
-            _quicPortService.Announce = config.Announce;
-            Log.Information("Alt-Svc announce {State}", config.Announce ? "enabled" : "disabled");
+            var port = config.Ports.OrderBy(p => p).FirstOrDefault();
+            if (port != 0)
+                _altSvcService.Set("h3", $":{port}", config.Announce.MaxAge);
+        }
+        else
+        {
+            _altSvcService.Remove("h3");
         }
 
         var endpoints = new List<IPEndPoint>();
