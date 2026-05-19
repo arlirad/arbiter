@@ -10,10 +10,12 @@
  - **Automatic SSL (ACME)**: Built-in support for ACME protocol to automatically issue and renew TLS certificates.
  - **Static File Hosting**: Serve static content with configurable MIME types.
  - **Middleware Pipeline**: A modular architecture allowing you to chain features like:
-   - **CORS**: Easily configure Cross-Origin Resource Sharing.
-   - **Proxy**: Reverse proxy for backend routing.
-   - **Rewrite**: Request path rewriting using RegEx pattern matching.
-   - **Static**: Static file serving.
+    - **CORS**: Easily configure Cross-Origin Resource Sharing.
+    - **Proxy**: Reverse proxy for backend routing.
+    - **Rewrite**: Request path rewriting using RegEx pattern matching.
+    - **Static**: Static file serving.
+ - **Configurable Response Headers**: Automatically add `Server`, `Date`, `X-Request-Id`, and `Strict-Transport-Security` headers via YAML config.
+ - **HTTP Alt-Svc**: Generic `AltSvcService` for advertising alternative protocols (e.g., HTTP/3) via the `Alt-Svc` response header.
  - **YAML Configuration**: Human-readable configuration for sites, middleware, workers, and bindings.
 
 
@@ -41,6 +43,16 @@ listenOn:
   - "0.0.0.0"
   - "::"
 
+# Configurable response headers (hot-reloadable)
+headers:
+  server: true
+  date: true
+  requestId: true
+  strictTransportSecurity:
+    maxAge: 31536000
+    includeSubDomains: true
+    preload: true
+
 # Enable/disable protocols globally
 protocols:
   http11: true
@@ -57,7 +69,8 @@ transports:
     backlog: 128
     queueSize: 4096
     ports: [443]
-    announce: true
+    announce:
+      maxAge: 86400
     maxInboundBiStreams: 1024
   # unix:
   #   backlog: 128
