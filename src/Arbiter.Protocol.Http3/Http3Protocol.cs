@@ -1,12 +1,11 @@
-using System.IO;
 using System.Net.Quic;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
+using Arbiter.Infrastructure.Middleware;
 using Arbiter.Transport.Quic;
 
-namespace Arlirad.Http3;
+namespace Arbiter.Protocol.Http3;
 
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
@@ -47,6 +46,7 @@ public class Http3Protocol(TransactionIdProvider transactionIdProvider) : IProto
             var quicStream = (QuicStream)transportStream.Stream;
 
             var requestStream = _connection.FeedInboundStream(quicStream);
+
             if (requestStream is null)
                 continue;
 

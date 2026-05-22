@@ -1,16 +1,16 @@
-using Arlirad.Infrastructure.QPack.Decoding;
-using Arlirad.Infrastructure.QPack.Models;
-using Arlirad.QPack.Tests.Helpers;
-using Arlirad.QPack.Tests.Streams;
+using Arbiter.Protocol.QPack.Decoding;
+using Arbiter.Protocol.QPack.Models;
+using Arbiter.Protocol.QPack.Tests.Helpers;
+using Arbiter.Protocol.QPack.Tests.Streams;
 
-namespace Arlirad.QPack.Tests;
+namespace Arbiter.Protocol.QPack.Tests;
 
 public class QPackRfcTests
 {
     /// <summary>
-    /// B.1. Literal Field Line with Name Reference
-    /// The encoder sends an encoded field section containing a literal representation of a field with a static name
-    /// reference.
+    ///     B.1. Literal Field Line with Name Reference
+    ///     The encoder sends an encoded field section containing a literal representation of a field with a static name
+    ///     reference.
     /// </summary>
     public static async Task LiteralFieldLineWithNameReference(
         QueueStream encoderInstructions,
@@ -36,7 +36,7 @@ public class QPackRfcTests
         var buffers = await RFCHelper.GetRfcExampleBuffers(example);
         var buffer0Headers = new HttpHeaders();
 
-        await using (var buffer0Section = await decoder.GetSectionReader(streamId: 0, buffers[0], buffers[0].Length,
+        await using (var buffer0Section = await decoder.GetSectionReader(0, buffers[0], buffers[0].Length,
             timeouter.Token))
         {
             foreach (var field in buffer0Section)
@@ -53,10 +53,10 @@ public class QPackRfcTests
     }
 
     /// <summary>
-    /// The encoder sets the dynamic table capacity, inserts a header with a dynamic name reference, then sends a
-    /// potentially blocking, encoded field section referencing this new entry. The decoder acknowledges processing the
-    /// encoded field section, which implicitly acknowledges all dynamic table insertions up to the Required Insert
-    /// Count.
+    ///     The encoder sets the dynamic table capacity, inserts a header with a dynamic name reference, then sends a
+    ///     potentially blocking, encoded field section referencing this new entry. The decoder acknowledges processing the
+    ///     encoded field section, which implicitly acknowledges all dynamic table insertions up to the Required Insert
+    ///     Count.
     /// </summary>
     public static async Task DynamicTable(
         QueueStream encoderInstructions,
@@ -111,8 +111,8 @@ public class QPackRfcTests
 
         var headers = new HttpHeaders();
 
-        await using (var stream4Section = await decoder.GetSectionReader(streamId: 4, buffers[4],
-            length: buffers[4].Length))
+        await using (var stream4Section = await decoder.GetSectionReader(4, buffers[4],
+            buffers[4].Length))
         {
             Assert.That(stream4Section.Base, Is.Zero);
 
@@ -130,7 +130,8 @@ public class QPackRfcTests
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(106));
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(2));
             Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
-                new(":authority", "www.example.com"), new(":path", "/sample/path"),
+                new(":authority", "www.example.com"),
+                new(":path", "/sample/path"),
             }));
 
             Assert.That(headers[":authority"], Is.EqualTo("www.example.com"));
@@ -141,8 +142,8 @@ public class QPackRfcTests
     }
 
     /// <summary>
-    /// The encoder inserts a header into the dynamic table with a literal name. The decoder acknowledges receipt of the
-    /// entry. The encoder does not send any encoded field sections.
+    ///     The encoder inserts a header into the dynamic table with a literal name. The decoder acknowledges receipt of the
+    ///     entry. The encoder does not send any encoded field sections.
     /// </summary>
     public static async Task SpeculativeInsert(
         QueueStream encoderInstructions,
@@ -189,7 +190,9 @@ public class QPackRfcTests
         {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(3));
             Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
-                new(":authority", "www.example.com"), new(":path", "/sample/path"), new("custom-key", "custom-value"),
+                new(":authority", "www.example.com"),
+                new(":path", "/sample/path"),
+                new("custom-key", "custom-value"),
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
@@ -198,10 +201,10 @@ public class QPackRfcTests
     }
 
     /// <summary>
-    /// The encoder duplicates an existing entry in the dynamic table, then sends an encoded field section referencing
-    /// the dynamic table entries including the duplicated entry. The packet containing the encoder stream data is
-    /// delayed. Before the packet arrives, the decoder cancels the stream and notifies the encoder that the encoded
-    /// field section was not processed.
+    ///     The encoder duplicates an existing entry in the dynamic table, then sends an encoded field section referencing
+    ///     the dynamic table entries including the duplicated entry. The packet containing the encoder stream data is
+    ///     delayed. Before the packet arrives, the decoder cancels the stream and notifies the encoder that the encoded
+    ///     field section was not processed.
     /// </summary>
     public static async Task DuplicateInstructionStreamCancellation(
         QueueStream encoderInstructions,
@@ -289,7 +292,10 @@ public class QPackRfcTests
         {
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(4));
             Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
-                new(":authority", "www.example.com"), new(":path", "/sample/path"), new("custom-key", "custom-value"), new(":authority", "www.example.com"),
+                new(":authority", "www.example.com"),
+                new(":path", "/sample/path"),
+                new("custom-key", "custom-value"),
+                new(":authority", "www.example.com"),
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));
@@ -340,7 +346,10 @@ public class QPackRfcTests
             Assert.That(decoder.TotalInsertCount, Is.EqualTo(5));
             Assert.That(decoder.DynamicTableSize, Is.EqualTo(215));
             Assert.That(decoder.GetDynamicTable(), Is.EqualTo(new List<QPackField> {
-                new(":path", "/sample/path"), new("custom-key", "custom-value"), new(":authority", "www.example.com"), new("custom-key", "custom-value2"),
+                new(":path", "/sample/path"),
+                new("custom-key", "custom-value"),
+                new(":authority", "www.example.com"),
+                new("custom-key", "custom-value2"),
             }));
 
             Assert.That(buffer[0], Is.EqualTo(buffers[RFCHelper.DecoderStream][0]));

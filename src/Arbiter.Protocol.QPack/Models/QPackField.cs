@@ -1,4 +1,4 @@
-namespace Arlirad.Infrastructure.QPack.Models;
+namespace Arbiter.Protocol.QPack.Models;
 
 public class QPackField(string name, string? value = null)
 {

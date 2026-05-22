@@ -37,6 +37,7 @@ public class EventsController : ControllerBase
     {
         return Sse(async writer => {
             var counter = 0;
+
             while (!HttpContext.CancellationToken.IsCancellationRequested)
             {
                 await writer.WriteAsync(new SseEvent {

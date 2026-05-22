@@ -1,4 +1,3 @@
-using System.Reactive;
 using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Configuration.Tests;
@@ -6,8 +5,6 @@ namespace Arbiter.Configuration.Tests;
 [TestFixture]
 public class ConfigurationProviderTests
 {
-    private string? _tempFile;
-
     [TearDown]
     public void TearDown()
     {
@@ -15,13 +12,17 @@ public class ConfigurationProviderTests
             File.Delete(_tempFile);
     }
 
+    private string? _tempFile;
+
     private record TestConfig(string? Value);
 
     [Test]
     public void Observe_emits_initial_value()
     {
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Test:Value"] = "hello" })
+            .AddInMemoryCollection(new Dictionary<string, string?> {
+                ["Test:Value"] = "hello",
+            })
             .Build();
 
         using var provider = new ConfigurationProvider(config);
@@ -37,7 +38,9 @@ public class ConfigurationProviderTests
     public void Observe_caches_observable_per_section()
     {
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Test:Value"] = "hello" })
+            .AddInMemoryCollection(new Dictionary<string, string?> {
+                ["Test:Value"] = "hello",
+            })
             .Build();
 
         using var provider = new ConfigurationProvider(config);
@@ -70,7 +73,7 @@ public class ConfigurationProviderTests
         File.WriteAllText(_tempFile, """{"Test":{"Value":"hello"}}""");
 
         var config = new ConfigurationBuilder()
-            .AddJsonFile(_tempFile, optional: false, reloadOnChange: true)
+            .AddJsonFile(_tempFile, false, true)
             .Build();
 
         using var provider = new ConfigurationProvider(config);
@@ -97,7 +100,7 @@ public class ConfigurationProviderTests
         File.WriteAllText(_tempFile, """{"Test":{"Value":"hello"},"Other":{"Value":"unchanged"}}""");
 
         var config = new ConfigurationBuilder()
-            .AddJsonFile(_tempFile, optional: false, reloadOnChange: true)
+            .AddJsonFile(_tempFile, false, true)
             .Build();
 
         using var provider = new ConfigurationProvider(config);
@@ -119,7 +122,9 @@ public class ConfigurationProviderTests
     public void Dispose_completes_observables()
     {
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Test:Value"] = "hello" })
+            .AddInMemoryCollection(new Dictionary<string, string?> {
+                ["Test:Value"] = "hello",
+            })
             .Build();
 
         var provider = new ConfigurationProvider(config);
@@ -145,7 +150,9 @@ public class ConfigurationProviderTests
     public void Observe_skips_bad_values()
     {
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Test"] = "not-an-object" })
+            .AddInMemoryCollection(new Dictionary<string, string?> {
+                ["Test"] = "not-an-object",
+            })
             .Build();
 
         using var provider = new ConfigurationProvider(config);

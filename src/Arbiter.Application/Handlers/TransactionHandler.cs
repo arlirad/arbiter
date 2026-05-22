@@ -11,6 +11,7 @@ namespace Arbiter.Application.Handlers;
 internal class TransactionHandler(SiteManager siteManager, ContextMapper contextMapper, GlobalMiddlewareChain chain)
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
+
     public async Task Handle(ITransaction transaction)
     {
         var request = await transaction.GetRequest();
@@ -50,6 +51,7 @@ internal class TransactionHandler(SiteManager siteManager, ContextMapper context
         else
         {
             await handleTask;
+
             Log.Information("{remoteAddress} ({id}) >> {method} {authority}:{path} << {status}",
                 request.RemoteAddress, request.TransactionId, request.Method, request.Authority, request.Path, context.Response.Status);
         }

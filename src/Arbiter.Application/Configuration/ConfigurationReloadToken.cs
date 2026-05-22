@@ -1,4 +1,3 @@
-using System.Threading;
 using Microsoft.Extensions.Primitives;
 
 namespace Arbiter.Application.Configuration;

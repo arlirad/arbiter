@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace Arlirad.WebSocket;
+namespace Arbiter.Protocol.WebSocket;
 
 public class WebSocketFrameReader(Stream stream)
 {
@@ -9,6 +9,7 @@ public class WebSocketFrameReader(Stream stream)
         var header = ArrayPool<byte>.Shared.Rent(2);
         byte[]? ext = null;
         byte[]? mask = null;
+
         try
         {
             await ReadExact(header.AsMemory(0, 2), ct);
@@ -29,6 +30,7 @@ public class WebSocketFrameReader(Stream stream)
                 ext = ArrayPool<byte>.Shared.Rent(8);
                 await ReadExact(ext.AsMemory(0, 8), ct);
                 payloadLen = 0;
+
                 for (var i = 0; i < 8; i++)
                     payloadLen = (payloadLen << 8) | ext[i];
             }
@@ -55,8 +57,10 @@ public class WebSocketFrameReader(Stream stream)
         finally
         {
             ArrayPool<byte>.Shared.Return(header);
+
             if (ext is not null)
                 ArrayPool<byte>.Shared.Return(ext);
+
             if (mask is not null)
                 ArrayPool<byte>.Shared.Return(mask);
         }

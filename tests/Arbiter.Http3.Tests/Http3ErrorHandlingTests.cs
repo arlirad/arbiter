@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using System.Net.Quic;
 using System.Runtime.Versioning;
 using Arbiter.Http3.Tests.Helpers;
-using Arlirad.Http3.Streams;
 
 namespace Arbiter.Http3.Tests;
 
@@ -54,16 +52,17 @@ public class Http3ErrorHandlingTests
 
         await requestStream.FinishAsync();
 
-        var serverStream = await fixture.AcceptRequestStream(default);
+        var serverStream = await fixture.AcceptRequestStream();
 
         var headerCount = 0;
-        foreach (var _ in await serverStream.ReadHeaders(default))
+
+        foreach (var _ in await serverStream.ReadHeaders())
             headerCount++;
 
         Assert.That(headerCount, Is.GreaterThan(0));
 
         var buffer = new byte[100];
-        var bytesRead = await serverStream.ReadAsync(buffer, default);
+        var bytesRead = await serverStream.ReadAsync(buffer);
 
         Assert.That(bytesRead, Is.Zero);
     }
@@ -84,6 +83,7 @@ public class Http3ErrorHandlingTests
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
 
         var headers = new List<KeyValuePair<string, string?>>();
+
         foreach (var header in await serverStream.ReadHeaders(CancellationToken.None))
             headers.Add(header);
 

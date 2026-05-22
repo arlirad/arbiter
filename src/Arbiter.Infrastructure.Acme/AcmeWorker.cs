@@ -16,9 +16,9 @@ internal class AcmeWorker(
     ICertificateManager certificateManager
 ) : IWorker
 {
-    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "acme");
     private const double RenewalTimeRemainingFraction = 0.80;
     private const string CertificatePassword = "";
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "acme");
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(6);
 
     private readonly CancellationTokenSource _cts = new();
@@ -149,6 +149,7 @@ internal class AcmeWorker(
             certificateManager.Set(domain, GetCertificateInstance(pfx));
 
             await File.WriteAllBytesAsync(domainCertPath, pfx, ct);
+
             Log.Information("Successfully created a certificate for '{Domain}', renewal after {RenewAfter}",
                 domain, renewAfter);
         }
@@ -159,6 +160,7 @@ internal class AcmeWorker(
         try
         {
             var pfx = await File.ReadAllBytesAsync(cert);
+
             return DateTime.Now >= GetRenewalDate(pfx);
         }
         catch (FileNotFoundException)
@@ -176,6 +178,7 @@ internal class AcmeWorker(
             await Task.Delay(5000, ct);
 
             challenge = await httpChallenge.Validate();
+
             if (challenge.Status == ChallengeStatus.Valid)
                 break;
         }

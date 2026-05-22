@@ -1,4 +1,4 @@
-namespace Arlirad.Infrastructure.QPack.Streams;
+namespace Arbiter.Protocol.QPack.Streams;
 
 public class QPackWriter(Stream inner)
 {

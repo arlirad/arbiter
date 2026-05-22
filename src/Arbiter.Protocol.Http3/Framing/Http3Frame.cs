@@ -1,7 +1,7 @@
 using Arbiter.Infrastructure.Streams;
-using Arlirad.Http3.Enums;
+using Arbiter.Protocol.Http3.Enums;
 
-namespace Arlirad.Http3.Framing;
+namespace Arbiter.Protocol.Http3.Framing;
 
 internal class Http3Frame(FrameType type, Stream stream, long length)
 {

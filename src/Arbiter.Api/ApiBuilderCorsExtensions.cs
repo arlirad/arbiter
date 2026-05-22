@@ -11,6 +11,7 @@ public static class ApiBuilderCorsExtensions
         configure?.Invoke(options);
 
         IConfiguration? config = null;
+
         if (options.HasValues)
         {
             config = new ConfigurationBuilder()

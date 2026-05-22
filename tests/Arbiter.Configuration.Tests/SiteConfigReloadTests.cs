@@ -6,14 +6,14 @@ namespace Arbiter.Configuration.Tests;
 [TestFixture]
 public class SiteConfigReloadTests
 {
-    private string? _tempFile;
-
     [TearDown]
     public void TearDown()
     {
         if (_tempFile != null && File.Exists(_tempFile))
             File.Delete(_tempFile);
     }
+
+    private string? _tempFile;
 
     [Test]
     public void Observe_SiteConfig_emits_on_file_change()
@@ -22,10 +22,10 @@ public class SiteConfigReloadTests
         File.WriteAllText(_tempFile, """{"Sites":{"test":{"Path":"/var/www","Bindings":["http://localhost:8080"],"Middleware":[{"Name":"proxy","Config":{"Target":"http://backend:5000"}}]}}}""");
 
         var config = new ConfigurationBuilder()
-            .AddJsonFile(_tempFile, optional: false, reloadOnChange: true)
+            .AddJsonFile(_tempFile, false, true)
             .Build();
 
-        using var provider = new Arbiter.Configuration.ConfigurationProvider(config);
+        using var provider = new ConfigurationProvider(config);
         var values = new List<Dictionary<string, SiteConfig>>();
 
         provider.Observe<Dictionary<string, SiteConfig>>("Sites").Subscribe(values.Add);

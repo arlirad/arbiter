@@ -1,3 +1,4 @@
+using System.Text;
 using Arbiter.Api.Attributes;
 using Arbiter.Api.Controllers;
 using Arbiter.Api.Http;
@@ -11,7 +12,8 @@ public class FilesController : ControllerBase
     [HttpGet("{fileName}")]
     public static IActionResult Download(string fileName)
     {
-        var fileContent = System.Text.Encoding.UTF8.GetBytes($"This is content of {fileName}");
+        var fileContent = Encoding.UTF8.GetBytes($"This is content of {fileName}");
+
         return File(fileContent, "text/plain", fileName);
     }
 
@@ -36,11 +38,12 @@ public class FilesController : ControllerBase
     public static IActionResult StreamFile()
     {
         return File(() => {
-            var stream = new System.IO.MemoryStream();
-            var writer = new System.IO.StreamWriter(stream);
+            var stream = new MemoryStream();
+            var writer = new StreamWriter(stream);
             writer.Write("This is a streamed file content");
             writer.Flush();
             stream.Position = 0;
+
             return stream;
         }, "text/plain", "streamed.txt");
     }

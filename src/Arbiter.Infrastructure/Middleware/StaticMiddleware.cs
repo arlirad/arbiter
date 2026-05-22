@@ -7,9 +7,10 @@ using Serilog;
 
 namespace Arbiter.Infrastructure.Middleware;
 
-public class StaticMiddleware(HandleDelegate next) : IMiddleware
+public class StaticMiddleware : IMiddleware
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "static");
+
     private readonly StringComparison _stringComparison = Environment.OSVersion.Platform == PlatformID.Unix
         ? StringComparison.Ordinal
         : StringComparison.OrdinalIgnoreCase;
@@ -37,9 +38,11 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
             var fullPath = Path.GetFullPath(Path.Combine(_root, strippedPath));
 
             var rootToCheck = _root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
             if (!fullPath.StartsWith(rootToCheck, _stringComparison) && fullPath != _root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
             {
                 await context.Response.Set(Status.NotFound, Stream.Null);
+
                 return;
             }
 
@@ -48,6 +51,7 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
             if (stream is null)
             {
                 await context.Response.Set(Status.NotFound, Stream.Null);
+
                 return;
             }
 
@@ -66,6 +70,7 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
     private (string path, FileStream? stream) GetFile(string queryPath)
     {
         var stream = TryOpenRead(queryPath);
+
         if (stream is not null)
             return (queryPath, stream);
 

@@ -1,13 +1,14 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Reflection;
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
 using Arbiter.Configuration;
 using Arbiter.Core.Enums;
+using Arbiter.Transport.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ConfigurationProvider = Arbiter.Configuration.ConfigurationProvider;
 
 namespace Arbiter.Application.Tests;
 
@@ -17,7 +18,7 @@ public class TransportManagerTests
     public async Task ReconfigureAsync_starts_acceptor_for_added_transport()
     {
         var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor, [new TransportDescriptor("tcp", typeof(StubAcceptor), typeof(IpTransportConfig))]);
+        using var manager = CreateManager("tcp", acceptor);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
 
@@ -28,7 +29,7 @@ public class TransportManagerTests
     public async Task Acceptor_receives_reconfigure_on_add()
     {
         var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor, [new TransportDescriptor("tcp", typeof(StubAcceptor), typeof(IpTransportConfig))]);
+        using var manager = CreateManager("tcp", acceptor);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
 
@@ -39,7 +40,7 @@ public class TransportManagerTests
     public async Task ReconfigureAsync_moves_acceptor_to_draining_on_removal()
     {
         var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor, [new TransportDescriptor("tcp", typeof(StubAcceptor), typeof(IpTransportConfig))]);
+        using var manager = CreateManager("tcp", acceptor);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, [], [IPAddress.Loopback], [Protocol.Http11]);
@@ -58,7 +59,7 @@ public class TransportManagerTests
     {
         var acceptor = new StubAcceptor();
         var newAcceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", newAcceptor, [new TransportDescriptor("tcp", typeof(StubAcceptor), typeof(IpTransportConfig))]);
+        using var manager = CreateManager("tcp", newAcceptor);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, [], [IPAddress.Loopback], [Protocol.Http11]);
@@ -89,7 +90,7 @@ public class TransportManagerTests
     public async Task ReconfigureAsync_reconfigures_existing_transport()
     {
         var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor, [new TransportDescriptor("tcp", typeof(StubAcceptor), typeof(IpTransportConfig))]);
+        using var manager = CreateManager("tcp", acceptor);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
@@ -101,7 +102,7 @@ public class TransportManagerTests
     public async Task ReconfigureAsync_disposes_acceptor_on_removal()
     {
         var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor, [new TransportDescriptor("tcp", typeof(StubAcceptor), typeof(IpTransportConfig))]);
+        using var manager = CreateManager("tcp", acceptor);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, [], [IPAddress.Loopback], [Protocol.Http11]);
@@ -109,7 +110,7 @@ public class TransportManagerTests
         Assert.That(acceptor.IsDisposed, Is.True);
     }
 
-    private static TransportManager CreateManager(string? acceptorKey, IAcceptor? acceptor, params TransportDescriptor[] descriptors)
+    private static TransportManager CreateManager(string? acceptorKey, IAcceptor? acceptor)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> {
@@ -118,10 +119,11 @@ public class TransportManagerTests
                 ["Transports:tcp:ports:0"] = "80",
             })
             .Build();
-        var configProvider = new Arbiter.Configuration.ConfigurationProvider(configuration);
+
+        var configProvider = new ConfigurationProvider(configuration);
         var serviceProvider = new StubServiceProvider(acceptorKey, acceptor);
 
-        return new TransportManager(serviceProvider, configuration, configProvider, descriptors);
+        return new TransportManager(serviceProvider, configuration, configProvider);
     }
 
     private static async ValueTask InvokeReconfigureAsync(
@@ -149,7 +151,8 @@ public class TransportManagerTests
         public int ReconfigureCount => _reconfigureCount;
         public bool IsDisposed
         {
-            get; private set;
+            get;
+            private set;
         }
 
         public Task<ITransport> Accept(CancellationToken ct) => Task.FromException<ITransport>(new InvalidOperationException("stub"));
@@ -157,6 +160,7 @@ public class TransportManagerTests
         public ValueTask ReconfigureAsync(List<IPAddress> addresses, IpTransportConfig config, HashSet<Protocol> protocols)
         {
             Interlocked.Increment(ref _reconfigureCount);
+
             return ValueTask.CompletedTask;
         }
 
@@ -165,7 +169,7 @@ public class TransportManagerTests
 
     private sealed class StubServiceProvider(string? acceptorKey, IAcceptor? acceptor) : IKeyedServiceProvider
     {
-        public object? GetService(Type serviceType) => serviceType == typeof(IEnumerable<TransportDescriptor>) ? (IEnumerable<TransportDescriptor>)[] : null;
+        public object? GetService(Type serviceType) => null;
 
         public object? GetKeyedService(Type serviceType, object? key) => key?.ToString() == acceptorKey && serviceType == typeof(IAcceptor) ? acceptor : null;
 

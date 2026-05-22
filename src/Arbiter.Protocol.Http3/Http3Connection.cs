@@ -2,28 +2,28 @@
 using System.Net.Quic;
 using System.Runtime.Versioning;
 using System.Threading.Channels;
-using Arlirad.Http3.Enums;
-using Arlirad.Http3.Framing;
-using Arlirad.Http3.Streams;
-using Arlirad.Infrastructure.QPack.Decoding;
-using Arlirad.Infrastructure.QPack.Encoding;
+using Arbiter.Protocol.Http3.Enums;
+using Arbiter.Protocol.Http3.Framing;
+using Arbiter.Protocol.Http3.Streams;
+using Arbiter.Protocol.QPack.Decoding;
+using Arbiter.Protocol.QPack.Encoding;
 using Serilog;
 
-namespace Arlirad.Http3;
+namespace Arbiter.Protocol.Http3;
 
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
 public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 {
-    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "http3");
     private const int MaxWaitingStreams = 64;
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "http3");
 
     private static readonly Dictionary<SettingsParameter, Func<Http3Connection, ulong>> SettingsToWrite = new() {
-        [SettingsParameter.QPackMaxTableCapacity] = (conn) => (ulong)conn.LocalSettings.MaxDecoderDynamicTableCapacity,
-        [SettingsParameter.MaxFieldSectionSize] = (conn) => conn.LocalSettings.MaxFieldSectionSize,
-        [SettingsParameter.QPackBlockedStreams] = (conn) => (ulong)conn.LocalSettings.QPackBlockedStreams,
-        [SettingsParameter.EnableConnectProtocol] = (_) => 1,
+        [SettingsParameter.QPackMaxTableCapacity] = conn => (ulong)conn.LocalSettings.MaxDecoderDynamicTableCapacity,
+        [SettingsParameter.MaxFieldSectionSize] = conn => conn.LocalSettings.MaxFieldSectionSize,
+        [SettingsParameter.QPackBlockedStreams] = conn => (ulong)conn.LocalSettings.QPackBlockedStreams,
+        [SettingsParameter.EnableConnectProtocol] = _ => 1,
     };
 
     private readonly CancellationTokenSource _cts = new();
@@ -51,6 +51,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 
         if (_localControlStream is IAsyncDisposable localStream)
             await localStream.DisposeAsync();
+
         if (_peerControlStream is IAsyncDisposable peerStream)
             await peerStream.DisposeAsync();
 
@@ -72,11 +73,13 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         if (stream.Type == QuicStreamType.Unidirectional)
         {
             _ = HandleUnidirectionalStream(stream);
+
             return null;
         }
 
         var requestStream = new Http3RequestStream(this, stream.Id, stream);
         _ = _requestStreams.Writer.WriteAsync(requestStream, _cts.Token);
+
         return requestStream;
     }
 
@@ -96,21 +99,24 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
                     if (Interlocked.Exchange(ref _peerControlStream, stream) != null)
                     {
                         await RaiseConnectionError(ErrorCode.StreamCreationError);
+
                         return;
                     }
 
                     await HandleControlStream(stream);
+
                     break;
                 case StreamType.Push:
                     await RaiseConnectionError(ErrorCode.StreamCreationError);
+
                     break;
                 case StreamType.Encoder:
                     Encoder.SetIncomingStream(stream);
+
                     break;
                 case StreamType.Decoder:
                     Decoder.SetIncomingStream(stream);
-                    break;
-                default:
+
                     break;
             }
         }
@@ -137,6 +143,7 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         if (frame.Type != FrameType.Settings)
         {
             await RaiseConnectionError(ErrorCode.MissingSettings);
+
             return;
         }
 
@@ -155,19 +162,23 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
             {
                 case FrameType.Settings:
                     await RaiseConnectionError(ErrorCode.SettingsError);
+
                     return;
                 case FrameType.GoAway:
                 case FrameType.MaxPushId:
                 case FrameType.CancelPush:
                 case FrameType.DuplicatePush:
                     await DrainFrame(frame, ct);
+
                     continue;
                 case FrameType.Data:
                 case FrameType.Headers:
                     await RaiseConnectionError(ErrorCode.FrameUnexpected);
+
                     return;
                 default:
                     await DrainFrame(frame, ct);
+
                     continue;
             }
         }
@@ -202,24 +213,28 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
             case SettingsParameter.QPackMaxTableCapacity:
                 if (value > int.MaxValue)
                     throw new InvalidOperationException("H3_SETTINGS_ERROR: QPackMaxTableCapacity exceeds maximum");
+
                 _peerSettings.MaxDecoderDynamicTableCapacity = (int)value;
+
                 break;
             case SettingsParameter.MaxFieldSectionSize:
                 _peerSettings.MaxFieldSectionSize = (ulong)value;
+
                 break;
             case SettingsParameter.QPackBlockedStreams:
                 if (value > int.MaxValue)
                     throw new InvalidOperationException("H3_SETTINGS_ERROR: QPackBlockedStreams exceeds maximum");
+
                 _peerSettings.QPackBlockedStreams = (int)value;
+
                 break;
             case SettingsParameter.EnableConnectProtocol:
                 _peerSettings.EnableConnectProtocol = value != 0;
+
                 break;
             case SettingsParameter.H3Datagram:
                 break;
             case SettingsParameter.EnableMetadata:
-                break;
-            default:
                 break;
         }
     }

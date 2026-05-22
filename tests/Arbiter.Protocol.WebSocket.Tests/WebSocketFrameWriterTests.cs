@@ -1,4 +1,4 @@
-using Arlirad.WebSocket;
+using System.Text;
 
 namespace Arbiter.Protocol.WebSocket.Tests;
 
@@ -10,6 +10,7 @@ public class WebSocketFrameWriterTests
         using var ms = new MemoryStream();
         var writer = new WebSocketFrameWriter(ms);
         await writeAction(writer);
+
         return ms.ToArray();
     }
 
@@ -25,14 +26,17 @@ public class WebSocketFrameWriterTests
         {
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Text));
             Assert.That(frame.Fin, Is.True);
-            Assert.That(System.Text.Encoding.UTF8.GetString(frame.Payload.Span), Is.EqualTo("Hi"));
+            Assert.That(Encoding.UTF8.GetString(frame.Payload.Span), Is.EqualTo("Hi"));
         }
     }
 
     [Test]
     public async Task WriteFrame_binary_payload()
     {
-        var data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+        var data = new byte[] {
+            0xDE, 0xAD, 0xBE, 0xEF,
+        };
+
         var bytes = await WriteAndGetBytes(w => w.WriteBinary(data));
         using var ms = new MemoryStream(bytes);
         var reader = new WebSocketFrameReader(ms);
@@ -48,7 +52,10 @@ public class WebSocketFrameWriterTests
     [Test]
     public async Task WriteFrame_ping_with_data()
     {
-        var data = new byte[] { 0x01, 0x02 };
+        var data = new byte[] {
+            0x01, 0x02,
+        };
+
         var bytes = await WriteAndGetBytes(w => w.WritePing(data));
         using var ms = new MemoryStream(bytes);
         var reader = new WebSocketFrameReader(ms);
@@ -64,7 +71,10 @@ public class WebSocketFrameWriterTests
     [Test]
     public async Task WriteFrame_pong()
     {
-        var data = new byte[] { 0x03, 0x04 };
+        var data = new byte[] {
+            0x03, 0x04,
+        };
+
         var bytes = await WriteAndGetBytes(w => w.WritePong(data));
         using var ms = new MemoryStream(bytes);
         var reader = new WebSocketFrameReader(ms);
@@ -80,7 +90,7 @@ public class WebSocketFrameWriterTests
     [Test]
     public async Task WriteClose_with_code_only()
     {
-        var bytes = await WriteAndGetBytes(w => w.WriteClose(WebSocketCloseStatusCode.Normal));
+        var bytes = await WriteAndGetBytes(w => w.WriteClose());
         using var ms = new MemoryStream(bytes);
         var reader = new WebSocketFrameReader(ms);
         var frame = await reader.ReadFrame();
@@ -107,7 +117,7 @@ public class WebSocketFrameWriterTests
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Close));
             var code = (frame.Payload.Span[0] << 8) | frame.Payload.Span[1];
             Assert.That(code, Is.EqualTo(1001));
-            var reason = System.Text.Encoding.UTF8.GetString(frame.Payload.Span[2..]);
+            var reason = Encoding.UTF8.GetString(frame.Payload.Span[2..]);
             Assert.That(reason, Is.EqualTo("bye"));
         }
     }
@@ -131,6 +141,7 @@ public class WebSocketFrameWriterTests
     public async Task WriteFrame_16bit_length_encoding()
     {
         var payload = new byte[256];
+
         for (var i = 0; i < payload.Length; i++)
             payload[i] = (byte)(i & 0xFF);
 
@@ -146,6 +157,7 @@ public class WebSocketFrameWriterTests
     public async Task WriteFrame_64bit_length_encoding()
     {
         var payload = new byte[70000];
+
         for (var i = 0; i < payload.Length; i++)
             payload[i] = (byte)(i & 0xFF);
 
@@ -224,6 +236,6 @@ public class WebSocketFrameWriterTests
         var reader = new WebSocketFrameReader(ms);
         var frame = await reader.ReadFrame();
 
-        Assert.That(System.Text.Encoding.UTF8.GetString(frame.Payload.Span), Is.EqualTo(text));
+        Assert.That(Encoding.UTF8.GetString(frame.Payload.Span), Is.EqualTo(text));
     }
 }

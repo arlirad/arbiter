@@ -1,8 +1,10 @@
+using System.Net;
+
 namespace Arbiter.Api.Results;
 
 public class NoContentResult : StatusCodeResult
 {
-    public NoContentResult() : base(System.Net.HttpStatusCode.NoContent)
+    public NoContentResult() : base(HttpStatusCode.NoContent)
     {
     }
 }

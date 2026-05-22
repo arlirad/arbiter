@@ -1,12 +1,10 @@
 using System.Collections.Concurrent;
-using System.IO;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Channels;
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Configuration;
 using Arbiter.Core.Enums;
+using Arbiter.Transport.Unix.Configuration;
 using Serilog;
 
 namespace Arbiter.Transport.Unix;
@@ -16,10 +14,6 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "unix");
     private readonly ConcurrentDictionary<string, UnixSocketAcceptorSocket> _sockets = new();
     private Channel<ITransport>? _transports;
-
-    public UnixSocketAcceptor()
-    {
-    }
 
     public async Task<ITransport> Accept(CancellationToken ct) => await _transports!.Reader.ReadAsync(ct);
 
@@ -31,6 +25,17 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
             Log.Warning("No paths configured");
 
         await Bind(config.Paths, config.Backlog);
+    }
+
+    public void Dispose()
+    {
+        foreach (var socket in _sockets.Values)
+        {
+            socket.Stop();
+            socket.Close();
+        }
+
+        _sockets.Clear();
     }
 
     public async Task Bind(IEnumerable<string> paths, int backlog)
@@ -64,7 +69,7 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
     {
         try
         {
-            var stream = new NetworkStream(socket, ownsSocket: false);
+            var stream = new NetworkStream(socket, false);
             var transport = new UnixTransport(stream, -1, null);
             await _transports.Writer.WriteAsync(transport, ct);
         }
@@ -88,7 +93,6 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
 
         foreach (var path in newPaths)
         {
-
             if (File.Exists(path))
                 File.Delete(path);
 
@@ -129,16 +133,5 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
 
         if (cancellationTasks.Count > 0)
             await Task.WhenAll(cancellationTasks);
-    }
-
-    public void Dispose()
-    {
-        foreach (var socket in _sockets.Values)
-        {
-            socket.Stop();
-            socket.Close();
-        }
-
-        _sockets.Clear();
     }
 }

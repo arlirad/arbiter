@@ -6,8 +6,8 @@ namespace Arbiter.Infrastructure.Headers;
 
 public class StrictTransportSecurityGlobalMiddleware : IGlobalMiddleware
 {
-    private readonly HandleDelegate _next;
     private readonly StrictTransportSecurityConfig _config;
+    private readonly HandleDelegate _next;
 
     public StrictTransportSecurityGlobalMiddleware(HandleDelegate next, StrictTransportSecurityConfig config)
     {
@@ -17,8 +17,8 @@ public class StrictTransportSecurityGlobalMiddleware : IGlobalMiddleware
         if (_config.Preload && !_config.IncludeSubDomains)
             throw new InvalidOperationException("StrictTransportSecurity: preload requires includeSubDomains to be enabled.");
 
-        if (_config.Preload && _config.MaxAge < 10886400)
-            throw new InvalidOperationException("StrictTransportSecurity: preload requires maxAge of at least 10886400 seconds (approx. 18 weeks).");
+        if (_config.Preload && _config.MaxAge < 31536000)
+            throw new InvalidOperationException("StrictTransportSecurity: preload requires maxAge of at least 31536000 seconds (1 year).");
     }
 
     public async Task Handle(ITransaction transaction, Site? site, Context context)

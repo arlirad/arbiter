@@ -81,6 +81,7 @@ public class CorsMiddlewareTests
             Assert.That(context.Response.Status, Is.EqualTo(Status.Ok));
             Assert.That(context.Response.Headers["Access-Control-Allow-Methods"]?.FirstOrDefault(),
                 Is.EqualTo("GET, POST"));
+
             Assert.That(context.Response.Headers["Access-Control-Allow-Headers"]?.FirstOrDefault(),
                 Is.EqualTo("Content-Type"));
         }

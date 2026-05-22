@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Net;
 using Arbiter.Api.Attributes;
 using Arbiter.Api.Controllers;
-using Arbiter.Api.Http;
 using Arbiter.Api.Results;
 
 namespace Arbiter.Api.Sample.Controllers;
@@ -15,10 +14,14 @@ public class UsersController : ControllerBase
     {
         var users = new[] {
             new {
-                Id = 1, Name = "Alice", Email = "alice@example.com",
+                Id = 1,
+                Name = "Alice",
+                Email = "alice@example.com",
             },
             new {
-                Id = 2, Name = "Bob", Email = "bob@example.com",
+                Id = 2,
+                Name = "Bob",
+                Email = "bob@example.com",
             },
         };
 
@@ -73,6 +76,7 @@ public class UsersController : ControllerBase
     public IActionResult Head(int id)
     {
         HttpContext.Response.StatusCode = 200;
+
         return StatusCode(HttpStatusCode.OK);
     }
 
@@ -80,6 +84,7 @@ public class UsersController : ControllerBase
     public IActionResult Options()
     {
         HttpContext.Response.Headers["Allow"] = "GET, POST, PUT, DELETE, HEAD, OPTIONS";
+
         return StatusCode(HttpStatusCode.OK);
     }
 }

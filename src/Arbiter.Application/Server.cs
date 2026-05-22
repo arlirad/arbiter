@@ -3,7 +3,6 @@ using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
-using Arbiter.Application.Middleware;
 using Arbiter.Configuration;
 using Serilog;
 
@@ -15,15 +14,18 @@ internal class Server(
     SiteManager siteManager,
     IConfigManager configManager,
     ConfigurationProvider configProvider,
-    TransactionHandler handler,
-    GlobalMiddlewareChain chain,
-    IServiceProvider serviceProvider,
-    Action<ServerHeadersConfig, GlobalMiddlewareChain> configureMiddleware
+    TransactionHandler handler
 ) : IServer, IDisposable
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
-    private readonly CompositeDisposable _subscriptions = [];
     private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
+    private readonly CompositeDisposable _subscriptions = [];
+
+    public void Dispose()
+    {
+        _subscriptions.Dispose();
+        _reconfigureLock.Dispose();
+    }
 
     public async Task Run(CancellationToken ct)
     {
@@ -36,6 +38,7 @@ internal class Server(
                 try
                 {
                     await _reconfigureLock.WaitAsync();
+
                     try
                     {
                         await siteManager.ReconfigureAsync(sites);
@@ -50,28 +53,8 @@ internal class Server(
                     Log.Error(ex, "Failed to reconfigure sites");
                 }
             });
-        _subscriptions.Add(siteSubscription);
 
-        var headersSubscription = configProvider.Observe<ServerHeadersConfig>("headers")
-            .Subscribe(headersConfig => {
-                try
-                {
-                    chain.Rebuild(serviceProvider, c => {
-                        DependencyInjection.ConfigureGlobalMiddlewareChain(c);
-                        configureMiddleware(headersConfig, c);
-                    });
-                    Log.Information("Header configuration: Server={Server}, Date={Date}, RequestId={RequestId}",
-                        headersConfig.Server, headersConfig.Date, headersConfig.RequestId);
-                    if (headersConfig.StrictTransportSecurity is { } hsts)
-                        Log.Information("Strict-Transport-Security: MaxAge={MaxAge}, IncludeSubDomains={IncludeSubDomains}, Preload={Preload}",
-                            hsts.MaxAge, hsts.IncludeSubDomains, hsts.Preload);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to rebuild global middleware chain");
-                }
-            });
-        _subscriptions.Add(headersSubscription);
+        _subscriptions.Add(siteSubscription);
 
         _subscriptions.Add(transportManager.NewAcceptor.Subscribe(acceptor => _ = AcceptLoop(acceptor, ct)));
 
@@ -85,12 +68,6 @@ internal class Server(
         catch (OperationCanceledException)
         {
         }
-    }
-
-    public void Dispose()
-    {
-        _subscriptions.Dispose();
-        _reconfigureLock.Dispose();
     }
 
     private async Task AcceptLoop(IAcceptor acceptor, CancellationToken ct)
@@ -118,7 +95,6 @@ internal class Server(
         }
         catch (OperationCanceledException)
         {
-            // ignored
         }
         catch (Exception e)
         {

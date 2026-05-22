@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
@@ -7,9 +6,11 @@ using System.Security.Cryptography.X509Certificates;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Enums;
+using Arbiter.Core.ValueObjects;
+using Arbiter.Infrastructure.Middleware;
+using Arbiter.Protocol.Http3;
 using Arbiter.Transport.Quic;
-using Arlirad.Http3;
-using Arlirad.Http3.Streams;
+using HttpVersion = System.Net.HttpVersion;
 
 namespace Arbiter.Http3.Tests.Helpers;
 
@@ -39,13 +40,16 @@ public class HttpClientServerFixture : IAsyncDisposable
 
         Client = new HttpClient(handler) {
             BaseAddress = new Uri($"https://127.0.0.1:{Port}"),
-            DefaultRequestVersion = System.Net.HttpVersion.Version30,
+            DefaultRequestVersion = HttpVersion.Version30,
             DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
         };
     }
 
     public int Port => _listener.LocalEndPoint.Port;
-    public HttpClient Client { get; } = null!;
+    public HttpClient Client
+    {
+        get;
+    } = null!;
 
     public async ValueTask DisposeAsync()
     {
@@ -57,13 +61,17 @@ public class HttpClientServerFixture : IAsyncDisposable
         {
             await _listener.DisposeAsync();
         }
-        catch { }
+        catch
+        {
+        }
 
         try
         {
             await (_serverLoop ?? Task.CompletedTask);
         }
-        catch { }
+        catch
+        {
+        }
 
         _cts.Dispose();
     }
@@ -73,7 +81,7 @@ public class HttpClientServerFixture : IAsyncDisposable
         if (!QuicListener.IsSupported)
             Assert.Ignore("QUIC is not supported on this platform");
 
-        var certificate = SelfSignedCertificate.Create("localhost");
+        var certificate = SelfSignedCertificate.Create();
 
         var listener = await QuicListener.ListenAsync(new QuicListenerOptions {
             ApplicationProtocols = [SslApplicationProtocol.Http3],
@@ -92,9 +100,14 @@ public class HttpClientServerFixture : IAsyncDisposable
             }),
         });
 
-        var handler = requestHandler ?? (req => Task.FromResult(new ResponseDto { Status = Status.Ok }));
+        var handler = requestHandler ?? (req => Task.FromResult(new ResponseDto {
+            Status = Status.Ok,
+            Headers = new ReadOnlyHeaders([]),
+        }));
+
         var fixture = new HttpClientServerFixture(listener, certificate, handler);
         await fixture.StartServerLoopAsync();
+
         return fixture;
     }
 
@@ -112,17 +125,21 @@ public class HttpClientServerFixture : IAsyncDisposable
                         var connection = await _listener.AcceptConnectionAsync(ct);
                         _ = HandleConnectionAsync(connection, ct);
                     }
-                    catch (QuicException) { }
+                    catch (QuicException)
+                    {
+                    }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+            }
         });
     }
 
     private async Task HandleConnectionAsync(QuicConnection connection, CancellationToken ct)
     {
         var transport = new QuicTransport(connection, Port, null);
-        await using var protocol = new Http3Protocol(new Arbiter.Application.Middleware.TransactionIdProvider());
+        await using var protocol = new Http3Protocol(new TransactionIdProvider());
 
         var tasks = new List<Task>();
 
@@ -137,12 +154,15 @@ public class HttpClientServerFixture : IAsyncDisposable
         try
         {
             var request = await transaction.GetRequest();
+
             if (request is not null)
             {
                 var response = await _requestHandler(request);
                 await transaction.SetResponse(response);
             }
         }
-        catch (Exception) { }
+        catch (Exception)
+        {
+        }
     }
 }

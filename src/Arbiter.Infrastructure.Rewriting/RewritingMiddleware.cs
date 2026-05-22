@@ -32,10 +32,12 @@ public class RewritingMiddleware(HandleDelegate next) : IMiddleware
         foreach (var rule in _compiledRules)
         {
             var newPath = rule.Apply(path);
+
             if (newPath == path)
                 continue;
 
             path = newPath;
+
             break;
         }
 

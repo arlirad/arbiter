@@ -27,6 +27,7 @@ internal class SiteManager(
         List<string> toPrune;
 
         await _lock.WaitAsync();
+
         try
         {
             var existingKeys = new HashSet<string>(_sites.Keys);
@@ -34,11 +35,13 @@ internal class SiteManager(
 
             toCreate = [.. configuration.Where(kvp => !existingKeys.Contains(kvp.Key))];
 
-            toRecreate = [.. _sites
-                .Where(kvp => configuration.TryGetValue(kvp.Key, out var newCfg)
-                    && _siteConfigs.TryGetValue(kvp.Value, out var oldCfg)
-                    && !oldCfg.Equals(newCfg))
-                .Select(kvp => kvp.Key)];
+            toRecreate = [
+                .. _sites
+                    .Where(kvp => configuration.TryGetValue(kvp.Key, out var newCfg)
+                        && _siteConfigs.TryGetValue(kvp.Value, out var oldCfg)
+                        && !oldCfg.Equals(newCfg))
+                    .Select(kvp => kvp.Key),
+            ];
 
             toPrune = [.. existingKeys.Except(configKeys)];
         }
@@ -51,6 +54,7 @@ internal class SiteManager(
         var sitesToStop = new Dictionary<string, Site>();
 
         await _lock.WaitAsync();
+
         try
         {
             foreach (var key in toRecreate)
@@ -101,13 +105,16 @@ internal class SiteManager(
         }
 
         await _lock.WaitAsync();
+
         try
         {
             _sites.Clear();
+
             foreach (var kvp in stagedSites)
                 _sites[kvp.Key] = kvp.Value;
 
             _siteConfigs.Clear();
+
             foreach (var kvp in stagedSites)
                 _siteConfigs[kvp.Value] = configuration[kvp.Key];
 
@@ -126,6 +133,8 @@ internal class SiteManager(
                 Log.Information("Removed site '{Key}'", kvp.Key);
         }
     }
+
+    public void Dispose() => _lock.Dispose();
 
     public Site? Find(string? authority, int port)
     {
@@ -194,6 +203,4 @@ internal class SiteManager(
 
         return authority[..colon];
     }
-
-    public void Dispose() => _lock.Dispose();
 }

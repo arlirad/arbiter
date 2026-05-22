@@ -1,4 +1,4 @@
-namespace Arlirad.Http3;
+namespace Arbiter.Protocol.Http3;
 
 public class Http3ConnectionSettings
 {

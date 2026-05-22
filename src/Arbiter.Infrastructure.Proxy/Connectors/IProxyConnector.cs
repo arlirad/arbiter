@@ -1,4 +1,3 @@
-using System.Net.Http;
 using Arbiter.Core.Aggregates;
 
 namespace Arbiter.Infrastructure.Proxy.Connectors;

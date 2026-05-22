@@ -1,5 +1,6 @@
+using System.Runtime.CompilerServices;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
+using Arbiter.Infrastructure.Middleware;
 
 namespace Arbiter.Protocol.Http11;
 
@@ -7,7 +8,7 @@ public class Http11Protocol(TransactionIdProvider transactionIdProvider) : IProt
 {
     public async IAsyncEnumerable<ITransaction> AcceptTransactions(
         ITransport transport,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        [EnumeratorCancellation] CancellationToken ct)
     {
         await foreach (var transportStream in transport.GetStreams(ct))
         {
@@ -19,12 +20,15 @@ public class Http11Protocol(TransactionIdProvider transactionIdProvider) : IProt
             while (true)
             {
                 var transaction = new Http11Transaction(transactionIdProvider, stream, isSecure, port, remoteAddress, ct);
+
                 yield return transaction;
+
                 await transaction.ResponseSet;
 
                 if (transaction.Upgraded)
                 {
                     await transaction.UpgradeCompleted;
+
                     break;
                 }
 

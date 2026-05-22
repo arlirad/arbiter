@@ -27,6 +27,7 @@ internal sealed class RouteTable
         foreach (var route in _routes)
         {
             var match = route.Match(method, path);
+
             if (match is not null)
                 return (route, match);
         }
@@ -56,6 +57,7 @@ internal sealed class RouteTable
             foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
             {
                 var attr = method.GetCustomAttribute<HttpMethodAttribute>();
+
                 if (attr is null)
                     continue;
 
@@ -155,6 +157,7 @@ internal sealed class RouteTable
             {
                 var paramNameA = GetParamName(segA);
                 var paramNameB = GetParamName(segB);
+
                 if (paramNameA != paramNameB)
                     continue;
             }
@@ -174,12 +177,14 @@ internal sealed class RouteTable
 
         var inner = segment[1..^1];
         var colon = inner.IndexOf(':');
+
         return colon >= 0 ? inner[..colon] : inner;
     }
 
     private static string? GetRoutePrefix(Type type)
     {
         var routeAttr = type.GetCustomAttribute<RouteAttribute>();
+
         if (routeAttr is null)
             return null;
 

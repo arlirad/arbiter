@@ -1,4 +1,4 @@
-using Arlirad.WebSocket;
+using Arbiter.Protocol.WebSocket;
 
 namespace Arbiter.Api.Http;
 

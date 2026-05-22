@@ -11,6 +11,7 @@ public static class ApiBuilderHttpsExtensions
         configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?> {
             ["HttpsPort"] = httpsPort.ToString(),
         });
+
         var config = configurationBuilder.Build();
 
         return builder.UseMiddleware<HttpsRedirectionMiddleware>(config);

@@ -13,6 +13,7 @@ public class StatusCodeResult(HttpStatusCode statusCode) : IActionResult
     public Task ExecuteAsync(HttpContext context)
     {
         context.Response.StatusCode = (int)StatusCode;
+
         return Task.CompletedTask;
     }
 }

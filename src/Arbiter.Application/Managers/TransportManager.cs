@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Reflection;
 using Arbiter.Application.Configuration;
@@ -14,47 +15,39 @@ using AppConfigurationProvider = Arbiter.Configuration.ConfigurationProvider;
 
 namespace Arbiter.Application.Managers;
 
-public class TransportManager : IDisposable
+public class TransportManager(
+    IServiceProvider serviceProvider,
+    IConfiguration configuration,
+    AppConfigurationProvider configProvider) : IDisposable
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "transport");
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IConfiguration _configuration;
-    private readonly AppConfigurationProvider _configProvider;
-    private readonly Dictionary<string, Type> _configTypeRegistry = [];
+
     private readonly ConcurrentDictionary<string, IAcceptor> _active = new();
+    private readonly List<IPAddress> _addresses = [];
+    private readonly AppConfigurationProvider _configProvider = configProvider;
+    private readonly IConfiguration _configuration = configuration;
     private readonly ConcurrentDictionary<string, IAcceptor> _draining = new();
-    private readonly CompositeDisposable _subscriptions = [];
-    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
     private readonly Subject<IAcceptor> _newAcceptor = new();
+    private readonly HashSet<Protocol> _protocols = [Protocol.Http11, Protocol.Http3];
+    private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly CompositeDisposable _subscriptions = [];
 
     private HashSet<string> _previousKeys = [];
-    private readonly List<IPAddress> _addresses = [];
-    private readonly HashSet<Protocol> _protocols = [Protocol.Http11, Protocol.Http3];
 
     public IObservable<IAcceptor> NewAcceptor => _newAcceptor;
     public IEnumerable<IAcceptor> ActiveAcceptors => _active.Values;
 
-    public TransportManager(
-        IServiceProvider serviceProvider,
-        IConfiguration configuration,
-        AppConfigurationProvider configProvider,
-        IEnumerable<TransportDescriptor> descriptors)
+    public void Dispose()
     {
-        _serviceProvider = serviceProvider;
-        _configuration = configuration;
-        _configProvider = configProvider;
-
-        foreach (var descriptor in descriptors)
-        {
-            _configTypeRegistry[descriptor.Key] = descriptor.ConfigType;
-        }
+        _subscriptions.Dispose();
+        _reconfigureLock.Dispose();
+        _newAcceptor.Dispose();
     }
 
     public void Initialize()
     {
-        var config = System.Reactive.Linq.Observable.CombineLatest(
-            _configProvider.Observe<Dictionary<string, TransportConfig>>("Transports"),
-            _configProvider.Observe<List<string>>("ListenOn"),
+        var config = _configProvider.Observe<Dictionary<string, object>>("Transports").CombineLatest(_configProvider.Observe<List<string>>("ListenOn"),
             _configProvider.Observe<ProtocolsConfig>("Protocols"),
             (transports, listenOn, protocols) => new {
                 TransportKeys = transports.Keys.ToHashSet(),
@@ -67,6 +60,7 @@ public class TransportManager : IDisposable
             try
             {
                 await _reconfigureLock.WaitAsync();
+
                 try
                 {
                     await ReconfigureAsync(c.TransportKeys, c.Addresses, c.Protocols);
@@ -99,8 +93,10 @@ public class TransportManager : IDisposable
                 if (_active.TryRemove(key, out var acceptor))
                 {
                     _draining[key] = acceptor;
+
                     if (acceptor is IDisposable d)
                         d.Dispose();
+
                     Log.Information("'{Key}' removed, draining active connections", key);
                 }
             }
@@ -123,10 +119,12 @@ public class TransportManager : IDisposable
                 }
 
                 var acceptor = ResolveAcceptor(key);
+
                 if (acceptor is null)
                     continue;
 
-                var config = BindConfig(key);
+                var config = BindConfig(key, acceptor);
+
                 if (config is null)
                     continue;
 
@@ -147,7 +145,7 @@ public class TransportManager : IDisposable
             {
                 if (_active.TryGetValue(key, out var acceptor))
                 {
-                    var config = BindConfig(key);
+                    var config = BindConfig(key, acceptor);
                     if (config is not null)
                         await ConfigureAcceptor(acceptor, config, addresses, protocols);
                 }
@@ -161,9 +159,11 @@ public class TransportManager : IDisposable
         _previousKeys = currentKeys;
     }
 
-    private object? BindConfig(string key)
+    private object? BindConfig(string key, IAcceptor acceptor)
     {
-        return _configTypeRegistry.TryGetValue(key, out var configType)
+        var configType = acceptor.GetType().GetConfigType<ITransportConfig>();
+
+        return configType is not null
             ? _configuration.GetSection($"Transports:{key}").Get(configType)
             : null;
     }
@@ -177,6 +177,7 @@ public class TransportManager : IDisposable
         catch
         {
             Log.Warning("No acceptor registered for '{Key}'", key);
+
             return null;
         }
     }
@@ -193,6 +194,7 @@ public class TransportManager : IDisposable
         if (method is null)
         {
             Log.Warning("Acceptor '{Type}' does not implement ReconfigureAsync", acceptor.GetType().Name);
+
             return;
         }
 
@@ -203,13 +205,11 @@ public class TransportManager : IDisposable
             var t => throw new InvalidOperationException($"Unknown parameter type {t} in ReconfigureAsync"),
         }).ToArray();
 
-        await (ValueTask)method.Invoke(acceptor, args);
-    }
+        var result = method.Invoke(acceptor, args);
 
-    public void Dispose()
-    {
-        _subscriptions.Dispose();
-        _reconfigureLock.Dispose();
-        _newAcceptor.Dispose();
+        if (result is null)
+            return;
+
+        await (ValueTask)result;
     }
 }

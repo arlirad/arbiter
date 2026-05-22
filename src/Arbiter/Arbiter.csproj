@@ -1,35 +1,34 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-      <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-      <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    </PropertyGroup>
 
-  <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
-      <PackageReference Include="Microsoft.Extensions.Hosting"/>
-      <PackageReference Include="Serilog"/>
-      <PackageReference Include="Serilog.Sinks.Console"/>
-      <PackageReference Include="Webprofusion.Certify.ACME.Anvil"/>
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
-      <ProjectReference Include="..\Arbiter.Core\Arbiter.Core.csproj"/>
-    <ProjectReference Include="..\Arbiter.Infrastructure.Acme\Arbiter.Infrastructure.Acme.csproj"/>
-    <ProjectReference Include="..\Arbiter.Infrastructure.Cors\Arbiter.Infrastructure.Cors.csproj"/>
-    <ProjectReference Include="..\Arbiter.Infrastructure.Headers\Arbiter.Infrastructure.Headers.csproj"/>
-    <ProjectReference Include="..\Arbiter.Infrastructure.Rewriting\Arbiter.Infrastructure.Rewriting.csproj"/>
-    <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
-      <ProjectReference Include="..\Arbiter.Infrastructure.Proxy\Arbiter.Infrastructure.Proxy.csproj"/>
-      <ProjectReference Include="..\Arbiter.Protocol.Http11\Arbiter.Protocol.Http11.csproj"/>
-    <ProjectReference Include="..\Arbiter.Protocol.Http3\Arbiter.Protocol.Http3.csproj"/>
-    <ProjectReference Include="..\Arbiter.Transport.Quic\Arbiter.Transport.Quic.csproj"/>
-    <ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>
-    <ProjectReference Include="..\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+        <PackageReference Include="Microsoft.Extensions.Hosting"/>
+        <PackageReference Include="Serilog"/>
+        <PackageReference Include="Serilog.Sinks.Console"/>
+        <PackageReference Include="Webprofusion.Certify.ACME.Anvil"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
+        <ProjectReference Include="..\Arbiter.Core\Arbiter.Core.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure.Acme\Arbiter.Infrastructure.Acme.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure.Cors\Arbiter.Infrastructure.Cors.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure\Arbiter.Infrastructure.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure.Headers\Arbiter.Infrastructure.Headers.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure.Proxy\Arbiter.Infrastructure.Proxy.csproj"/>
+        <ProjectReference Include="..\Arbiter.Infrastructure.Rewriting\Arbiter.Infrastructure.Rewriting.csproj"/>
+        <ProjectReference Include="..\Arbiter.Protocol.Http11\Arbiter.Protocol.Http11.csproj"/>
+        <ProjectReference Include="..\Arbiter.Protocol.Http3\Arbiter.Protocol.Http3.csproj"/>
+        <ProjectReference Include="..\Arbiter.Transport.Quic\Arbiter.Transport.Quic.csproj"/>
+        <ProjectReference Include="..\Arbiter.Transport.Tcp\Arbiter.Transport.Tcp.csproj"/>
+        <ProjectReference Include="..\Arbiter.Transport.Unix\Arbiter.Transport.Unix.csproj"/>
+    </ItemGroup>
 </Project>

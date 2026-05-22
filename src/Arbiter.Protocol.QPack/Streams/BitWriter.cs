@@ -1,27 +1,30 @@
-namespace Arlirad.Infrastructure.QPack.Streams;
+namespace Arbiter.Protocol.QPack.Streams;
 
 public class BitWriter
 {
-    private byte[] _buffer;
     private int _bitPosition;
-    private int _totalBits;
+    private byte[] _buffer;
 
     public BitWriter(int initialCapacity)
     {
         _buffer = new byte[initialCapacity];
     }
 
+    public int BitLength
+    {
+        get;
+        private set;
+    }
+
+    public int TotalBytes => (BitLength + 7) / 8;
 
     public byte[] ToArray()
     {
-        var result = new byte[(_totalBits + 7) / 8];
+        var result = new byte[(BitLength + 7) / 8];
         Array.Copy(_buffer, result, result.Length);
+
         return result;
     }
-
-    public int BitLength => _totalBits;
-
-    public int TotalBytes => (_totalBits + 7) / 8;
 
     public void WriteBits(uint value, int bitCount)
     {
@@ -49,7 +52,7 @@ public class BitWriter
             valueMasked &= (1u << bitCount) - 1;
         }
 
-        _totalBits += _bitPosition - _totalBits;
+        BitLength += _bitPosition - BitLength;
     }
 
     public void Write(byte value) => WriteBits(value, 8);
@@ -63,6 +66,7 @@ public class BitWriter
     private void EnsureCapacity()
     {
         var requiredBytes = (_bitPosition / 8) + 1;
+
         if (requiredBytes > _buffer.Length)
         {
             var newCapacity = _buffer.Length * 2;

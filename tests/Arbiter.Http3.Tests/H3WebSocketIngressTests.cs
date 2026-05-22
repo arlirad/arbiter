@@ -1,9 +1,13 @@
 using System.Net;
+using System.Net.Quic;
 using System.Runtime.Versioning;
+using Arbiter.Core.Enums;
+using Arbiter.Core.Interfaces;
 using Arbiter.Http3.Tests.Helpers;
-using Arlirad.Http3;
-using Arlirad.Http3.Streams;
-using Arlirad.WebSocket;
+using Arbiter.Infrastructure.Middleware;
+using Arbiter.Protocol.Http3;
+using Arbiter.Protocol.Http3.Streams;
+using Arbiter.Protocol.WebSocket;
 
 namespace Arbiter.Http3.Tests;
 
@@ -12,13 +16,13 @@ namespace Arbiter.Http3.Tests;
 [SupportedOSPlatform("windows")]
 public class H3WebSocketIngressTests
 {
-    private Http3IntegrationFixture _fixture = null!;
     private CancellationTokenSource _cts = null!;
+    private Http3IntegrationFixture _fixture = null!;
 
     [SetUp]
     public async Task SetUp()
     {
-        if (!System.Net.Quic.QuicListener.IsSupported)
+        if (!QuicListener.IsSupported)
             Assert.Ignore("QUIC is not supported on this platform");
 
         _fixture = await Http3IntegrationFixture.CreateAsync();
@@ -47,6 +51,7 @@ public class H3WebSocketIngressTests
             [":path"] = [path],
             [":protocol"] = ["websocket"],
         });
+
         await clientStream.WriteAsync(ReadOnlyMemory<byte>.Empty, _cts.Token);
     }
 
@@ -57,14 +62,14 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(new Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(request, Is.Not.Null);
-            Assert.That(request!.Upgrade, Is.AssignableTo<Arbiter.Core.Interfaces.IWebSocketUpgrade>());
-            Assert.That(request.Method, Is.EqualTo(Core.Enums.Method.Get));
+            Assert.That(request!.Upgrade, Is.AssignableTo<IWebSocketUpgrade>());
+            Assert.That(request.Method, Is.EqualTo(Method.Get));
             Assert.That(request.Path, Is.EqualTo("/ws"));
         }
     }
@@ -73,16 +78,18 @@ public class H3WebSocketIngressTests
     public async Task GetRequest_non_CONNECT_has_no_websocket_upgrade()
     {
         var clientStream = await _fixture.CreateClientRequestStreamAsync(_cts.Token);
+
         await clientStream.WriteHeaders(new Dictionary<string, List<string>> {
             [":method"] = ["GET"],
             [":scheme"] = ["https"],
             [":authority"] = [$"localhost:{_fixture.Port}"],
             [":path"] = ["/api/hello"],
         });
+
         await clientStream.FinishAsync(_cts.Token);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
 
         Assert.That(request!.Upgrade, Is.Null);
@@ -95,14 +102,15 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
 
-        Assert.That(request!.Upgrade, Is.AssignableTo<Arbiter.Core.Interfaces.IWebSocketUpgrade>());
+        Assert.That(request!.Upgrade, Is.AssignableTo<IWebSocketUpgrade>());
 
         await request.Upgrade!.AcceptAsync();
 
         var responseHeaders = new List<KeyValuePair<string, string>>();
+
         foreach (var header in await clientStream.ReadHeaders(_cts.Token))
             responseHeaders.Add(new KeyValuePair<string, string>(header.Key, header.Value ?? string.Empty));
 
@@ -117,7 +125,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -147,7 +155,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -162,7 +170,11 @@ public class H3WebSocketIngressTests
         }, _cts.Token);
 
         await using var clientWs = new WebSocketConnection(clientStream);
-        var data = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
+
+        var data = new byte[] {
+            0xCA, 0xFE, 0xBA, 0xBE,
+        };
+
         await clientWs.SendBinaryAsync(data, _cts.Token);
         var reply = await clientWs.ReceiveBinaryAsync(_cts.Token);
         Assert.That(reply.ToArray(), Is.EqualTo(data));
@@ -177,7 +189,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -204,7 +216,7 @@ public class H3WebSocketIngressTests
         await SendConnectHeaders(clientStream);
 
         var serverStream = await _fixture.AcceptRequestStream(_cts.Token);
-        var transaction = new Http3Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
+        var transaction = new Http3Transaction(new TransactionIdProvider(), serverStream, _fixture.Port, IPAddress.Loopback);
         var request = await transaction.GetRequest();
         var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -222,7 +234,7 @@ public class H3WebSocketIngressTests
         await using var clientWs = new WebSocketConnection(clientStream);
         var msg = await clientWs.ReceiveTextAsync(_cts.Token);
         Assert.That(msg, Is.EqualTo("push from h3"));
-        await clientWs.CloseAsync(WebSocketCloseStatusCode.Normal, ct: _cts.Token);
+        await clientWs.CloseAsync(ct: _cts.Token);
 
         await serverWsTask;
     }

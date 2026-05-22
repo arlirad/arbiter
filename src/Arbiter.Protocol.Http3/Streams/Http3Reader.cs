@@ -1,26 +1,26 @@
-namespace Arlirad.Http3.Streams;
+namespace Arbiter.Protocol.Http3.Streams;
 
 public class Http3Reader(Stream stream)
 {
     /// <summary>
-    /// Reads a variable-length integer from a stream as defined in the QUIC protocol.
+    ///     Reads a variable-length integer from a stream as defined in the QUIC protocol.
     /// </summary>
     /// <param name="buffer">
-    /// A buffer to hold intermediate bytes while reading the variable-length integer.
-    /// The size of the buffer must be enough to accommodate the encoded integer.
+    ///     A buffer to hold intermediate bytes while reading the variable-length integer.
+    ///     The size of the buffer must be enough to accommodate the encoded integer.
     /// </param>
     /// <param name="ct">
-    /// An optional cancellation token to observe while waiting for the asynchronous operation to complete.
+    ///     An optional cancellation token to observe while waiting for the asynchronous operation to complete.
     /// </param>
     /// <returns>
-    /// A <c>ValueTask</c> representing the asynchronous operation. The result of the task is the
-    /// decoded variable-length integer as a <c>long</c>.
+    ///     A <c>ValueTask</c> representing the asynchronous operation. The result of the task is the
+    ///     decoded variable-length integer as a <c>long</c>.
     /// </returns>
     /// <exception cref="OperationCanceledException">
-    /// Thrown if the operation is canceled via the provided <paramref name="ct"/>.
+    ///     Thrown if the operation is canceled via the provided <paramref name="ct" />.
     /// </exception>
     /// <exception cref="IOException">
-    /// Thrown when an I/O error occurs during the reading process from the stream.
+    ///     Thrown when an I/O error occurs during the reading process from the stream.
     /// </exception>
     public async ValueTask<long> ReadVarInt(byte[] buffer, CancellationToken ct = default)
     {

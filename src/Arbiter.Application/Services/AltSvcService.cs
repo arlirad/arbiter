@@ -9,11 +9,15 @@ public sealed class AltSvcService
 
     public string? HeaderValue
     {
-        get; private set;
+        get;
+        private set;
     }
 
     public void Set(string protocolId, string authority, int maxAge, bool persist = false)
     {
+        if (_entries.TryGetValue(protocolId, out var existing) && existing.Authority == authority && existing.MaxAge == maxAge && existing.Persist == persist)
+            return;
+
         _entries[protocolId] = new AltSvcEntry(protocolId, authority, maxAge, persist);
         Rebuild();
         Log.Information("Added: {ProtocolId}=\"{Authority}\"; MaxAge={MaxAge}", protocolId, authority, maxAge);
@@ -34,6 +38,7 @@ public sealed class AltSvcService
             ? null
             : string.Join(", ", _entries.Values.Select(e => {
                 var s = $"{e.ProtocolId}=\"{e.Authority}\"; ma={e.MaxAge}";
+
                 if (e.Persist)
                 {
                     s += "; persist=1";

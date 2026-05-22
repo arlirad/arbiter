@@ -4,13 +4,12 @@ using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
 using System.Security.Authentication;
-using System.Threading;
 using System.Threading.Channels;
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Services;
 using Arbiter.Configuration;
 using Arbiter.Core.Enums;
+using Arbiter.Transport.Quic.Configuration;
 using Serilog;
 
 namespace Arbiter.Transport.Quic;
@@ -21,8 +20,6 @@ namespace Arbiter.Transport.Quic;
 public class QuicAcceptor(ICertificateManager certificateManager, AltSvcService altSvcService) : IAcceptor, IAsyncConfigurable<List<IPAddress>, QuicTransportConfig, HashSet<Protocol>>, IDisposable
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "quic");
-    private readonly ICertificateManager _certificateManager = certificateManager;
-    private readonly AltSvcService _altSvcService = altSvcService;
     private readonly ConcurrentDictionary<IPEndPoint, QuicAcceptorListener> _listeners = new();
     private Channel<ITransport>? _transports;
 
@@ -42,14 +39,15 @@ public class QuicAcceptor(ICertificateManager certificateManager, AltSvcService 
         {
             var port = config.Ports.OrderBy(p => p).FirstOrDefault();
             if (port != 0)
-                _altSvcService.Set("h3", $":{port}", config.Announce.MaxAge);
+                altSvcService.Set("h3", $":{port}", config.Announce.MaxAge);
         }
         else
         {
-            _altSvcService.Remove("h3");
+            altSvcService.Remove("h3");
         }
 
         var endpoints = new List<IPEndPoint>();
+
         foreach (var address in addresses)
         {
             foreach (var port in config.Ports)
@@ -57,6 +55,17 @@ public class QuicAcceptor(ICertificateManager certificateManager, AltSvcService 
         }
 
         await Bind(endpoints, config.Backlog, config.MaxInboundBiStreams);
+    }
+
+    public void Dispose()
+    {
+        foreach (var listener in _listeners.Values)
+        {
+            listener.Stop();
+            listener.Close();
+        }
+
+        _listeners.Clear();
     }
 
     public async Task Bind(IEnumerable<IPEndPoint> endpoints, int backlog, int maxInboundBiStreams)
@@ -117,8 +126,7 @@ public class QuicAcceptor(ICertificateManager certificateManager, AltSvcService 
 
         foreach (var endpoint in newEndpoints)
         {
-
-            var listener = await QuicListener.ListenAsync(new QuicListenerOptions() {
+            var listener = await QuicListener.ListenAsync(new QuicListenerOptions {
                 ApplicationProtocols = [SslApplicationProtocol.Http3],
                 ListenBacklog = backlog,
                 ListenEndPoint = endpoint,
@@ -158,7 +166,7 @@ public class QuicAcceptor(ICertificateManager certificateManager, AltSvcService 
         SslClientHelloInfo clientHello,
         int maxInboundBiStreams)
     {
-        var cert = _certificateManager.Get(clientHello.ServerName) ?? _certificateManager.GetFallback();
+        var cert = certificateManager.Get(clientHello.ServerName) ?? certificateManager.GetFallback();
         var options = new QuicServerConnectionOptions {
             DefaultStreamErrorCode = 0,
             DefaultCloseErrorCode = 1,
@@ -173,16 +181,5 @@ public class QuicAcceptor(ICertificateManager certificateManager, AltSvcService 
         };
 
         return ValueTask.FromResult(options);
-    }
-
-    public void Dispose()
-    {
-        foreach (var listener in _listeners.Values)
-        {
-            listener.Stop();
-            listener.Close();
-        }
-
-        _listeners.Clear();
     }
 }

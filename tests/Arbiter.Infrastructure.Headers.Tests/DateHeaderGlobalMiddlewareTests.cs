@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
@@ -27,6 +28,7 @@ public class DateHeaderGlobalMiddlewareTests
         var nextInvoked = false;
         var sut = new DateHeaderGlobalMiddleware((_, _, _) => {
             nextInvoked = true;
+
             return Task.CompletedTask;
         });
 
@@ -60,7 +62,7 @@ public class DateHeaderGlobalMiddlewareTests
         public Protocol Protocol => Protocol.Http11;
         public bool IsSecure => false;
         public int Port => 80;
-        public System.Net.IPAddress? RemoteAddress => null;
+        public IPAddress? RemoteAddress => null;
         public Task<RequestDto?> GetRequest() => Task.FromResult<RequestDto?>(null);
         public Task SetResponse(ResponseDto response) => Task.CompletedTask;
     }

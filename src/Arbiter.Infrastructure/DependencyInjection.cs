@@ -13,6 +13,7 @@ public static class DependencyInjection
     {
         services.AddSingleton<IConfigManager, ConfigManager>();
         services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
+        services.AddSingleton<TransactionIdProvider>();
     }
 
     public static void AddConfiguration(this IServiceCollection services, string[] args)
@@ -27,11 +28,11 @@ public static class DependencyInjection
         var builder = new ConfigurationBuilder();
 
         if (File.Exists(yamlPath))
-            builder.AddYamlFile(yamlPath, optional: false, reloadOnChange: true);
+            builder.AddYamlFile(yamlPath, false, true);
         else if (File.Exists(jsonPath))
-            builder.AddJsonFile(jsonPath, optional: false, reloadOnChange: true);
+            builder.AddJsonFile(jsonPath, false, true);
         else
-            builder.AddYamlFile(yamlPath, optional: false, reloadOnChange: true);
+            builder.AddYamlFile(yamlPath, false, true);
 
         services.AddSingleton<IConfiguration>(builder.Build());
     }

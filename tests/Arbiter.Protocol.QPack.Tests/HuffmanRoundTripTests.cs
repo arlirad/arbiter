@@ -1,6 +1,6 @@
-using Arlirad.Infrastructure.QPack.Huffman;
+using Arbiter.Protocol.QPack.Huffman;
 
-namespace Arlirad.QPack.Tests;
+namespace Arbiter.Protocol.QPack.Tests;
 
 public class HuffmanRoundTripTests
 {
@@ -9,7 +9,10 @@ public class HuffmanRoundTripTests
     {
         for (var b = 0; b <= 255; b++)
         {
-            var input = new byte[] { (byte)b };
+            var input = new[] {
+                (byte)b,
+            };
+
             var encoded = HPackHuffman.Encode(input);
             var decoded = HPackHuffman.Decode(encoded, encoded.Length);
 
@@ -31,18 +34,7 @@ public class HuffmanRoundTripTests
     public void EncodeDecode_CommonHeaderValues()
     {
         var testValues = new[] {
-            "text/html",
-            "application/json",
-            "GET",
-            "POST",
-            "https",
-            "http",
-            "gzip, deflate, br",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "en-US,en;q=0.9",
-            "no-cache",
-            "max-age=31536000",
-            "*/*",
+            "text/html", "application/json", "GET", "POST", "https", "http", "gzip, deflate, br", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "en-US,en;q=0.9", "no-cache", "max-age=31536000", "*/*",
         };
 
         foreach (var testValue in testValues)
@@ -63,15 +55,7 @@ public class HuffmanRoundTripTests
     public void Huffman_Is_Shorter_Than_Raw_ForTypicalStrings()
     {
         var testCases = new[] {
-            ("text/html", true),
-            ("application/json", true),
-            ("GET", false),
-            ("POST", false),
-            ("en-US", true),
-            ("no-cache", true),
-            ("max-age=0", true),
-            ("xyz", false),
-            ("abcdefghijklmnopqrstuvwxyz", true),
+            ("text/html", true), ("application/json", true), ("GET", false), ("POST", false), ("en-US", true), ("no-cache", true), ("max-age=0", true), ("xyz", false), ("abcdefghijklmnopqrstuvwxyz", true),
         };
 
         foreach (var (value, expectedShorter) in testCases)

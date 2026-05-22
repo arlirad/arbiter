@@ -1,5 +1,5 @@
+using System.Text.Json;
 using Arbiter.Api;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -20,12 +20,12 @@ var services = builder.Services;
 var apiBuilder = ApiBuilder.Create(services)
     .ConfigureJson(options => {
         options.WriteIndented = true;
-        options.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     })
     .WithControllers()
     .UseRequestLogging()
-    .UseHttpsRedirection(443)
-    .UseRateLimiting(maxRequests: 100, windowSeconds: 60)
+    .UseHttpsRedirection()
+    .UseRateLimiting(100, 60)
     .UseHealthChecks();
 
 var api = apiBuilder.Build();

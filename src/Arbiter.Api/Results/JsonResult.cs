@@ -29,9 +29,11 @@ public class JsonResult(object? value, HttpStatusCode statusCode = HttpStatusCod
             };
 
             var formatter = selector.Select(formatterContext);
+
             if (formatter is not null && formatter.CanWrite(formatterContext.ObjectType, "application/json"))
             {
                 await formatter.WriteAsync(Value, context);
+
                 return;
             }
         }

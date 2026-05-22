@@ -1,11 +1,11 @@
 using System.Buffers;
 using System.Net.Quic;
 using System.Runtime.Versioning;
-using Arlirad.Http3.Enums;
-using Arlirad.Http3.Framing;
-using Arlirad.Infrastructure.QPack.Decoding;
+using Arbiter.Protocol.Http3.Enums;
+using Arbiter.Protocol.Http3.Framing;
+using Arbiter.Protocol.QPack.Decoding;
 
-namespace Arlirad.Http3.Streams;
+namespace Arbiter.Protocol.Http3.Streams;
 
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
@@ -40,6 +40,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         var buffer = ArrayPool<byte>.Shared.Rent(length);
 
         QPackFieldSectionReader? reader = null;
+
         try
         {
             await headersFrame.Stream.ReadExactlyAsync(buffer, 0, length, ct);
@@ -47,6 +48,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
             _currentHeaderReader = reader;
 
             var headers = new List<KeyValuePair<string, string?>>();
+
             foreach (var field in reader)
                 headers.Add(new KeyValuePair<string, string?>(field.Name, field.Value));
 
@@ -56,8 +58,9 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         {
             if (reader is not null)
                 await reader.DisposeAsync();
+
             _currentHeaderReader = null;
-            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            ArrayPool<byte>.Shared.Return(buffer, true);
         }
     }
 
@@ -67,6 +70,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
     {
         const int reserve = 16;
         var buffer = ArrayPool<byte>.Shared.Rent(4096 + reserve);
+
         try
         {
             using var ms = new MemoryStream(buffer, reserve, buffer.Length - reserve);
@@ -87,6 +91,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         catch
         {
             ArrayPool<byte>.Shared.Return(buffer);
+
             throw;
         }
     }
@@ -216,6 +221,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
             var buf = _pendingHeaders;
             var len = _pendingHeadersLength;
             _pendingHeaders = null;
+
             try
             {
                 await inner.WriteAsync(new ReadOnlyMemory<byte>(buf, 0, len), ct);
@@ -252,7 +258,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         }
     }
 
-    public override async ValueTask DisposeAsync()
+    public async override ValueTask DisposeAsync()
     {
         if (_pendingHeaders != null)
         {
@@ -305,12 +311,14 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
             <= 1073741823 => 4,
             _ => 8,
         };
+
         var prefix = length switch {
             1 => 0b0000_0000,
             2 => 0b0100_0000,
             4 => 0b1000_0000,
             _ => 0b1100_0000,
         };
+
         var i = offset + length - 1;
 
         while (i > offset)

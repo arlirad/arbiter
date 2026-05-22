@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Text;
 using Arbiter.Core.ValueObjects;
 
 namespace Arbiter.Infrastructure.Streams;
@@ -11,6 +10,7 @@ public static class HeadersFinder
     public static async Task<(Stream? headers, Stream? remainder)> GetHeadersClampedStream(Stream inner)
     {
         var buffer = ArrayPool<byte>.Shared.Rent(16368);
+
         try
         {
             var offset = 0;
@@ -37,6 +37,7 @@ public static class HeadersFinder
                     buffer.AsSpan(0, endIndex).CopyTo(headersBytes);
                     var headers = new MemoryStream(headersBytes);
                     Stream? remainder = null;
+
                     if (remainderLength > 0)
                     {
                         var remainderBytes = new byte[remainderLength];

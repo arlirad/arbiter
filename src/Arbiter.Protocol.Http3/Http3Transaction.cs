@@ -1,23 +1,22 @@
-using System.IO;
 using System.Net;
 using System.Net.Quic;
 using System.Runtime.Versioning;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Mappers;
-using Arlirad.Http3.Streams;
+using Arbiter.Infrastructure.Middleware;
+using Arbiter.Protocol.Http3.Streams;
 
-namespace Arlirad.Http3;
+namespace Arbiter.Protocol.Http3;
 
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
 public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3RequestStream requestStream, int port, IPAddress? remoteAddress) : ITransaction
 {
-    public Protocol Protocol => Protocol.Http3;
+    public Core.Enums.Protocol Protocol => Core.Enums.Protocol.Http3;
     public int Id
     {
         get;
@@ -26,8 +25,6 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
     public bool IsSecure => true;
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
-
-    public Http3RequestStream GetRequestStream() => requestStream;
 
     public async Task<RequestDto?> GetRequest()
     {
@@ -45,6 +42,30 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         }
     }
 
+    public async Task SetResponse(ResponseDto response)
+    {
+        try
+        {
+            await WriteStatusAndHeaders((int)response.Status, response.Headers);
+        }
+        catch (QuicException)
+        {
+            await AbortCleanup(response);
+
+            return;
+        }
+        catch (IOException)
+        {
+            await AbortCleanup(response);
+
+            return;
+        }
+
+        await Finish(response);
+    }
+
+    public Http3RequestStream GetRequestStream() => requestStream;
+
     private async Task<RequestDto?> GetRequestCore()
     {
         var headers = new Headers();
@@ -57,21 +78,27 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
             {
                 case ":method":
                     method = header.Value;
+
                     break;
                 case ":scheme":
                     scheme = header.Value;
+
                     break;
                 case ":authority":
                     authority = header.Value;
+
                     break;
                 case ":path":
                     path = header.Value;
+
                     break;
                 case ":protocol":
                     protocol = header.Value;
+
                     break;
                 default:
                     headers.Add(header.Key, header.Value ?? string.Empty);
+
                     break;
             }
         }
@@ -79,6 +106,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         if (method is null || scheme is null || authority is null || path is null)
         {
             await EarlyAbort(Status.BadRequest);
+
             return null;
         }
 
@@ -87,6 +115,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
             if (string.IsNullOrEmpty(protocol) || !string.Equals(protocol, "websocket", StringComparison.OrdinalIgnoreCase))
             {
                 await EarlyAbort(Status.NotImplemented);
+
                 return null;
             }
 
@@ -116,19 +145,24 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
             if (isIpv6)
             {
                 var closeBracket = authority.IndexOf(']');
+
                 if (closeBracket < 0)
                 {
                     await EarlyAbort(Status.BadRequest);
+
                     return null;
                 }
 
                 var portStart = closeBracket + 1;
+
                 if (portStart < authority.Length && authority[portStart] == ':')
                 {
                     var portStr = authority[(portStart + 1)..];
+
                     if (!int.TryParse(portStr, out var authorityPort) || authorityPort != port)
                     {
                         await EarlyAbort(Status.MisdirectedRequest);
+
                         return null;
                     }
                 }
@@ -142,12 +176,14 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
                 if (parts.Length > 2)
                 {
                     await EarlyAbort(Status.BadRequest);
+
                     return null;
                 }
 
                 if (!int.TryParse(parts[1], out var authorityPort) || authorityPort != port)
                 {
                     await EarlyAbort(Status.MisdirectedRequest);
+
                     return null;
                 }
 
@@ -160,6 +196,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         if (!mappedEnum.HasValue)
         {
             await EarlyAbort(Status.BadRequest);
+
             return null;
         }
 
@@ -177,26 +214,6 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         };
     }
 
-    public async Task SetResponse(ResponseDto response)
-    {
-        try
-        {
-            await WriteStatusAndHeaders((int)response.Status, response.Headers);
-        }
-        catch (QuicException)
-        {
-            await AbortCleanup(response);
-            return;
-        }
-        catch (IOException)
-        {
-            await AbortCleanup(response);
-            return;
-        }
-
-        await Finish(response);
-    }
-
     private async Task EarlyAbort(Status status)
     {
         try
@@ -212,7 +229,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
     private async Task WriteStatusAndHeaders(int status, ReadOnlyHeaders? responseHeaders = null)
     {
-        var headers = new Dictionary<string, List<string>>() {
+        var headers = new Dictionary<string, List<string>> {
             [":status"] = [status.ToString()],
         }.AsEnumerable();
 
@@ -236,8 +253,12 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
                 await response.Stream.FlushAsync();
             }
         }
-        catch (QuicException) { }
-        catch (IOException) { }
+        catch (QuicException)
+        {
+        }
+        catch (IOException)
+        {
+        }
         finally
         {
             if (response.Stream is not null)
@@ -248,15 +269,23 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         {
             await requestStream.FinishAsync();
         }
-        catch (QuicException) { }
-        catch (IOException) { }
+        catch (QuicException)
+        {
+        }
+        catch (IOException)
+        {
+        }
 
         try
         {
             await requestStream.RetireAsync();
         }
-        catch (QuicException) { }
-        catch (IOException) { }
+        catch (QuicException)
+        {
+        }
+        catch (IOException)
+        {
+        }
     }
 
     private async Task AbortCleanup(ResponseDto response)
@@ -268,15 +297,23 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         {
             await requestStream.FinishAsync();
         }
-        catch (QuicException) { }
-        catch (IOException) { }
+        catch (QuicException)
+        {
+        }
+        catch (IOException)
+        {
+        }
 
         try
         {
             await requestStream.RetireAsync();
         }
-        catch (QuicException) { }
-        catch (IOException) { }
+        catch (QuicException)
+        {
+        }
+        catch (IOException)
+        {
+        }
     }
 
     private async Task<string?> ParseAuthority(string authority, int expectedPort)
@@ -289,23 +326,27 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         if (isIpv6)
         {
             var closeBracket = authority.IndexOf(']');
+
             if (closeBracket < 0)
             {
                 await EarlyAbort(Status.BadRequest);
+
                 return null;
             }
 
             var portStart = closeBracket + 1;
+
             if (portStart >= authority.Length || authority[portStart] != ':')
                 return authority[1..closeBracket];
 
             var portStr = authority[(portStart + 1)..];
+
             if (int.TryParse(portStr, out var authorityPort) && authorityPort == expectedPort)
                 return authority[1..closeBracket];
 
             await EarlyAbort(Status.MisdirectedRequest);
-            return null;
 
+            return null;
         }
 
         var parts = authority.Split(':');
@@ -313,6 +354,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         if (parts.Length > 2)
         {
             await EarlyAbort(Status.BadRequest);
+
             return null;
         }
 
@@ -320,6 +362,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
             return parts[0];
 
         await EarlyAbort(Status.MisdirectedRequest);
+
         return null;
     }
 }

@@ -10,6 +10,8 @@
     <ItemGroup>
         <ProjectReference Include="..\Arbiter.Application\Arbiter.Application.csproj"/>
         <ProjectReference Include="..\Arbiter.Configuration\Arbiter.Configuration.csproj"/>
+
+        <ProjectReference Include="..\Arbiter.Transport\Arbiter.Transport.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

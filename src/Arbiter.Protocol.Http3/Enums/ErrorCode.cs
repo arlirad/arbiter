@@ -1,4 +1,4 @@
-namespace Arlirad.Http3.Enums;
+namespace Arbiter.Protocol.Http3.Enums;
 
 public enum ErrorCode
 {

@@ -1,4 +1,4 @@
-using Arlirad.WebSocket;
+using System.Text;
 
 namespace Arbiter.Protocol.WebSocket.Tests;
 
@@ -20,7 +20,7 @@ public class WebSocketRoundTripTests
         {
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Text));
             Assert.That(frame.Fin, Is.True);
-            Assert.That(System.Text.Encoding.UTF8.GetString(frame.Payload.Span), Is.EqualTo("Hello"));
+            Assert.That(Encoding.UTF8.GetString(frame.Payload.Span), Is.EqualTo("Hello"));
         }
     }
 
@@ -29,7 +29,10 @@ public class WebSocketRoundTripTests
     {
         using var ms = new MemoryStream();
         var writer = new WebSocketFrameWriter(ms);
-        await writer.WriteBinary(new byte[] { 0x01, 0x02, 0x03 });
+        await writer.WriteBinary(new byte[] {
+            0x01, 0x02, 0x03,
+        });
+
         ms.Position = 0;
 
         var reader = new WebSocketFrameReader(ms);
@@ -38,7 +41,9 @@ public class WebSocketRoundTripTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Binary));
-            Assert.That(frame.Payload.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
+            Assert.That(frame.Payload.ToArray(), Is.EqualTo(new byte[] {
+                0x01, 0x02, 0x03,
+            }));
         }
     }
 
@@ -58,7 +63,7 @@ public class WebSocketRoundTripTests
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Close));
             var code = (frame.Payload.Span[0] << 8) | frame.Payload.Span[1];
             Assert.That(code, Is.EqualTo((int)WebSocketCloseStatusCode.ProtocolError));
-            var reason = System.Text.Encoding.UTF8.GetString(frame.Payload.Span[2..]);
+            var reason = Encoding.UTF8.GetString(frame.Payload.Span[2..]);
             Assert.That(reason, Is.EqualTo("bad frame"));
         }
     }
@@ -68,7 +73,10 @@ public class WebSocketRoundTripTests
     {
         using var ms = new MemoryStream();
         var writer = new WebSocketFrameWriter(ms);
-        var pingData = new byte[] { 0xAA, 0xBB, 0xCC };
+        var pingData = new byte[] {
+            0xAA, 0xBB, 0xCC,
+        };
+
         await writer.WritePing(pingData);
         ms.Position = 0;
 
@@ -88,6 +96,7 @@ public class WebSocketRoundTripTests
         ms.Position = 0;
 
         var pongFrame = await reader.ReadFrame();
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(pongFrame.Opcode, Is.EqualTo(WebSocketOpcode.Pong));
@@ -107,35 +116,38 @@ public class WebSocketRoundTripTests
         ms.Position = 0;
 
         var reader = new WebSocketFrameReader(ms);
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         WebSocketFrame frame;
 
         frame = await reader.ReadFrame();
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Text));
             Assert.That(frame.Fin, Is.False);
         }
 
-        sb.Append(System.Text.Encoding.UTF8.GetString(frame.Payload.Span));
+        sb.Append(Encoding.UTF8.GetString(frame.Payload.Span));
 
         frame = await reader.ReadFrame();
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Continuation));
             Assert.That(frame.Fin, Is.False);
         }
 
-        sb.Append(System.Text.Encoding.UTF8.GetString(frame.Payload.Span));
+        sb.Append(Encoding.UTF8.GetString(frame.Payload.Span));
 
         frame = await reader.ReadFrame();
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(frame.Opcode, Is.EqualTo(WebSocketOpcode.Continuation));
             Assert.That(frame.Fin, Is.True);
         }
 
-        sb.Append(System.Text.Encoding.UTF8.GetString(frame.Payload.Span));
+        sb.Append(Encoding.UTF8.GetString(frame.Payload.Span));
 
         Assert.That(sb.ToString(), Is.EqualTo("Hello World"));
     }
@@ -159,11 +171,11 @@ public class WebSocketRoundTripTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(frame1.Opcode, Is.EqualTo(WebSocketOpcode.Text));
-            Assert.That(System.Text.Encoding.UTF8.GetString(frame1.Payload.Span), Is.EqualTo("one"));
+            Assert.That(Encoding.UTF8.GetString(frame1.Payload.Span), Is.EqualTo("one"));
             Assert.That(frame2.Opcode, Is.EqualTo(WebSocketOpcode.Binary));
             Assert.That(frame2.Payload.Span[0], Is.EqualTo(0x42));
             Assert.That(frame3.Opcode, Is.EqualTo(WebSocketOpcode.Text));
-            Assert.That(System.Text.Encoding.UTF8.GetString(frame3.Payload.Span), Is.EqualTo("two"));
+            Assert.That(Encoding.UTF8.GetString(frame3.Payload.Span), Is.EqualTo("two"));
         }
     }
 
@@ -190,7 +202,7 @@ public class WebSocketRoundTripTests
     {
         using var ms = new MemoryStream();
         var writer = new WebSocketFrameWriter(ms);
-        await writer.WriteClose(WebSocketCloseStatusCode.Normal);
+        await writer.WriteClose();
         ms.Position = 0;
 
         var reader = new WebSocketFrameReader(ms);
@@ -211,6 +223,7 @@ public class WebSocketRoundTripTests
     public async Task Writer_to_reader_payload_length_boundary(int size)
     {
         var payload = new byte[size];
+
         for (var i = 0; i < size; i++)
             payload[i] = (byte)(i & 0xFF);
 

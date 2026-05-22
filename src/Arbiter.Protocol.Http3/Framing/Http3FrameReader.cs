@@ -1,7 +1,6 @@
-using Arlirad.Http3.Enums;
-using Arlirad.Http3.Streams;
+using Arbiter.Protocol.Http3.Enums;
 
-namespace Arlirad.Http3.Framing;
+namespace Arbiter.Protocol.Http3.Framing;
 
 internal class Http3FrameReader(Stream stream)
 {
@@ -20,6 +19,7 @@ internal class Http3FrameReader(Stream stream)
             await stream.ReadExactlyAsync(new Memory<byte>(_buffer, 1, varIntLength - 1), ct);
 
         var type = firstValue;
+
         for (var i = 1; i < varIntLength; i++)
             type = (type << 8) + _buffer[i];
 
@@ -34,6 +34,7 @@ internal class Http3FrameReader(Stream stream)
             await stream.ReadExactlyAsync(new Memory<byte>(_buffer, 1, varIntLength - 1), ct);
 
         var length = secondValue;
+
         for (var i = 1; i < varIntLength; i++)
             length = (length << 8) + _buffer[i];
 

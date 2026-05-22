@@ -1,9 +1,9 @@
-namespace Arlirad.QPack.Tests.Streams;
+namespace Arbiter.Protocol.QPack.Tests.Streams;
 
 public class QueueStream : Stream
 {
-    private readonly Queue<byte> _queue = new();
     private readonly Lock _lock = new();
+    private readonly Queue<byte> _queue = new();
     private volatile TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public override bool CanRead => true;
     public override bool CanSeek => true;
@@ -28,11 +28,13 @@ public class QueueStream : Stream
         while (true)
         {
             Task? toAwait;
+
             lock (_lock)
             {
                 if (_queue.Count > 0)
                 {
                     var read = 0;
+
                     while (read < buffer.Length && _queue.Count > 0)
                     {
                         buffer.Span[read++] = _queue.Dequeue();

@@ -1,10 +1,11 @@
+using System.Net;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
 using Arbiter.Application.Services;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Factories;
+using Arbiter.Infrastructure.Headers;
 
 namespace Arbiter.Application.Tests;
 
@@ -43,6 +44,7 @@ public class AltSvcGlobalMiddlewareTests
         var nextInvoked = false;
         var sut = new AltSvcGlobalMiddleware((_, _, _) => {
             nextInvoked = true;
+
             return Task.CompletedTask;
         }, altSvc);
 
@@ -63,7 +65,7 @@ public class AltSvcGlobalMiddlewareTests
         public Protocol Protocol => Protocol.Http11;
         public bool IsSecure => false;
         public int Port => 80;
-        public System.Net.IPAddress? RemoteAddress => null;
+        public IPAddress? RemoteAddress => null;
         public Task<RequestDto?> GetRequest() => Task.FromResult<RequestDto?>(null);
         public Task SetResponse(ResponseDto response) => Task.CompletedTask;
     }

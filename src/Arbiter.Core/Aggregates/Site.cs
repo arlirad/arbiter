@@ -24,7 +24,10 @@ public class Site(
     {
         get;
     } = [];
-    public ComponentDataContainer Data { get; } = new();
+    public ComponentDataContainer Data
+    {
+        get;
+    } = new();
 
     public IReadOnlyList<IMiddleware> Middleware => _middleware.AsReadOnly();
     public IReadOnlyList<IWorker> Workers => _workers.AsReadOnly();

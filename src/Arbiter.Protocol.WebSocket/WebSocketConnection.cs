@@ -1,16 +1,27 @@
-namespace Arlirad.WebSocket;
+using System.Text;
+
+namespace Arbiter.Protocol.WebSocket;
 
 public class WebSocketConnection(Stream stream) : IAsyncDisposable
 {
+    private readonly CancellationTokenSource _cts = new();
     private readonly WebSocketFrameReader _reader = new(stream);
     private readonly WebSocketFrameWriter _writer = new(stream);
-    private readonly CancellationTokenSource _cts = new();
     private bool _closed;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_closed)
+            await CloseAsync();
+
+        _cts.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     public async Task<string?> ReceiveTextAsync(CancellationToken ct = default)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         var first = true;
         var opcode = WebSocketOpcode.Continuation;
 
@@ -21,12 +32,14 @@ public class WebSocketConnection(Stream stream) : IAsyncDisposable
             if (frame.Opcode == WebSocketOpcode.Ping)
             {
                 await _writer.WritePong(frame.Payload, linked.Token);
+
                 continue;
             }
 
             if (frame.Opcode == WebSocketOpcode.Close)
             {
                 await CloseAsync(ct: linked.Token);
+
                 return null;
             }
 
@@ -39,7 +52,7 @@ public class WebSocketConnection(Stream stream) : IAsyncDisposable
                 first = false;
             }
 
-            sb.Append(System.Text.Encoding.UTF8.GetString(frame.Payload.Span));
+            sb.Append(Encoding.UTF8.GetString(frame.Payload.Span));
 
             if (frame.Fin)
                 break;
@@ -61,12 +74,14 @@ public class WebSocketConnection(Stream stream) : IAsyncDisposable
             if (frame.Opcode == WebSocketOpcode.Ping)
             {
                 await _writer.WritePong(frame.Payload, linked.Token);
+
                 continue;
             }
 
             if (frame.Opcode == WebSocketOpcode.Close)
             {
                 await CloseAsync(ct: linked.Token);
+
                 return ReadOnlyMemory<byte>.Empty;
             }
 
@@ -102,12 +117,14 @@ public class WebSocketConnection(Stream stream) : IAsyncDisposable
             if (frame.Opcode == WebSocketOpcode.Ping)
             {
                 await _writer.WritePong(frame.Payload, linked.Token);
+
                 continue;
             }
 
             if (frame.Opcode == WebSocketOpcode.Close)
             {
                 await CloseAsync(ct: linked.Token);
+
                 return new WebSocketMessage(WebSocketOpcode.Close, ReadOnlyMemory<byte>.Empty);
             }
 
@@ -149,15 +166,6 @@ public class WebSocketConnection(Stream stream) : IAsyncDisposable
 
         await _cts.CancelAsync();
     }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (!_closed)
-            await CloseAsync();
-
-        _cts.Dispose();
-        GC.SuppressFinalize(this);
-    }
 }
 
 public readonly struct WebSocketMessage(WebSocketOpcode opcode, ReadOnlyMemory<byte> payload)
@@ -174,7 +182,7 @@ public readonly struct WebSocketMessage(WebSocketOpcode opcode, ReadOnlyMemory<b
     public string? AsText()
     {
         return Opcode == WebSocketOpcode.Text
-            ? System.Text.Encoding.UTF8.GetString(Payload.ToArray())
+            ? Encoding.UTF8.GetString(Payload.ToArray())
             : null;
     }
 }

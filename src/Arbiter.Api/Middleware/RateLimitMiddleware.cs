@@ -3,7 +3,6 @@ using System.Net;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Arbiter.Core.ValueObjects;
 using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Api.Middleware;
@@ -22,6 +21,7 @@ public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int
         _forwardedIpHeader = config["ForwardedIpHeader"];
 
         var ignored = config.GetSection("IgnoredAddresses").Get<string[]>();
+
         if (ignored is not null)
         {
             _ignoredAddresses = [
@@ -38,6 +38,7 @@ public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int
         if (context.Request.RemoteAddress is not null && _ignoredAddresses.Contains(context.Request.RemoteAddress))
         {
             await _next(context);
+
             return;
         }
 
@@ -50,11 +51,13 @@ public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int
                 WindowStart = now,
                 Count = 0,
             };
+
             _clients[key] = entry;
         }
         else if (entry.Count >= _maxRequests)
         {
             await context.Response.Set(Status.TooManyRequests, Stream.Null);
+
             return;
         }
 

@@ -1,4 +1,4 @@
-namespace Arlirad.QPack.Tests.Helpers;
+namespace Arbiter.Protocol.QPack.Tests.Helpers;
 
 public class RFCHelper
 {
@@ -14,6 +14,7 @@ public class RFCHelper
         while (true)
         {
             var line = await reader.ReadLineAsync();
+
             if (line is null)
                 break;
 
@@ -30,6 +31,7 @@ public class RFCHelper
             }
 
             var split = line.Split('|');
+
             if (split.Length < 2)
                 continue;
 

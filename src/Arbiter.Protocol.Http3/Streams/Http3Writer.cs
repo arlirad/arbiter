@@ -1,20 +1,20 @@
-namespace Arlirad.Http3.Streams;
+namespace Arbiter.Protocol.Http3.Streams;
 
 public class Http3Writer(Stream stream)
 {
     /// <summary>
-    /// Writes a variable-length integer to a stream as defined in the QUIC protocol.
+    ///     Writes a variable-length integer to a stream as defined in the QUIC protocol.
     /// </summary>
     /// <param name="value">The unsigned integer value to be written.</param>
     /// <param name="buffer">
-    /// A byte array that acts as a temporary storage buffer for encoding the integer.
-    /// Must have sufficient length to accommodate the encoded value (up to 8 bytes).
+    ///     A byte array that acts as a temporary storage buffer for encoding the integer.
+    ///     Must have sufficient length to accommodate the encoded value (up to 8 bytes).
     /// </param>
     /// <param name="ct">
-    /// An optional cancellation token to observe while waiting for the asynchronous operation to complete.
+    ///     An optional cancellation token to observe while waiting for the asynchronous operation to complete.
     /// </param>
     /// <returns>
-    /// A <see cref="ValueTask"/> representing the asynchronous write operation.
+    ///     A <see cref="ValueTask" /> representing the asynchronous write operation.
     /// </returns>
     public async ValueTask WriteVarInt(ulong value, byte[] buffer, CancellationToken ct = default)
     {

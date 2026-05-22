@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Arlirad.WebSocket;
+using Arbiter.Protocol.WebSocket;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Factories;

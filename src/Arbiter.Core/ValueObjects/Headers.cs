@@ -49,6 +49,7 @@ public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
         if (value is null)
         {
             _headers.Remove(name);
+
             return;
         }
 
@@ -58,6 +59,7 @@ public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
     public void Add(string headerKey, string headerValue)
     {
         var key = Canonicalize(headerKey);
+
         if (_headers.TryGetValue(key, out var list))
             list.Add(headerValue);
         else

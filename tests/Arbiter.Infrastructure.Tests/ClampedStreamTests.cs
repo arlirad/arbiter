@@ -11,7 +11,7 @@ public class ClampedStreamTests
         // Arrange
         var data = Enumerable.Range(0, 100).Select(i => (byte)i).ToArray();
         using var inner = new MemoryStream(data);
-        using var clamped = new ClampedStream(inner, length: 10);
+        using var clamped = new ClampedStream(inner, 10);
 
         var buffer = new byte[20];
 
@@ -33,7 +33,7 @@ public class ClampedStreamTests
         // Arrange
         var data = Enumerable.Range(0, 50).Select(i => (byte)i).ToArray();
         using var inner = new MemoryStream(data);
-        using var clamped = new ClampedStream(inner, length: 15);
+        using var clamped = new ClampedStream(inner, 15);
 
         var b1 = new byte[7];
         var b2 = new byte[7];
@@ -66,7 +66,7 @@ public class ClampedStreamTests
         var data = Enumerable.Range(0, 30).Select(i => (byte)i).ToArray();
         using var inner = new MemoryStream(data);
         await inner.FlushAsync();
-        using var clamped = new ClampedStream(inner, length: 12);
+        using var clamped = new ClampedStream(inner, 12);
 
         var buffer = new byte[100];
 
@@ -104,6 +104,7 @@ public class ClampedStreamTests
 
         var buffer = new byte[3];
         var r1 = clamped.Read(buffer, 0, buffer.Length);
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(r1, Is.EqualTo(3));
@@ -111,6 +112,7 @@ public class ClampedStreamTests
         }
 
         var r2 = clamped.Read(buffer, 0, buffer.Length);
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(r2, Is.EqualTo(2));

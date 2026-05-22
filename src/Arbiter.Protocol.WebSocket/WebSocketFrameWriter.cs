@@ -1,6 +1,7 @@
 using System.Buffers;
+using System.Text;
 
-namespace Arlirad.WebSocket;
+namespace Arbiter.Protocol.WebSocket;
 
 public class WebSocketFrameWriter(Stream stream)
 {
@@ -15,14 +16,17 @@ public class WebSocketFrameWriter(Stream stream)
         {
             case <= 125:
                 extLen = 0;
+
                 break;
             case <= 65535:
                 extLen = 2;
                 headerSize += 2;
+
                 break;
             default:
                 extLen = 8;
                 headerSize += 8;
+
                 break;
         }
 
@@ -36,18 +40,22 @@ public class WebSocketFrameWriter(Stream stream)
             {
                 case 0:
                     buffer[1] = (byte)(maskBit | payloadLen);
+
                     break;
                 case 2:
                     buffer[1] = (byte)(maskBit | 126);
                     buffer[2] = (byte)((payloadLen >> 8) & 0xFF);
                     buffer[3] = (byte)(payloadLen & 0xFF);
+
                     break;
                 default:
                     {
                         buffer[1] = (byte)(maskBit | 127);
                         var len = (ulong)payloadLen;
+
                         for (var i = 0; i < 8; i++)
                             buffer[2 + i] = (byte)((len >> (56 - (i * 8))) & 0xFF);
+
                         break;
                     }
             }
@@ -67,7 +75,7 @@ public class WebSocketFrameWriter(Stream stream)
 
     public async Task WriteClose(WebSocketCloseStatusCode code = WebSocketCloseStatusCode.Normal, string? reason = null, CancellationToken ct = default)
     {
-        var reasonBytes = reason is not null ? System.Text.Encoding.UTF8.GetBytes(reason) : [];
+        var reasonBytes = reason is not null ? Encoding.UTF8.GetBytes(reason) : [];
         var payload = ArrayPool<byte>.Shared.Rent(2 + reasonBytes.Length);
 
         try
@@ -83,7 +91,7 @@ public class WebSocketFrameWriter(Stream stream)
         }
     }
 
-    public async Task WriteText(string text, CancellationToken ct = default) => await WriteFrame(WebSocketOpcode.Text, true, System.Text.Encoding.UTF8.GetBytes(text), ct);
+    public async Task WriteText(string text, CancellationToken ct = default) => await WriteFrame(WebSocketOpcode.Text, true, Encoding.UTF8.GetBytes(text), ct);
     public async Task WriteBinary(ReadOnlyMemory<byte> data, CancellationToken ct = default) => await WriteFrame(WebSocketOpcode.Binary, true, data, ct);
     public async Task WritePing(ReadOnlyMemory<byte> data, CancellationToken ct = default) => await WriteFrame(WebSocketOpcode.Ping, true, data, ct);
     public async Task WritePong(ReadOnlyMemory<byte> data, CancellationToken ct = default) => await WriteFrame(WebSocketOpcode.Pong, true, data, ct);

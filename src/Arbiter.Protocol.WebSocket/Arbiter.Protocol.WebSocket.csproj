@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-        <RootNamespace>Arlirad.WebSocket</RootNamespace>
+        <RootNamespace>Arbiter.Protocol.WebSocket</RootNamespace>
     </PropertyGroup>
 
 </Project>

@@ -50,9 +50,10 @@ public class Http3RequestResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await requestStream.FinishAsync();
 
-        var serverStream = await fixture.AcceptRequestStream(default);
+        var serverStream = await fixture.AcceptRequestStream();
         var hasHeaders = false;
 
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
@@ -75,6 +76,7 @@ public class Http3RequestResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await requestStream.WriteAsync(requestBody);
         await requestStream.FinishAsync();
 

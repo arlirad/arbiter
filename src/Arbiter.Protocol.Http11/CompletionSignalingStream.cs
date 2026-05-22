@@ -32,7 +32,7 @@ internal class CompletionSignalingStream(Stream inner, Func<ValueTask> onDispose
         base.Dispose(disposing);
     }
 
-    public override async ValueTask DisposeAsync()
+    public async override ValueTask DisposeAsync()
     {
         await inner.DisposeAsync();
         await onDispose();

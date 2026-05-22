@@ -21,6 +21,7 @@ public class ApiMiddleware(IReadOnlyList<Type> controllerTypes, IServiceProvider
     {
         _jsonOptions = serviceProvider.GetRequiredService<JsonSerializerOptions>();
         _outputFormatterSelector = serviceProvider.GetRequiredService<OutputFormatterSelector>();
+
         return Task.CompletedTask;
     }
 
@@ -32,9 +33,11 @@ public class ApiMiddleware(IReadOnlyList<Type> controllerTypes, IServiceProvider
         var queryString = queryIndex >= 0 ? fullPath[queryIndex..] : null;
 
         var match = _routeTable.Match(context.Request.Method, path);
+
         if (match is null)
         {
             await context.Response.Set(Status.NotFound, Stream.Null);
+
             return;
         }
 

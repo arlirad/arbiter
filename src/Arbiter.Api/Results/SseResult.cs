@@ -1,5 +1,4 @@
-using System.Text;
-using System.Text.Json;
+using System.Threading.Channels;
 using Arbiter.Api.Http;
 
 namespace Arbiter.Api.Results;
@@ -49,7 +48,7 @@ public class SseResult(IAsyncEnumerable<SseEvent> events, CancellationToken canc
     private sealed class WriterEnumerator : IAsyncEnumerator<SseEvent>
     {
         private readonly CancellationToken _cancellationToken;
-        private readonly System.Threading.Channels.Channel<SseEvent> _channel = System.Threading.Channels.Channel.CreateUnbounded<SseEvent>();
+        private readonly Channel<SseEvent> _channel = Channel.CreateUnbounded<SseEvent>();
         private readonly Task _task;
         private SseEvent? _current;
 
@@ -57,6 +56,7 @@ public class SseResult(IAsyncEnumerable<SseEvent> events, CancellationToken canc
         {
             _cancellationToken = cancellationToken;
             var writer = new SseWriter(null!);
+
             _task = Task.Run(async () => {
                 await writerFunc(writer);
                 _channel.Writer.Complete();
@@ -71,13 +71,14 @@ public class SseResult(IAsyncEnumerable<SseEvent> events, CancellationToken canc
                 return _channel.Reader.WaitToReadAsync(_cancellationToken);
 
             _current = null;
-            return new ValueTask<bool>(true);
 
+            return new ValueTask<bool>(true);
         }
 
         public ValueTask DisposeAsync()
         {
             _channel.Writer.Complete();
+
             return default;
         }
     }

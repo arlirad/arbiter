@@ -1,13 +1,14 @@
-using System.IO;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
-using System.Security.Cryptography;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
-using Arlirad.Http3;
-using Arlirad.Http3.Streams;
+using Arbiter.Infrastructure.Middleware;
+using Arbiter.Protocol.Http3;
+using Arbiter.Protocol.Http3.Streams;
+using Arbiter.Transport.Quic;
 
 namespace Arbiter.Http3.Tests.Helpers;
 
@@ -18,13 +19,14 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly Channel<Http3RequestStream> _requestChannel = Channel.CreateBounded<Http3RequestStream>(new BoundedChannelOptions(256));
-    private Http3Protocol? _serverProtocol;
-    private QuicListener? _listener;
     private QuicConnection? _clientConnection;
+    private QuicListener? _listener;
+    private Http3Protocol? _serverProtocol;
 
     public int Port
     {
-        get; private set;
+        get;
+        private set;
     }
     public Http3Protocol ServerProtocol => _serverProtocol!;
     public QuicConnection ClientConnection => _clientConnection!;
@@ -35,7 +37,9 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         {
             await _cts.CancelAsync();
         }
-        catch (ObjectDisposedException) { }
+        catch (ObjectDisposedException)
+        {
+        }
 
         if (_serverProtocol is not null)
             await _serverProtocol.DisposeAsync();
@@ -54,9 +58,10 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         if (!QuicListener.IsSupported)
             Assert.Ignore("QUIC is not supported on this platform");
 
-        var certificate = SelfSignedCertificate.Create("localhost");
+        var certificate = SelfSignedCertificate.Create();
         var fixture = new Http3IntegrationFixture(certificate);
         await fixture.InitializeAsync();
+
         return fixture;
     }
 
@@ -89,8 +94,8 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         _clientConnection = await QuicConnection.ConnectAsync(clientOptions);
         var serverQuicConnection = await _listener.AcceptConnectionAsync(CancellationToken.None);
 
-        var serverTransport = new Arbiter.Transport.Quic.QuicTransport(serverQuicConnection, Port, null);
-        _serverProtocol = new Http3Protocol(new Arbiter.Application.Middleware.TransactionIdProvider());
+        var serverTransport = new QuicTransport(serverQuicConnection, Port, null);
+        _serverProtocol = new Http3Protocol(new TransactionIdProvider());
 
         _ = ServeRequests(serverTransport);
     }
@@ -108,7 +113,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
             ServerAuthenticationOptions = new SslServerAuthenticationOptions {
                 ClientCertificateRequired = false,
                 ServerCertificate = certificate,
-                EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls13,
+                EnabledSslProtocols = SslProtocols.Tls13,
                 ApplicationProtocols = [SslApplicationProtocol.Http3],
             },
         };
@@ -116,7 +121,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         return ValueTask.FromResult(options);
     }
 
-    private async Task ServeRequests(Arbiter.Transport.Quic.QuicTransport serverTransport)
+    private async Task ServeRequests(QuicTransport serverTransport)
     {
         var ct = _cts.Token;
 
@@ -130,7 +135,9 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     public async Task<Http3RequestStream> AcceptRequestStream(CancellationToken ct = default)
@@ -142,6 +149,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
     public async Task<Http3RequestStream> CreateClientRequestStreamAsync(CancellationToken ct = default)
     {
         var stream = await OpenClientStreamAsync(ct);
+
         return new Http3RequestStream(_serverProtocol!.ServerConnection, stream.Id, stream);
     }
 }

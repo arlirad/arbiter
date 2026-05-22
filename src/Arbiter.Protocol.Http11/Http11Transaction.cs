@@ -1,10 +1,11 @@
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Mappers;
+using Arbiter.Infrastructure.Middleware;
 using Arbiter.Infrastructure.Streams;
+using Arbiter.Protocol.Http11.Mappers;
 using Arlirad.Ervi.Net.Http;
 using IPAddress = System.Net.IPAddress;
 
@@ -50,7 +51,7 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
         private set;
     }
 
-    public global::Arbiter.Core.Enums.Protocol Protocol => global::Arbiter.Core.Enums.Protocol.Http11;
+    public Core.Enums.Protocol Protocol => Core.Enums.Protocol.Http11;
     public int Id
     {
         get;
@@ -72,30 +73,119 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
         }
     }
 
+    public async Task SetResponse(ResponseDto response)
+    {
+        try
+        {
+            StreamWriter? writer = null;
+
+            try
+            {
+                writer = new StreamWriter(stream, leaveOpen: true) {
+                    NewLine = NewLine,
+                };
+
+                var version = VersionMapper.ToString(_version);
+                var statusCode = (int)response.Status;
+                var statusPhrase = StatusCodeMapper.ToReasonPhrase(response.Status);
+                var responseLine = $"{version} {statusCode} {statusPhrase}";
+
+                await writer.WriteLineAsync(responseLine);
+
+                foreach (var header in response.Headers)
+                {
+                    if (header.Key.Equals("content-length", StringComparison.OrdinalIgnoreCase)
+                        && response.Stream is not null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var instance in header.Value)
+                        await writer.WriteLineAsync($"{header.Key}: {instance}");
+                }
+
+                if (!response.Status.IsBodyForbidden()
+                    && response.Stream is not null)
+                {
+                    _responseStream = response.Stream;
+
+                    if (_responseStream.CanSeek || _responseStream is ClampedStream)
+                    {
+                        await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
+                    }
+                    else
+                    {
+                        await writer.WriteLineAsync($"Transfer-Encoding: {ChunkedEncoding}");
+                        _chunked = true;
+                    }
+                }
+                else if (ShouldSendZeroContentLength(response.Status))
+                {
+                    await writer.WriteLineAsync("Content-Length: 0");
+                }
+
+                await writer.WriteLineAsync();
+            }
+            catch (IOException)
+            {
+                if (_responseStream is not null)
+                {
+                    await _responseStream.DisposeAsync();
+                    _responseStream = null;
+                }
+
+                _tcs.SetResult();
+
+                return;
+            }
+            finally
+            {
+                try
+                {
+                    if (writer is not null)
+                        await writer.DisposeAsync();
+                }
+                catch (IOException)
+                {
+                }
+            }
+        }
+        catch (IOException)
+        {
+            return;
+        }
+
+        _ = Finish();
+    }
+
     private async Task<RequestDto?> GetRequestCore()
     {
         var (headerStream, remainder) = await HeadersFinder.GetHeadersClampedStream(stream);
+
         if (headerStream is null)
             return null;
 
         var reader = new StreamReader(headerStream);
 
         var requestLine = await reader.ReadLineAsync();
+
         if (requestLine is null)
             return null;
 
         var headerSplit = requestLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
         if (headerSplit.Length < 3)
             return null;
 
         var method = MethodMapper.ToEnum(headerSplit[0]);
         var path = headerSplit[1];
-        var version = Mappers.VersionMapper.ToEnum(headerSplit[2]);
+        var version = VersionMapper.ToEnum(headerSplit[2]);
 
         if (!method.HasValue || !version.HasValue)
             return null;
 
         var headers = await HeadersFinder.ParseHeaders(reader);
+
         if (headers is null)
             return null;
 
@@ -131,88 +221,6 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
         };
     }
 
-    public async Task SetResponse(ResponseDto response)
-    {
-        try
-        {
-            StreamWriter? writer = null;
-            try
-            {
-                writer = new StreamWriter(stream, leaveOpen: true) {
-                    NewLine = NewLine,
-                };
-
-                var version = Mappers.VersionMapper.ToString(_version);
-                var statusCode = (int)response.Status;
-                var statusPhrase = StatusCodeMapper.ToReasonPhrase(response.Status);
-                var responseLine = $"{version} {statusCode} {statusPhrase}";
-
-                await writer.WriteLineAsync(responseLine);
-
-                foreach (var header in response.Headers)
-                {
-                    if (header.Key.Equals("content-length", StringComparison.OrdinalIgnoreCase)
-                        && response.Stream is not null)
-                    {
-                        continue;
-                    }
-
-                    foreach (var instance in header.Value)
-                        await writer.WriteLineAsync($"{header.Key}: {instance}");
-
-                }
-
-                if (!response.Status.IsBodyForbidden()
-                    && response.Stream is not null)
-                {
-                    _responseStream = response.Stream;
-
-                    if (_responseStream.CanSeek || _responseStream is ClampedStream)
-                    {
-                        await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
-                    }
-                    else
-                    {
-                        await writer.WriteLineAsync($"Transfer-Encoding: {ChunkedEncoding}");
-                        _chunked = true;
-                    }
-                }
-                else if (ShouldSendZeroContentLength(response.Status))
-                {
-                    await writer.WriteLineAsync("Content-Length: 0");
-                }
-
-                await writer.WriteLineAsync();
-            }
-            catch (IOException)
-            {
-                if (_responseStream is not null)
-                {
-                    await _responseStream.DisposeAsync();
-                    _responseStream = null;
-                }
-
-                _tcs.SetResult();
-                return;
-            }
-            finally
-            {
-                try
-                {
-                    if (writer is not null)
-                        await writer.DisposeAsync();
-                }
-                catch (IOException) { }
-            }
-        }
-        catch (IOException)
-        {
-            return;
-        }
-
-        _ = Finish();
-    }
-
     private Stream? GetBodyStream(Headers headers, Stream? remainder)
     {
         var contentLengthString = headers.ContentLength;
@@ -227,7 +235,8 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
 
             return new HttpChunkedStream(remainderStream);
         }
-        else if (!string.IsNullOrWhiteSpace(contentLengthString))
+
+        if (!string.IsNullOrWhiteSpace(contentLengthString))
         {
             if (!int.TryParse(contentLengthString, out var length))
                 return null;
@@ -269,7 +278,9 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
                 await stream.FlushAsync();
             }
         }
-        catch (IOException) { }
+        catch (IOException)
+        {
+        }
         finally
         {
             if (_responseStream is not null)

@@ -1,4 +1,3 @@
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
@@ -10,6 +9,7 @@ using Arbiter.Configuration;
 using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using SiteHandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Application;
 
@@ -26,33 +26,18 @@ public static class DependencyInjection
         services.AddSingleton<ContextMapper>();
         services.AddSingleton<SiteManager>();
         services.AddSingleton<TransportManager>();
-        services.AddSingleton<TransactionIdProvider>();
         services.AddSingleton<GlobalMiddlewareChain>();
         services.AddSingleton<AltSvcService>();
+        services.AddSingleton<IProtocolFactory, ProtocolService>();
+        services.AddSingleton<IGlobalMiddlewareFactory, CoreGlobalMiddlewareFactory>();
 
         services.AddScoped<MiddlewareChainDelegateOrchestrator>();
         services.AddScoped<SiteOrchestrator>();
 
-        services.AddTransient<Core.Interfaces.HandleDelegate>(sp => {
+        services.AddTransient<SiteHandleDelegate>(sp => {
             var factory = sp.GetRequiredService<MiddlewareChainDelegateOrchestrator>();
+
             return factory.GetNext();
         });
-    }
-
-    public static void AddTransport<TAcceptor, TConfig>(this IServiceCollection services, string key)
-        where TAcceptor : class, IAcceptor
-        where TConfig : class
-    {
-        services.AddKeyedSingleton<IAcceptor, TAcceptor>(key);
-        services.AddSingleton(new TransportDescriptor(key, typeof(TAcceptor), typeof(TConfig)));
-    }
-
-    public static void AddGlobalMiddleware<T>(this IServiceCollection services) where T : class, IGlobalMiddleware
-        => services.AddSingleton(new GlobalMiddlewareDescriptor(typeof(T)));
-
-    public static void ConfigureGlobalMiddlewareChain(GlobalMiddlewareChain chain)
-    {
-        chain.Add(next => new ExceptionCatcherGlobalMiddleware(next).Handle);
-        chain.Add(next => new NullSiteGlobalMiddleware(next).Handle);
     }
 }

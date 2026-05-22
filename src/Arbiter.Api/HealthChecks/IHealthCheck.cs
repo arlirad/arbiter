@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
@@ -42,6 +41,7 @@ public class HealthCheckMiddleware(HandleDelegate next, string healthPath = "/he
         if (context.Request.Path == _healthPath && context.Request.Method == Method.Get)
         {
             await context.Response.Set(Status.Ok, new MemoryStream());
+
             return;
         }
 

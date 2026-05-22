@@ -1,8 +1,8 @@
 ﻿using System.Buffers;
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Huffman;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Huffman;
 
-namespace Arlirad.Infrastructure.QPack.Streams;
+namespace Arbiter.Protocol.QPack.Streams;
 
 public class QPackReader(Stream inner)
 {
@@ -94,7 +94,7 @@ public class QPackReader(Stream inner)
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            ArrayPool<byte>.Shared.Return(buffer, true);
         }
     }
 
@@ -114,7 +114,7 @@ public class QPackReader(Stream inner)
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            ArrayPool<byte>.Shared.Return(buffer, true);
         }
     }
 
@@ -140,7 +140,7 @@ public class QPackReader(Stream inner)
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+            ArrayPool<byte>.Shared.Return(buffer, true);
         }
     }
 

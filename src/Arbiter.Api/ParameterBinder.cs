@@ -54,6 +54,7 @@ internal static class ParameterBinder
             return await DeserializeBodyAsync(httpContext.Request.Body, paramType, httpContext.JsonSerializerOptions);
 
         var routeValue = routeParameters.GetValueOrDefault(name);
+
         return ConvertOrDefault(routeValue ?? httpContext.Request.Query[name], param);
     }
 

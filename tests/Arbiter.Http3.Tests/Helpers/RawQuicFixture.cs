@@ -1,11 +1,10 @@
-using System.IO;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using Arlirad.Http3;
-using Arlirad.Http3.Streams;
+using Arbiter.Protocol.Http3;
 
 namespace Arbiter.Http3.Tests.Helpers;
 
@@ -65,9 +64,10 @@ public class RawQuicFixture : IAsyncDisposable
         if (!QuicListener.IsSupported)
             Assert.Ignore("QUIC is not supported on this platform");
 
-        var certificate = SelfSignedCertificate.Create("localhost");
+        var certificate = SelfSignedCertificate.Create();
         var fixture = new RawQuicFixture(certificate);
         await fixture.InitializeAsync();
+
         return fixture;
     }
 
@@ -87,7 +87,7 @@ public class RawQuicFixture : IAsyncDisposable
                 ServerAuthenticationOptions = new SslServerAuthenticationOptions {
                     ClientCertificateRequired = false,
                     ServerCertificate = cert,
-                    EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls13,
+                    EnabledSslProtocols = SslProtocols.Tls13,
                     ApplicationProtocols = [SslApplicationProtocol.Http3],
                 },
             }),
@@ -121,7 +121,8 @@ public class RawQuicFixture : IAsyncDisposable
     public async Task<QuicStream> OpenClientUnidirectionalStreamAsync()
     {
         var stream = await _clientQuicConnection!.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
-        System.Console.Error.WriteLine($"OpenClientUnidirectionalStreamAsync: stream={stream}, Type={stream.Type}, CanWrite={stream.CanWrite}");
+        Console.Error.WriteLine($"OpenClientUnidirectionalStreamAsync: stream={stream}, Type={stream.Type}, CanWrite={stream.CanWrite}");
+
         return stream;
     }
 
@@ -131,7 +132,8 @@ public class RawQuicFixture : IAsyncDisposable
     public async Task<QuicStream> AcceptServerInboundStream(CancellationToken ct = default)
     {
         var stream = await _serverQuicConnection!.AcceptInboundStreamAsync(ct);
-        System.Console.Error.WriteLine($"AcceptServerInboundStream: stream={stream}, Type={stream.Type}, CanRead={stream.CanRead}");
+        Console.Error.WriteLine($"AcceptServerInboundStream: stream={stream}, Type={stream.Type}, CanRead={stream.CanRead}");
+
         return stream;
     }
 }

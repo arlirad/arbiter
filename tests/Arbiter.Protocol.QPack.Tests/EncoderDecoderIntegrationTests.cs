@@ -1,16 +1,17 @@
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Decoding;
-using Arlirad.Infrastructure.QPack.Encoding;
-using Arlirad.Infrastructure.QPack.Streams;
-using Arlirad.QPack.Tests.Streams;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Decoding;
+using Arbiter.Protocol.QPack.Encoding;
+using Arbiter.Protocol.QPack.Streams;
+using Arbiter.Protocol.QPack.Tests.Streams;
 
-namespace Arlirad.QPack.Tests;
+namespace Arbiter.Protocol.QPack.Tests;
 
 public class EncoderDecoderIntegrationTests
 {
     private static async Task WaitForDecoderInsertCount(QPackDecoder decoder, long expected, TimeSpan? timeout = null)
     {
         var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(2));
+
         while (decoder.TotalInsertCount < expected && DateTime.UtcNow < deadline)
             await Task.Delay(10);
     }
@@ -21,7 +22,9 @@ public class EncoderDecoderIntegrationTests
         var decToEnc = new QueueStream();
 
         var encoder = new QPackEncoder();
-        var decoder = new QPackDecoder { InsertCountIncrementDelay = TimeSpan.Zero };
+        var decoder = new QPackDecoder {
+            InsertCountIncrementDelay = TimeSpan.Zero,
+        };
 
         await encoder.Start();
         await decoder.Start();
@@ -39,17 +42,20 @@ public class EncoderDecoderIntegrationTests
     }
 
     private static async Task<List<(string Name, string? Value)>> EncodeDecode(
-        QPackEncoder encoder, QPackDecoder decoder, long streamId, List<(string, string)> headers)
+        QPackEncoder encoder,
+        QPackDecoder decoder,
+        long streamId,
+        List<(string, string)> headers)
     {
         using var ms = new MemoryStream();
-        var writer = await encoder.GetSectionWriter(streamId, ms, default);
+        var writer = await encoder.GetSectionWriter(streamId, ms);
         await writer.WriteFieldSection(headers, default);
 
         var sectionBytes = ms.ToArray();
 
         var result = new List<(string, string?)>();
 
-        await using (var reader = await decoder.GetSectionReader(streamId, sectionBytes, sectionBytes.Length, default))
+        await using (var reader = await decoder.GetSectionReader(streamId, sectionBytes, sectionBytes.Length))
         {
             foreach (var field in reader)
                 result.Add((field.Name, field.Value));
@@ -151,7 +157,7 @@ public class EncoderDecoderIntegrationTests
     [Test]
     public async Task DynamicTable_InsertAndReference_RoundTrip()
     {
-        var (_, _, encoder, decoder) = await MakePair(tableCapacity: 4096);
+        var (_, _, encoder, decoder) = await MakePair();
 
         var headers1 = new List<(string, string)> {
             (":authority", "www.example.com"),
@@ -177,7 +183,7 @@ public class EncoderDecoderIntegrationTests
     [Test]
     public async Task DynamicTable_SecondSection_ReusesEntries()
     {
-        var (_, _, encoder, decoder) = await MakePair(tableCapacity: 4096);
+        var (_, _, encoder, decoder) = await MakePair();
 
         var headers1 = new List<(string, string)> {
             ("x-custom", "value-that-gets-inserted"),
@@ -231,17 +237,19 @@ public class EncoderDecoderIntegrationTests
     [Test]
     public async Task Eviction_WhenTableFull()
     {
-        var (_, _, encoder, decoder) = await MakePair(tableCapacity: 100);
+        var (_, _, encoder, decoder) = await MakePair(100);
 
         var headers1 = new List<(string, string)> {
             ("x-first", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
         };
+
         var result1 = await EncodeDecode(encoder, decoder, 0, headers1);
         Assert.That(result1[0], Is.EqualTo(("x-first", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
 
         var headers2 = new List<(string, string)> {
             ("x-second", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
         };
+
         var result2 = await EncodeDecode(encoder, decoder, 4, headers2);
         Assert.That(result2[0], Is.EqualTo(("x-second", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")));
 
@@ -253,7 +261,7 @@ public class EncoderDecoderIntegrationTests
     [Test]
     public async Task SectionAcknowledgment_SentByDecoder()
     {
-        var (_, _, encoder, decoder) = await MakePair(tableCapacity: 4096);
+        var (_, _, encoder, decoder) = await MakePair();
 
         var headers = new List<(string, string)> {
             ("x-custom-entry", "some-value-for-insertion"),
@@ -270,11 +278,12 @@ public class EncoderDecoderIntegrationTests
     [Test]
     public async Task DynamicNameRef_Path()
     {
-        var (_, _, encoder, decoder) = await MakePair(tableCapacity: 4096);
+        var (_, _, encoder, decoder) = await MakePair();
 
         var headers1 = new List<(string, string)> {
             ("x-shared-name", "first-value"),
         };
+
         var result1 = await EncodeDecode(encoder, decoder, 0, headers1);
         Assert.That(result1[0], Is.EqualTo(("x-shared-name", "first-value")));
 
@@ -286,6 +295,7 @@ public class EncoderDecoderIntegrationTests
         var headers2 = new List<(string, string)> {
             ("x-shared-name", "second-value"),
         };
+
         var result2 = await EncodeDecode(encoder, decoder, 4, headers2);
         Assert.That(result2[0], Is.EqualTo(("x-shared-name", "second-value")));
     }
@@ -296,6 +306,7 @@ public class EncoderDecoderIntegrationTests
         var (_, _, encoder, decoder) = await MakePair();
 
         var longValue = new string('a', 300);
+
         var headers = new List<(string, string)> {
             ("x-long-header", longValue),
         };
@@ -320,7 +331,7 @@ public class EncoderDecoderIntegrationTests
     [Test]
     public async Task MultipleSections_TableAccumulates()
     {
-        var (_, _, encoder, decoder) = await MakePair(tableCapacity: 4096);
+        var (_, _, encoder, decoder) = await MakePair();
 
         for (var i = 0; i < 5; i++)
         {
@@ -342,11 +353,12 @@ public class EncoderDecoderIntegrationTests
     [Test]
     public async Task Encoder_Processes_InsertCountIncrement()
     {
-        var (_, decToEnc, encoder, decoder) = await MakePair(tableCapacity: 4096);
+        var (_, decToEnc, encoder, decoder) = await MakePair();
 
         var headers = new List<(string, string)> {
             ("x-test-entry", "test-value"),
         };
+
         var _ = await EncodeDecode(encoder, decoder, 0, headers);
 
         var writer = new QPackWriter(decToEnc);

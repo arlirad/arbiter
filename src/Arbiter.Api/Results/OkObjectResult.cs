@@ -24,9 +24,11 @@ public class OkObjectResult(object? value) : IActionResult
             };
 
             var formatter = selector.Select(formatterContext);
+
             if (formatter is not null)
             {
                 await formatter.WriteAsync(Value, context);
+
                 return;
             }
         }

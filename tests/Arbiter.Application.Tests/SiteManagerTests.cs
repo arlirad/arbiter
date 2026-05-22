@@ -1,8 +1,7 @@
+using System.Reflection;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.Managers;
 using Arbiter.Core.Aggregates;
-using Arbiter.Core.Enums;
-using Arbiter.Core.Interfaces;
 
 namespace Arbiter.Application.Tests;
 
@@ -75,13 +74,19 @@ public class SiteManagerTests
 
         var site = new Site("/tmp", [new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
 
-        var sitesField = typeof(SiteManager).GetField("_sites", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        var configsField = typeof(SiteManager).GetField("_siteConfigs", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        var indexField = typeof(SiteManager).GetField("_bindingIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var sitesField = typeof(SiteManager).GetField("_sites", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var configsField = typeof(SiteManager).GetField("_siteConfigs", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var indexField = typeof(SiteManager).GetField("_bindingIndex", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-        var sites = new Dictionary<string, Site> { ["test"] = site };
+        var sites = new Dictionary<string, Site> {
+            ["test"] = site,
+        };
+
         sitesField.SetValue(manager, sites);
-        configsField.SetValue(manager, new Dictionary<Site, SiteConfig> { [site] = new() });
+        configsField.SetValue(manager, new Dictionary<Site, SiteConfig> {
+            [site] = new(),
+        });
+
         indexField.SetValue(manager, BuildIndex(sites));
 
         await manager.ReconfigureAsync([]);
@@ -110,14 +115,16 @@ public class SiteManagerTests
 
         site = new Site("/tmp", [new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
 
-        var sites = new Dictionary<string, Site> { ["test"] = site };
+        var sites = new Dictionary<string, Site> {
+            ["test"] = site,
+        };
 
         typeof(SiteManager)
-            .GetField("_sites", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetField("_sites", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(manager, sites);
 
         typeof(SiteManager)
-            .GetField("_bindingIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .GetField("_bindingIndex", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(manager, BuildIndex(sites));
 
         return manager;

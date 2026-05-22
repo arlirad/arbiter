@@ -1,5 +1,4 @@
 using Arbiter.Application.Configuration;
-using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Application.Tests;
 
@@ -17,6 +16,7 @@ public class ConfigurationScopeTests
         var scope = new ConfigurationScope(config, "Sites");
 
         var section = scope.GetSection("default");
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(section["Host"], Is.EqualTo("example.com"));

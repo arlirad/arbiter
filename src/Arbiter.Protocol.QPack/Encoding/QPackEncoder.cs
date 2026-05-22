@@ -1,65 +1,28 @@
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Models;
-using Arlirad.Infrastructure.QPack.Streams;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Huffman;
+using Arbiter.Protocol.QPack.Models;
+using Arbiter.Protocol.QPack.Streams;
 
-namespace Arlirad.Infrastructure.QPack.Encoding;
+namespace Arbiter.Protocol.QPack.Encoding;
 
 public class QPackEncoder
 {
-    private Stream? _decoderIncoming;
-    private QPackReader? _decoderIncomingReader;
-    private Stream? _encoderOutgoing;
-    private QPackWriter? _encoderOutgoingWriter;
+    private readonly HashSet<long> _blockedStreams = [];
 
     private readonly List<QPackField> _dynamicTable = [];
     private readonly byte[] _instructionBuffer = new byte[8];
-    private long _dynamicTableCapacity;
-    private long _dynamicTableSize;
-    private long _totalInsertCount;
-    private long _totalEvictionCount;
-    private long _ackedInsertCount;
-    private int _blockedStreamCount;
-    private readonly HashSet<long> _blockedStreams = [];
     private readonly Lock _tableLock = new();
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private int _blockedStreamCount;
     private CancellationTokenSource? _cts;
+    private Stream? _decoderIncoming;
+    private QPackReader? _decoderIncomingReader;
     private Task? _decoderReadTask;
-
-    public ValueTask Start()
-    {
-        _cts = new CancellationTokenSource();
-        return ValueTask.CompletedTask;
-    }
-
-    public async Task Initialize(int maxTableCapacity, int blockedStreams)
-    {
-        lock (_tableLock)
-        {
-            _dynamicTableCapacity = maxTableCapacity;
-            _dynamicTableSize = 0;
-            _totalInsertCount = 0;
-            _totalEvictionCount = 0;
-            _ackedInsertCount = 0;
-            _blockedStreamCount = 0;
-            _blockedStreams.Clear();
-            PeerMaxTableCapacity = maxTableCapacity;
-            BlockedStreams = blockedStreams;
-        }
-
-        if (_encoderOutgoingWriter is not null)
-        {
-            await _writeLock.WaitAsync();
-            try
-            {
-                await _encoderOutgoingWriter.WritePrefixedIntAsync(maxTableCapacity, 5,
-                    QPackConsts.EncoderInstructionDynamicTableCapacity, CancellationToken.None);
-            }
-            finally
-            {
-                _writeLock.Release();
-            }
-        }
-    }
+    private long _dynamicTableCapacity;
+    private long _dynamicTableSize;
+    private Stream? _encoderOutgoing;
+    private QPackWriter? _encoderOutgoingWriter;
+    private long _totalEvictionCount;
 
     public int PeerMaxTableCapacity
     {
@@ -73,8 +36,54 @@ public class QPackEncoder
         private set;
     }
 
-    public long TotalInsertCount => _totalInsertCount;
-    public long AckedInsertCount => _ackedInsertCount;
+    public long TotalInsertCount
+    {
+        get;
+        private set;
+    }
+    public long AckedInsertCount
+    {
+        get;
+        private set;
+    }
+
+    public ValueTask Start()
+    {
+        _cts = new CancellationTokenSource();
+
+        return ValueTask.CompletedTask;
+    }
+
+    public async Task Initialize(int maxTableCapacity, int blockedStreams)
+    {
+        lock (_tableLock)
+        {
+            _dynamicTableCapacity = maxTableCapacity;
+            _dynamicTableSize = 0;
+            TotalInsertCount = 0;
+            _totalEvictionCount = 0;
+            AckedInsertCount = 0;
+            _blockedStreamCount = 0;
+            _blockedStreams.Clear();
+            PeerMaxTableCapacity = maxTableCapacity;
+            BlockedStreams = blockedStreams;
+        }
+
+        if (_encoderOutgoingWriter is not null)
+        {
+            await _writeLock.WaitAsync();
+
+            try
+            {
+                await _encoderOutgoingWriter.WritePrefixedIntAsync(maxTableCapacity, 5,
+                    QPackConsts.EncoderInstructionDynamicTableCapacity, CancellationToken.None);
+            }
+            finally
+            {
+                _writeLock.Release();
+            }
+        }
+    }
 
     public bool CanBlock(int limit) => _blockedStreamCount < limit;
 
@@ -105,6 +114,7 @@ public class QPackEncoder
             return;
 
         await _writeLock.WaitAsync(ct);
+
         try
         {
             await _encoderOutgoing.FlushAsync(ct);
@@ -131,7 +141,7 @@ public class QPackEncoder
         }
     }
 
-    private long ToRelativeIndex(long absoluteIndex) => _totalInsertCount - absoluteIndex - 1;
+    private long ToRelativeIndex(long absoluteIndex) => TotalInsertCount - absoluteIndex - 1;
 
     public List<QPackField> GetDynamicTable()
     {
@@ -148,7 +158,7 @@ public class QPackEncoder
             for (var i = _dynamicTable.Count - 1; i >= 0; i--)
             {
                 if (_dynamicTable[i].Name.Equals(name, StringComparison.OrdinalIgnoreCase) && _dynamicTable[i].Value == value)
-                    return _totalInsertCount - _dynamicTable.Count + i;
+                    return TotalInsertCount - _dynamicTable.Count + i;
             }
 
             return null;
@@ -162,7 +172,7 @@ public class QPackEncoder
             for (var i = _dynamicTable.Count - 1; i >= 0; i--)
             {
                 if (_dynamicTable[i].Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-                    return _totalInsertCount - _dynamicTable.Count + i;
+                    return TotalInsertCount - _dynamicTable.Count + i;
             }
 
             return null;
@@ -192,7 +202,7 @@ public class QPackEncoder
 
     private async Task WriteStringValue(byte[] valueBytes, CancellationToken ct)
     {
-        var huffmanValue = Arlirad.Infrastructure.QPack.Huffman.HPackHuffman.Encode(valueBytes);
+        var huffmanValue = HPackHuffman.Encode(valueBytes);
         var useHuffman = huffmanValue.Length < valueBytes.Length;
         var valueToWrite = useHuffman ? huffmanValue : valueBytes;
         var huffmanBit = (byte)(useHuffman ? 0b1000_0000 : 0);
@@ -207,6 +217,7 @@ public class QPackEncoder
         var entrySize = GetEntrySize(name, value);
 
         await _writeLock.WaitAsync(ct);
+
         try
         {
             if (QPackConsts.StaticNameIndex.TryGetValue(name, out var staticIndex))
@@ -216,6 +227,7 @@ public class QPackEncoder
             else
             {
                 var dynamicNameIndex = FindDynamicName(name);
+
                 if (dynamicNameIndex is not null)
                 {
                     var relativeIndex = ToRelativeIndex(dynamicNameIndex.Value);
@@ -239,10 +251,10 @@ public class QPackEncoder
         {
             _dynamicTable.Add(new QPackField(name, value));
             _dynamicTableSize += entrySize;
-            _totalInsertCount++;
+            TotalInsertCount++;
         }
 
-        return _totalInsertCount - 1;
+        return TotalInsertCount - 1;
     }
 
     private async Task DecoderInstructionsRead(CancellationToken ct)
@@ -259,14 +271,16 @@ public class QPackEncoder
             if (QPackConsts.Is(firstByte, 0b0000_0000, 0b0000_0000))
             {
                 var increment = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(6, firstByte, _instructionBuffer, ct);
+
                 lock (_tableLock)
                 {
-                    _ackedInsertCount += (long)increment;
+                    AckedInsertCount += (long)increment;
                 }
             }
             else if (QPackConsts.Is(firstByte, 0b1000_0000, 0b1000_0000))
             {
                 var streamIdValue = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(7, firstByte, _instructionBuffer, ct);
+
                 lock (_tableLock)
                 {
                     _blockedStreams.Remove((long)streamIdValue);
@@ -276,6 +290,7 @@ public class QPackEncoder
             else if (QPackConsts.Is(firstByte, 0b0100_0000, 0b0100_0000))
             {
                 var streamIdValue = await _decoderIncomingReader.ReadPrefixedIntFromProvidedByteAsync(6, firstByte, _instructionBuffer, ct);
+
                 lock (_tableLock)
                 {
                     _blockedStreams.Remove((long)streamIdValue);

@@ -1,11 +1,8 @@
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
-using System.Threading.Tasks;
 using Arbiter.Http3.Tests.Helpers;
-using Arlirad.Http3.Streams;
 
 namespace Arbiter.Http3.Tests;
 
@@ -57,6 +54,7 @@ public class Http3ConcurrencyTests
                 [":scheme"] = ["https"],
                 [":authority"] = ["localhost"],
             });
+
             await requestStream.FinishAsync();
         }
 
@@ -92,6 +90,7 @@ public class Http3ConcurrencyTests
                     RemoteCertificateValidationCallback = (_, _, _, _) => true,
                 },
             });
+
             connections.Add(conn);
         }
 

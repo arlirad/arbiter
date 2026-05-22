@@ -4,13 +4,12 @@ namespace Arbiter.Application.Configuration;
 
 public class SiteComponentConfig : IEquatable<SiteComponentConfig?>
 {
+    private readonly IConfiguration? _frozenConfig;
     public string? Name
     {
         get;
         init;
     }
-
-    private readonly IConfiguration? _frozenConfig;
 
     public IConfigurationSection? Config
     {

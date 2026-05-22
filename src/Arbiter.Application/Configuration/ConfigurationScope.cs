@@ -24,10 +24,10 @@ public class ConfigurationScope : IConfiguration
         ChangeToken.OnChange(root.GetReloadToken, OnRootChanged);
     }
 
-    public string this[string key]
+    public string? this[string key]
     {
-        get => _scoped[key]!;
-        set => _scoped[key] = value!;
+        get => _scoped[key];
+        set => _scoped[key] = value;
     }
 
     public IEnumerable<IConfigurationSection> GetChildren() => _scoped.GetChildren();

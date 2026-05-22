@@ -1,9 +1,7 @@
-using System.Collections.Generic;
 using System.Net.Quic;
 using System.Runtime.Versioning;
 using System.Text;
 using Arbiter.Http3.Tests.Helpers;
-using Arlirad.Http3.Streams;
 
 namespace Arbiter.Http3.Tests;
 
@@ -52,21 +50,24 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await clientStream.FinishAsync();
 
-        var serverStream = await fixture.AcceptRequestStream(default);
-        foreach (var _ in await serverStream.ReadHeaders(default))
+        var serverStream = await fixture.AcceptRequestStream();
+
+        foreach (var _ in await serverStream.ReadHeaders())
         {
         }
 
         await serverStream.WriteHeaders(new Dictionary<string, List<string>> {
             [":status"] = ["200"],
             ["content-type"] = ["text/plain"],
-        }, default);
+        });
+
         await serverStream.FinishAsync();
 
         var responseHeaders = new List<KeyValuePair<string, string?>>();
-        foreach (var header in await clientStream.ReadHeaders(default))
+        foreach (var header in await clientStream.ReadHeaders())
             responseHeaders.Add(header);
 
         using (Assert.EnterMultipleScope())
@@ -89,10 +90,12 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await clientStream.FinishAsync();
 
-        var serverStream = await fixture.AcceptRequestStream(default);
-        foreach (var _ in await serverStream.ReadHeaders(default))
+        var serverStream = await fixture.AcceptRequestStream();
+
+        foreach (var _ in await serverStream.ReadHeaders())
         {
         }
 
@@ -100,6 +103,7 @@ public class Http3ServerResponseTests
             [":status"] = ["200"],
             ["content-type"] = ["text/plain"],
         }, CancellationToken.None);
+
         await serverStream.WriteAsync(responseBody, CancellationToken.None);
         await serverStream.FinishAsync();
 
@@ -129,9 +133,11 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -139,6 +145,7 @@ public class Http3ServerResponseTests
         await serverStream.WriteHeaders(new Dictionary<string, List<string>> {
             [":status"] = ["204"],
         }, CancellationToken.None);
+
         await serverStream.FinishAsync();
 
         foreach (var _ in await clientStream.ReadHeaders(CancellationToken.None))
@@ -166,9 +173,11 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -176,6 +185,7 @@ public class Http3ServerResponseTests
         await serverStream.WriteHeaders(new Dictionary<string, List<string>> {
             [":status"] = ["200"],
         }, CancellationToken.None);
+
         await serverStream.WriteAsync(chunk1, CancellationToken.None);
         await serverStream.WriteAsync(chunk2, CancellationToken.None);
         await serverStream.WriteAsync(chunk3, CancellationToken.None);
@@ -191,8 +201,10 @@ public class Http3ServerResponseTests
         while (true)
         {
             var bytesRead = await clientStream.ReadAsync(buffer, CancellationToken.None);
+
             if (bytesRead == 0)
                 break;
+
             totalReceived.AddRange(buffer[..bytesRead]);
         }
 
@@ -212,10 +224,12 @@ public class Http3ServerResponseTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await clientStream.WriteAsync(requestBody, CancellationToken.None);
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -237,7 +251,7 @@ public class Http3ServerResponseTests
         }
 
         var responseBuffer = new byte[256];
-        var responseBytes = await clientStream.ReadAsync(responseBuffer, default);
+        var responseBytes = await clientStream.ReadAsync(responseBuffer);
 
         Assert.That(Encoding.UTF8.GetString(responseBuffer, 0, responseBytes), Is.EqualTo("request payload"));
     }

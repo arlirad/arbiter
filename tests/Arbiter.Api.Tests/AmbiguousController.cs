@@ -8,8 +8,8 @@ namespace Arbiter.Api.Tests;
 public class AmbiguousController : IApiController
 {
     [HttpGet("{id}")]
-    public static IActionResult GetById(int id) => new Results.OkResult();
+    public static IActionResult GetById(int id) => new OkResult();
 
     [HttpGet("{id}")]
-    public static IActionResult GetByIdDuplicate(int id) => new Results.OkResult();
+    public static IActionResult GetByIdDuplicate(int id) => new OkResult();
 }

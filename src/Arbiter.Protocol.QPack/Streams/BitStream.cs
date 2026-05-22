@@ -1,4 +1,4 @@
-namespace Arlirad.Infrastructure.QPack.Streams;
+namespace Arbiter.Protocol.QPack.Streams;
 
 public class BitStream(byte[] buffer, int length = -1)
 {

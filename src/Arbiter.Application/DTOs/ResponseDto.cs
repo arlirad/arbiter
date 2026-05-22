@@ -15,7 +15,7 @@ public class ResponseDto
         get;
         set;
     }
-    public ReadOnlyHeaders? Headers
+    public required ReadOnlyHeaders Headers
     {
         get;
         set;

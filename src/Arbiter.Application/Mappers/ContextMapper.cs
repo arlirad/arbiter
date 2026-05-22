@@ -17,7 +17,7 @@ internal class ContextMapper(IContextFactory contextFactory)
 
     public static ResponseDto ToDto(Context context)
     {
-        return new ResponseDto() {
+        return new ResponseDto {
             Status = context.Response.Status!.Value,
             Headers = new ReadOnlyHeaders(context.Response.Headers),
             Stream = context.Response.Stream,

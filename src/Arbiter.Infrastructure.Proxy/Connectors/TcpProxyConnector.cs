@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Security;
 using System.Net.Sockets;
 using Arbiter.Core.Aggregates;
@@ -20,6 +19,7 @@ internal sealed class TcpProxyConnector(Uri target) : IProxyConnector
     public Uri BuildTargetUri(string requestPath)
     {
         var targetPath = target.AbsolutePath.TrimEnd('/') + '/' + requestPath.TrimStart('/');
+
         return new Uri(target, targetPath);
     }
 

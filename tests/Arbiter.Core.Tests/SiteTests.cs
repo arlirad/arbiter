@@ -10,7 +10,11 @@ public class SiteTests
     public void Ctor_sets_path_from_constructor()
     {
         Task HandleDelegate(Context ctx) => Task.CompletedTask;
-        var bindings = new List<Uri> { new("http://localhost:8080") };
+
+        var bindings = new List<Uri> {
+            new("http://localhost:8080"),
+        };
+
         var workers = new List<IWorker>();
         var middlewares = new List<IMiddleware>();
 
@@ -23,7 +27,12 @@ public class SiteTests
     public void Ctor_sets_bindings_from_constructor()
     {
         Task HandleDelegate(Context ctx) => Task.CompletedTask;
-        var bindings = new List<Uri> { new("http://localhost:8080"), new("https://localhost:8443") };
+
+        var bindings = new List<Uri> {
+            new("http://localhost:8080"),
+            new("https://localhost:8443"),
+        };
+
         var workers = new List<IWorker>();
         var middlewares = new List<IMiddleware>();
 
@@ -40,7 +49,11 @@ public class SiteTests
         Task HandleDelegate(Context ctx) => Task.CompletedTask;
         var bindings = new List<Uri>();
         var workers = new List<IWorker>();
-        var middlewares = new List<IMiddleware> { new StubMiddleware(), new StubMiddleware() };
+
+        var middlewares = new List<IMiddleware> {
+            new StubMiddleware(),
+            new StubMiddleware(),
+        };
 
         var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
 
@@ -52,7 +65,12 @@ public class SiteTests
     {
         Task HandleDelegate(Context ctx) => Task.CompletedTask;
         var bindings = new List<Uri>();
-        var workers = new List<IWorker> { new TrackingWorker(), new TrackingWorker() };
+
+        var workers = new List<IWorker> {
+            new TrackingWorker(),
+            new TrackingWorker(),
+        };
+
         var middlewares = new List<IMiddleware>();
 
         var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
@@ -123,7 +141,10 @@ public class SiteTests
         Task HandleDelegate(Context ctx) => Task.CompletedTask;
         var bindings = new List<Uri>();
         var workers = new List<IWorker>();
-        var middlewares = new List<IMiddleware> { new StubMiddleware() };
+
+        var middlewares = new List<IMiddleware> {
+            new StubMiddleware(),
+        };
 
         var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
 
@@ -135,7 +156,11 @@ public class SiteTests
     {
         Task HandleDelegate(Context ctx) => Task.CompletedTask;
         var bindings = new List<Uri>();
-        var workers = new List<IWorker> { new TrackingWorker() };
+
+        var workers = new List<IWorker> {
+            new TrackingWorker(),
+        };
+
         var middlewares = new List<IMiddleware>();
 
         var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
@@ -151,7 +176,13 @@ public class SiteTests
         var worker1 = new TrackingWorker();
         var worker2 = new TrackingWorker();
         var worker3 = new TrackingWorker();
-        var workers = new List<IWorker> { worker1, worker2, worker3 };
+
+        var workers = new List<IWorker> {
+            worker1,
+            worker2,
+            worker3,
+        };
+
         var middlewares = new List<IMiddleware>();
 
         var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
@@ -171,7 +202,13 @@ public class SiteTests
         var worker1 = new TrackingWorker();
         var worker2 = new TrackingWorker();
         var worker3 = new TrackingWorker();
-        var workers = new List<IWorker> { worker1, worker2, worker3 };
+
+        var workers = new List<IWorker> {
+            worker1,
+            worker2,
+            worker3,
+        };
+
         var middlewares = new List<IMiddleware>();
 
         var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
@@ -206,25 +243,34 @@ public class SiteTests
 
     private class TrackingWorker : IWorker
     {
-        public List<string> Calls { get; } = [];
+        public List<string> Calls
+        {
+            get;
+        } = [];
         public int StartIndex
         {
-            get; set;
+            get;
+            set;
         }
         public int StopIndex
         {
-            get; set;
+            get;
+            set;
         }
 
         public Task Configure(string path, List<Uri> bindings, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
+
         public Task Start()
         {
             Calls.Add("start");
+
             return Task.CompletedTask;
         }
+
         public Task Stop()
         {
             Calls.Add("stop");
+
             return Task.CompletedTask;
         }
     }

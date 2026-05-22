@@ -1,13 +1,11 @@
-using System.IO;
 using System.Net;
-using System.Net.Http;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using Arbiter.Application.DTOs;
 using Arbiter.Core.Enums;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Transport.Unix.Tests.Helpers;
-using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Transport.Unix.Tests;
 
@@ -80,14 +78,17 @@ public class UnixSocketIntegrationTests
     public async Task Response_with_headers()
     {
         var customFixture = await UnixSocketFixture.CreateAsync(req => {
-            var headers = new Core.ValueObjects.Headers {
-                { "Content-Type", "application/json" },
-                { "X-Custom-Header", "custom-value" },
+            var headers = new Headers {
+                {
+                    "Content-Type", "application/json"
+                }, {
+                    "X-Custom-Header", "custom-value"
+                },
             };
 
             return Task.FromResult(new ResponseDto {
                 Status = Status.Ok,
-                Headers = new Core.ValueObjects.ReadOnlyHeaders(headers),
+                Headers = new ReadOnlyHeaders(headers),
             });
         });
 
@@ -116,7 +117,11 @@ public class UnixSocketIntegrationTests
         var customFixture = await UnixSocketFixture.CreateAsync(req => {
             var values = req.Headers["X-Custom-Header"];
             receivedHeader = values?.FirstOrDefault();
-            return Task.FromResult(new ResponseDto { Status = Status.Ok, Headers = EmptyHeaders });
+
+            return Task.FromResult(new ResponseDto {
+                Status = Status.Ok,
+                Headers = EmptyHeaders,
+            });
         });
 
         try
@@ -145,8 +150,12 @@ public class UnixSocketIntegrationTests
 
         var customFixture = await UnixSocketFixture.CreateAsync(async req => {
             var bodyStream = req.Stream;
+
             if (bodyStream is null)
-                return new ResponseDto { Status = Status.BadRequest, Headers = EmptyHeaders };
+                return new ResponseDto {
+                    Status = Status.BadRequest,
+                    Headers = EmptyHeaders,
+                };
 
             using var ms = new MemoryStream();
             await bodyStream.CopyToAsync(ms);
@@ -184,7 +193,11 @@ public class UnixSocketIntegrationTests
 
         var customFixture = await UnixSocketFixture.CreateAsync(req => {
             methodReceived = req.Method.ToString();
-            return Task.FromResult(new ResponseDto { Status = Status.Ok, Headers = EmptyHeaders });
+
+            return Task.FromResult(new ResponseDto {
+                Status = Status.Ok,
+                Headers = EmptyHeaders,
+            });
         });
 
         try
@@ -238,7 +251,7 @@ public class UnixSocketIntegrationTests
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         socket.Connect(new UnixDomainSocketEndPoint(path));
 
-        using var stream = new NetworkStream(socket, ownsSocket: false);
+        using var stream = new NetworkStream(socket, false);
 
         var request = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"u8.ToArray();
         await stream.WriteAsync(request);
@@ -270,7 +283,8 @@ public class UnixSocketIntegrationTests
             ConnectCallback = async (context, ct) => {
                 var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
                 await socket.ConnectAsync(new UnixDomainSocketEndPoint(path), ct);
-                return new NetworkStream(socket, ownsSocket: true);
+
+                return new NetworkStream(socket, true);
             },
         };
 
@@ -282,7 +296,7 @@ public class UnixSocketIntegrationTests
         var sendTask = client.GetAsync("/test");
 
         var accepted = serverSocket.Accept();
-        using var ns = new NetworkStream(accepted, ownsSocket: false);
+        using var ns = new NetworkStream(accepted, false);
 
         var buf = new byte[4096];
         var read = await ns.ReadAsync(buf, CancellationToken.None);
@@ -381,7 +395,7 @@ public class UnixSocketAcceptorTests
         var acceptor = new UnixSocketAcceptor();
 
         var field = acceptor.GetType()
-            .GetField("_transports", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            .GetField("_transports", BindingFlags.NonPublic | BindingFlags.Instance);
 
         Assert.That(field, Is.Not.Null);
     }
@@ -389,15 +403,17 @@ public class UnixSocketAcceptorTests
     private static async Task CleanupAcceptor(UnixSocketAcceptor acceptor, string path)
     {
         var sockets = acceptor.GetType()
-            .GetField("_sockets", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
+            .GetField("_sockets", BindingFlags.NonPublic | BindingFlags.Instance)?
             .GetValue(acceptor) as IDictionary<string, object>;
 
         if (sockets is not null && sockets.TryGetValue(path, out var socketObj))
         {
             var stopMethod = socketObj.GetType().GetMethod("Stop");
             var closeMethod = socketObj.GetType().GetMethod("Close");
+
             if (stopMethod is not null)
                 await (Task)stopMethod.Invoke(socketObj, null)!;
+
             closeMethod?.Invoke(socketObj, null);
         }
 

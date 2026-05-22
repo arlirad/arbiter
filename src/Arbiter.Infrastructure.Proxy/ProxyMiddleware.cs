@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using Arbiter.Core.Aggregates;
@@ -51,7 +52,7 @@ public class ProxyMiddleware : IMiddleware
             ? new UnixProxyConnector(typedConfig.Target.AbsolutePath)
             : new TcpProxyConnector(typedConfig.Target);
 
-        _client = new HttpClient(_connector.CreateHandler(), disposeHandler: false);
+        _client = new HttpClient(_connector.CreateHandler(), false);
 
         return Task.CompletedTask;
     }
@@ -61,18 +62,21 @@ public class ProxyMiddleware : IMiddleware
         if (context.Request.Upgrade is IWebSocketUpgrade upgrade)
         {
             await HandleWebSocket(context, upgrade);
+
             return;
         }
 
         if (context.Request.Upgrade is not null)
         {
             await context.Response.Set(Status.NotImplemented);
+
             return;
         }
 
         if (context.Request.Method == Method.Connect)
         {
             await context.Response.Set(Status.MethodNotAllowed);
+
             return;
         }
 
@@ -152,6 +156,7 @@ public class ProxyMiddleware : IMiddleware
             if (!status.HasValue)
             {
                 await context.Response.Set(Status.BadGateway);
+
                 return;
             }
 
@@ -159,12 +164,14 @@ public class ProxyMiddleware : IMiddleware
             {
                 CopyHeaders(context, responseHeaders);
                 await context.Response.Set(status.Value, responseStream);
+
                 return;
             }
 
             if (responseStream is null)
             {
                 await context.Response.Set(Status.BadGateway);
+
                 return;
             }
 
@@ -192,6 +199,7 @@ public class ProxyMiddleware : IMiddleware
     {
         Span<byte> nonce = stackalloc byte[16];
         RandomNumberGenerator.Fill(nonce);
+
         return Convert.ToBase64String(nonce);
     }
 
@@ -248,6 +256,7 @@ public class ProxyMiddleware : IMiddleware
     private static Status? ParseStatus(string statusLine)
     {
         var parts = statusLine.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+
         return parts.Length >= 2 && int.TryParse(parts[1], out var statusCode) && Enum.IsDefined(typeof(Status), statusCode)
             ? (Status)statusCode
             : null;
@@ -256,6 +265,7 @@ public class ProxyMiddleware : IMiddleware
     private static Stream? CreateResponseBodyStream(Headers headers, Stream stream, Stream? remainder)
     {
         var contentLength = headers.ContentLength;
+
         return !string.IsNullOrWhiteSpace(contentLength)
             ? long.TryParse(contentLength, out var length) && length > 0
                 ? new ClampedStream(new RemainderStream(stream, remainder), length)
@@ -273,6 +283,7 @@ public class ProxyMiddleware : IMiddleware
         {
             response.Dispose();
             await context.Response.Set(Status.BadGateway);
+
             return;
         }
 
@@ -354,7 +365,7 @@ public class ProxyMiddleware : IMiddleware
         return (connectionHeaders != null && connectionHeaders.Contains(key, StringComparer.OrdinalIgnoreCase)) || disallowedHeaders.Contains(key, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static void AddForwardingHeaders(System.Net.Http.Headers.HttpRequestHeaders headers, Context context)
+    private static void AddForwardingHeaders(HttpRequestHeaders headers, Context context)
     {
         var proto = context.Request.IsSecure ? "https" : "http";
 

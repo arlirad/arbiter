@@ -1,4 +1,4 @@
-namespace Arlirad.Infrastructure.QPack.Huffman;
+namespace Arbiter.Protocol.QPack.Huffman;
 
 public static class HuffmanEncodeTable
 {

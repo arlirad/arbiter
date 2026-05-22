@@ -13,11 +13,11 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("windows")]
 public sealed class QuicTransport(QuicConnection connection, int port, IPAddress? remoteAddress) : ITransport
 {
+    public QuicConnection Connection => connection;
     public Protocol Protocol => Protocol.Http3;
     public bool IsSecure => true;
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
-    public QuicConnection Connection => connection;
 
     public async IAsyncEnumerable<ITransportStream> GetStreams(
         [EnumeratorCancellation] CancellationToken ct)

@@ -51,11 +51,18 @@ public class ComponentDataContainerTests
 
     private class TestData
     {
-        public string Value { get; set; } = "default";
+        public string Value
+        {
+            get;
+        } = "default";
     }
 
     private class OtherData
     {
-        public int Count { get; set; } = 42;
+        public int Count
+        {
+            get;
+            set;
+        } = 42;
     }
 }

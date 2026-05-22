@@ -1,3 +1,4 @@
+using System.Net;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
@@ -26,6 +27,7 @@ public class RequestIdGlobalMiddlewareTests
         var nextInvoked = false;
         var sut = new RequestIdGlobalMiddleware((_, _, _) => {
             nextInvoked = true;
+
             return Task.CompletedTask;
         });
 
@@ -58,7 +60,7 @@ public class RequestIdGlobalMiddlewareTests
         public Protocol Protocol => Protocol.Http11;
         public bool IsSecure => false;
         public int Port => 80;
-        public System.Net.IPAddress? RemoteAddress => null;
+        public IPAddress? RemoteAddress => null;
         public Task<RequestDto?> GetRequest() => Task.FromResult<RequestDto?>(null);
         public Task SetResponse(ResponseDto response) => Task.CompletedTask;
     }

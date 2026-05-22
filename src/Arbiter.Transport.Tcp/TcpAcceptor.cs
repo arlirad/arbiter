@@ -5,12 +5,11 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Channels;
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
 using Arbiter.Configuration;
 using Arbiter.Core.Enums;
+using Arbiter.Transport.Configuration;
 using Serilog;
 
 namespace Arbiter.Transport.Tcp;
@@ -36,6 +35,17 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
 
         _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(config.QueueSize));
         await Bind(addresses, config.Ports, config.Backlog);
+    }
+
+    public void Dispose()
+    {
+        foreach (var socket in _sockets.Values)
+        {
+            socket.Stop();
+            socket.Close();
+        }
+
+        _sockets.Clear();
     }
 
     public async Task Bind(IEnumerable<IPAddress> addresses, IEnumerable<int> ports, int backlog)
@@ -98,9 +108,11 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
     private static async Task<bool> CheckForSsl(Socket socket)
     {
         var buffer = ArrayPool<byte>.Shared.Rent(1);
+
         try
         {
             var length = await socket.ReceiveAsync(buffer, SocketFlags.Peek);
+
             return length != 0 && buffer[0] == 22;
         }
         finally
@@ -134,7 +146,6 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
 
         foreach (var endPoint in newEndpoints)
         {
-
             var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
             socket.Bind(endPoint);
@@ -171,16 +182,5 @@ public class TcpAcceptor(ICertificateManager certificateManager) : IAcceptor, IA
 
         if (cancellationTasks.Count > 0)
             await Task.WhenAll(cancellationTasks);
-    }
-
-    public void Dispose()
-    {
-        foreach (var socket in _sockets.Values)
-        {
-            socket.Stop();
-            socket.Close();
-        }
-
-        _sockets.Clear();
     }
 }

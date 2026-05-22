@@ -11,6 +11,7 @@ public class NullSiteGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
         if (site is null)
         {
             await context.Response.Set(Status.NotFound);
+
             return;
         }
 

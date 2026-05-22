@@ -1,4 +1,4 @@
-namespace Arlirad.QPack.Tests.Helpers;
+namespace Arbiter.Protocol.QPack.Tests.Helpers;
 
 public class HttpHeaders
 {
@@ -19,6 +19,7 @@ public class HttpHeaders
         if (value is null)
         {
             _headers.Remove(name);
+
             return;
         }
 

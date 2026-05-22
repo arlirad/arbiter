@@ -4,7 +4,9 @@ using System.Runtime.Versioning;
 using System.Text;
 using Arbiter.Application.DTOs;
 using Arbiter.Core.Enums;
+using Arbiter.Core.ValueObjects;
 using Arbiter.Http3.Tests.Helpers;
+using HttpVersion = System.Net.HttpVersion;
 
 namespace Arbiter.Http3.Tests;
 
@@ -104,6 +106,7 @@ public class HttpClientIntegrationTests
         var customFixture = await HttpClientServerFixture.CreateAsync(req => Task.FromResult(new ResponseDto {
             Status = Status.Ok,
             Stream = new MemoryStream(Encoding.UTF8.GetBytes(expectedBody)),
+            Headers = new ReadOnlyHeaders([]),
         }));
 
         try
@@ -127,15 +130,19 @@ public class HttpClientIntegrationTests
     public async Task Response_with_multiple_headers()
     {
         var customFixture = await HttpClientServerFixture.CreateAsync(req => {
-            var headers = new Arbiter.Core.ValueObjects.Headers {
-                { "Content-Type", "application/json" },
-                { "X-Custom-Header", "custom-value" },
-                { "Cache-Control", "no-cache" },
+            var headers = new Headers {
+                {
+                    "Content-Type", "application/json"
+                }, {
+                    "X-Custom-Header", "custom-value"
+                }, {
+                    "Cache-Control", "no-cache"
+                },
             };
 
             return Task.FromResult(new ResponseDto {
                 Status = Status.Ok,
-                Headers = new Core.ValueObjects.ReadOnlyHeaders(headers),
+                Headers = new ReadOnlyHeaders(headers),
             });
         });
 
@@ -164,17 +171,20 @@ public class HttpClientIntegrationTests
         var customFixture = await HttpClientServerFixture.CreateAsync(req => {
             var values = req.Headers["X-Custom-Header"];
             receivedCustomHeader = values?.FirstOrDefault();
+
             return Task.FromResult(new ResponseDto {
                 Status = Status.Ok,
+                Headers = new ReadOnlyHeaders([]),
             });
         });
 
         try
         {
             var request = new HttpRequestMessage(HttpMethod.Get, "/test") {
-                Version = System.Net.HttpVersion.Version30,
+                Version = HttpVersion.Version30,
                 VersionPolicy = HttpVersionPolicy.RequestVersionExact,
             };
+
             request.Headers.Add("X-Custom-Header", "test-value");
 
             var response = await customFixture.Client.SendAsync(request);
@@ -198,10 +208,12 @@ public class HttpClientIntegrationTests
 
         var customFixture = await HttpClientServerFixture.CreateAsync(async req => {
             var bodyStream = req.Stream;
+
             if (bodyStream is null)
             {
                 return new ResponseDto {
                     Status = Status.BadRequest,
+                    Headers = new ReadOnlyHeaders([]),
                 };
             }
 
@@ -212,6 +224,7 @@ public class HttpClientIntegrationTests
             return new ResponseDto {
                 Status = Status.Ok,
                 Stream = new MemoryStream(Encoding.UTF8.GetBytes(body)),
+                Headers = new ReadOnlyHeaders([]),
             };
         });
 
@@ -240,17 +253,20 @@ public class HttpClientIntegrationTests
 
         var customFixture = await HttpClientServerFixture.CreateAsync(req => {
             methodReceived = req.Method.ToString();
+
             return Task.FromResult(new ResponseDto {
                 Status = Status.Ok,
+                Headers = new ReadOnlyHeaders([]),
             });
         });
 
         try
         {
             var response = await customFixture.Client.SendAsync(new HttpRequestMessage(HttpMethod.Patch, "/method-test") {
-                Version = System.Net.HttpVersion.Version30,
+                Version = HttpVersion.Version30,
                 VersionPolicy = HttpVersionPolicy.RequestVersionExact,
             });
+
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

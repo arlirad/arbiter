@@ -1,8 +1,8 @@
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Huffman;
-using Arlirad.Infrastructure.QPack.Streams;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Huffman;
+using Arbiter.Protocol.QPack.Streams;
 
-namespace Arlirad.Infrastructure.QPack.Encoding;
+namespace Arbiter.Protocol.QPack.Encoding;
 
 public enum HeaderEncodingDecision
 {
@@ -32,7 +32,10 @@ public class QPackFieldSectionWriter(
 ) : IAsyncDisposable
 {
     private bool _prefixWritten;
-    public long StreamId { get; } = streamId;
+    public long StreamId
+    {
+        get;
+    } = streamId;
 
     public async ValueTask DisposeAsync()
     {
@@ -57,6 +60,7 @@ public class QPackFieldSectionWriter(
         if (QPackConsts.StaticExactIndex.TryGetValue((name, value), out var exactIndex))
         {
             await writer.WritePrefixedIntAsync((byte)exactIndex, 6, QPackConsts.IndexedStaticFieldLine, ct);
+
             return;
         }
 
@@ -139,9 +143,11 @@ public class QPackFieldSectionWriter(
                 staticIndex = null;
 
                 var dynamicExactIndex = encoder.FindDynamicExact(name, value);
+
                 if (dynamicExactIndex.HasValue)
                 {
                     var isAcked = dynamicExactIndex.Value < encoder.AckedInsertCount;
+
                     if (!isAcked && encoder.CanBlock(encoder.BlockedStreams))
                     {
                         decision = HeaderEncodingDecision.DynamicExactBlocking;
@@ -168,6 +174,7 @@ public class QPackFieldSectionWriter(
                     else
                     {
                         var dynamicNameIndex = encoder.FindDynamicName(name);
+
                         if (dynamicNameIndex.HasValue)
                         {
                             decision = HeaderEncodingDecision.DynamicNameRef;
@@ -194,12 +201,14 @@ public class QPackFieldSectionWriter(
         {
             case HeaderEncodingDecision.StaticExact:
                 await writer.WritePrefixedIntAsync((byte)plan.StaticIndex!.Value, 6, QPackConsts.IndexedStaticFieldLine, ct);
+
                 break;
 
             case HeaderEncodingDecision.DynamicExactAcked:
             case HeaderEncodingDecision.DynamicExactBlocking:
                 var relativeIndex = baseIndex - plan.DynamicIndex!.Value - 1;
                 await writer.WritePrefixedIntAsync(relativeIndex, 6, QPackConsts.IndexedDynamicFieldLineMask, ct);
+
                 break;
 
             case HeaderEncodingDecision.StaticNameRef:
@@ -214,6 +223,7 @@ public class QPackFieldSectionWriter(
                 var huffmanBit = (byte)(useHuffmanValue ? QPackConsts.HuffmanStringMask : 0);
                 await writer.WritePrefixedIntAsync(valueToWrite.Length, 7, huffmanBit, ct);
                 await stream.WriteAsync(valueToWrite, ct);
+
                 break;
 
             case HeaderEncodingDecision.DynamicNameRef:
@@ -228,6 +238,7 @@ public class QPackFieldSectionWriter(
                 var dynHuffmanBit = (byte)(dynUseHuffmanValue ? QPackConsts.HuffmanStringMask : 0);
                 await writer.WritePrefixedIntAsync(dynValueToWrite.Length, 7, dynHuffmanBit, ct);
                 await stream.WriteAsync(dynValueToWrite, ct);
+
                 break;
 
             case HeaderEncodingDecision.FullLiteral:
@@ -248,6 +259,7 @@ public class QPackFieldSectionWriter(
                 var valueHuffmanBit = (byte)(fullUseHuffmanValue ? QPackConsts.HuffmanStringMask : 0);
                 await writer.WritePrefixedIntAsync(fullValueToWrite.Length, 7, valueHuffmanBit, ct);
                 await stream.WriteAsync(fullValueToWrite, ct);
+
                 break;
 
             case HeaderEncodingDecision.None:

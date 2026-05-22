@@ -1,7 +1,6 @@
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Arbiter.Core.ValueObjects;
 using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Api.Middleware;
@@ -20,6 +19,7 @@ public class HttpsRedirectionMiddleware(HandleDelegate next, int httpsPort = 443
 
             context.Response.Headers["Location"] = [redirectUrl];
             await context.Response.Set(Status.MovedPermanently, Stream.Null);
+
             return;
         }
 

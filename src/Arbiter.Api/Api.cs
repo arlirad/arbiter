@@ -1,11 +1,11 @@
 using System.Net;
-using Arbiter.Api.Http;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
+using Arbiter.Infrastructure.Middleware;
 using Arbiter.Protocol.Http11;
 using Arbiter.Transport.Tcp;
 using Arbiter.Transport.Unix;
@@ -62,7 +62,7 @@ internal sealed class Api(
 
     private async Task HandleConnection(ITransport transport, CancellationToken ct)
     {
-        await using var protocol = new Http11Protocol(new Arbiter.Application.Middleware.TransactionIdProvider());
+        await using var protocol = new Http11Protocol(new TransactionIdProvider());
 
         await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
             _ = HandleTransaction(transaction, ct);
@@ -146,6 +146,7 @@ internal sealed class Api(
         try
         {
             var request = await transaction.GetRequest();
+
             if (request is null)
                 return;
 

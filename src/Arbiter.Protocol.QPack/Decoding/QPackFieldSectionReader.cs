@@ -1,9 +1,9 @@
 using System.Collections;
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Models;
-using Arlirad.Infrastructure.QPack.Streams;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Models;
+using Arbiter.Protocol.QPack.Streams;
 
-namespace Arlirad.Infrastructure.QPack.Decoding;
+namespace Arbiter.Protocol.QPack.Decoding;
 
 public class QPackFieldSectionReader(
     long streamId,
@@ -40,12 +40,14 @@ public class QPackFieldSectionReader(
         while (stream.Position != stream.Length)
         {
             var entry = stream.ReadByte();
+
             if (entry == -1)
                 break;
 
             if (QPackConsts.Is(entry, 0b1100_0000, QPackConsts.IndexedStaticFieldLine))
             {
                 var index = (long)reader.ReadPrefixedIntFromProvidedByte(6, entry);
+
                 yield return parent.GetField(index, false)
                     ?? throw new NotImplementedException("QPACK_DECOMPRESSION_FAILED");
             }
@@ -53,6 +55,7 @@ public class QPackFieldSectionReader(
             {
                 var index = (long)reader.ReadPrefixedIntFromProvidedByte(6, entry);
                 var absoluteIndex = Base - index - 1;
+
                 yield return parent.GetField(absoluteIndex, true)
                     ?? throw new NotImplementedException("QPACK_DECOMPRESSION_FAILED");
             }
@@ -87,7 +90,7 @@ public class QPackFieldSectionReader(
             }
             else if (QPackConsts.Is(entry, 0b1110_0000, QPackConsts.LiteralFieldLineWithLiteralName))
             {
-                var name = reader.ReadString(prefix: 3, entry, huffmanBit: 3);
+                var name = reader.ReadString(3, entry, 3);
                 var value = reader.ReadString();
 
                 yield return new QPackField(name, value);

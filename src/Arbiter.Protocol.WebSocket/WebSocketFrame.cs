@@ -1,4 +1,4 @@
-namespace Arlirad.WebSocket;
+namespace Arbiter.Protocol.WebSocket;
 
 public readonly struct WebSocketFrame(WebSocketOpcode opcode, bool fin, ReadOnlyMemory<byte> payload)
 {

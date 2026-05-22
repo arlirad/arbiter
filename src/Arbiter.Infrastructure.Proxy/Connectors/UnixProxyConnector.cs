@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Sockets;
 using Arbiter.Core.Aggregates;
 
@@ -20,7 +19,8 @@ internal sealed class UnixProxyConnector(string socketPath) : IProxyConnector
             ConnectCallback = async (ctx, token) => {
                 var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
                 await socket.ConnectAsync(endpoint, token);
-                return new NetworkStream(socket, ownsSocket: true);
+
+                return new NetworkStream(socket, true);
             },
         };
     }

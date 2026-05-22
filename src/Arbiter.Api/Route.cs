@@ -27,9 +27,11 @@ internal sealed class Route
         for (var i = 0; i < rawSegments.Length; i++)
         {
             var seg = rawSegments[i];
+
             if (seg.StartsWith('{') && seg.EndsWith('}'))
             {
                 var inner = seg[1..^1];
+
                 if (inner.StartsWith("**"))
                 {
                     var paramName = inner[2..];
@@ -115,6 +117,7 @@ internal sealed class Route
                 var paramName = patternSeg[3..^1];
                 var remaining = string.Join("/", segments.Skip(i).Select(Uri.UnescapeDataString));
                 parameters[paramName] = remaining;
+
                 return parameters;
             }
 
@@ -124,6 +127,7 @@ internal sealed class Route
                 {
                     if (OptionalParamIndices.Contains(i))
                         continue;
+
                     return null;
                 }
 
@@ -160,13 +164,16 @@ internal sealed class Route
 
         var authAttr = ActionMethod.GetCustomAttribute<AuthenticateAttribute>()
             ?? ControllerType.GetCustomAttribute<AuthenticateAttribute>();
+
         if (authAttr is not null)
         {
             var authenticator = httpContext.RequestServices.GetKeyedService<IAuthenticator>(authAttr.AuthenticatorName)
                 ?? httpContext.RequestServices.GetService<IAuthenticator>();
+
             if (authenticator is null)
             {
                 httpContext.Response.StatusCode = (int)Status.InternalServerError;
+
                 return;
             }
 
@@ -176,9 +183,11 @@ internal sealed class Route
                 : null;
 
             var authResult = await authenticator.AuthenticateAsync(token, httpContext.CancellationToken);
+
             if (!authResult.IsAuthenticated)
             {
                 httpContext.Response.StatusCode = (int)Status.Unauthorized;
+
                 return;
             }
 
@@ -198,6 +207,7 @@ internal sealed class Route
                 httpContext.Response.StatusCode = 400;
                 var problem = new ValidationProblemDetails(modelState);
                 await new BadRequestObjectResult(problem).ExecuteAsync(httpContext);
+
                 return;
             }
         }
@@ -212,6 +222,7 @@ internal sealed class Route
                     await task.ConfigureAwait(false);
 
                     var taskType = task.GetType();
+
                     if (taskType.IsGenericType)
                     {
                         var resultValue = taskType.GetProperty("Result")?.GetValue(task);
@@ -223,6 +234,7 @@ internal sealed class Route
                 }
             case IActionResult actionResult:
                 await actionResult.ExecuteAsync(httpContext).ConfigureAwait(false);
+
                 break;
         }
     }
@@ -252,7 +264,7 @@ internal sealed class Route
             var validationContext = new ValidationContext(value);
             var results = new List<ValidationResult>();
 
-            if (Validator.TryValidateObject(value, validationContext, results, validateAllProperties: true))
+            if (Validator.TryValidateObject(value, validationContext, results, true))
                 continue;
 
             foreach (var vr in results)

@@ -38,6 +38,7 @@ public class ContentController : ControllerBase
     public IActionResult CustomContentType()
     {
         HttpContext.Response.ContentType = "application/vnd.api+json";
+
         return Ok(new {
             Type = "custom",
             Message = "This is custom content type",

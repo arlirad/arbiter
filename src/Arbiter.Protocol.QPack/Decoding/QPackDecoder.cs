@@ -1,17 +1,19 @@
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Models;
-using Arlirad.Infrastructure.QPack.Streams;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Models;
+using Arbiter.Protocol.QPack.Streams;
 
-namespace Arlirad.Infrastructure.QPack.Decoding;
+namespace Arbiter.Protocol.QPack.Decoding;
 
 public class QPackDecoder
 {
     private readonly SemaphoreSlim _capacitySignal = new(0, 1);
     private readonly Task _decoderOutgoingTask;
     private readonly TaskCompletionSource _decoderOutgoingTcs = new();
-    private readonly byte[] _instructionBuffer = new byte[1];
 
     private readonly List<QPackField> _dynamicTable = [];
+
+    private readonly ManualResetEvent _encoderInstructionsProcessedEvent = new(false);
+    private readonly byte[] _instructionBuffer = new byte[1];
     private readonly List<(long Required, TaskCompletionSource Tcs)> _waiters = [];
     private readonly Lock _waitersLock = new();
 
@@ -29,14 +31,16 @@ public class QPackDecoder
 
     private long _totalEvictionCount;
 
-    public TimeSpan InsertCountIncrementDelay { get; set; } = TimeSpan.FromMilliseconds(100);
-
-    private readonly ManualResetEvent _encoderInstructionsProcessedEvent = new(false);
-
     public QPackDecoder()
     {
         _decoderOutgoingTask = _decoderOutgoingTcs.Task;
     }
+
+    public TimeSpan InsertCountIncrementDelay
+    {
+        get;
+        set;
+    } = TimeSpan.FromMilliseconds(100);
 
     public long MaxTableCapacity
     {
@@ -96,6 +100,7 @@ public class QPackDecoder
         CancellationToken ct = default)
     {
         var stream = new MemoryStream(buffer, 0, length);
+
         return await GetSectionReader(streamId, stream, ct);
     }
 
@@ -113,6 +118,7 @@ public class QPackDecoder
             {
                 if (_capacitySignaled != 0 && DynamicTableCapacity == 0)
                     throw new InvalidOperationException("QPACK_DECODER_ERROR: Dynamic table capacity not set");
+
                 await _capacitySignal.WaitAsync(ct);
             }
         }
@@ -120,6 +126,7 @@ public class QPackDecoder
         var requiredInsertCount = CalculateRequiredInsertCount(encodedInsertCount, DynamicTableCapacity);
 
         if (!requiredInsertCount.HasValue)
+
             // TODO: Throw QPACK_ENCODER_STREAM_ERROR if requiredInsertCount is null
             throw new NotImplementedException();
 
@@ -159,12 +166,14 @@ public class QPackDecoder
         if (isDynamic)
         {
             var tableIndex = (int)(index - _totalEvictionCount);
+
             return tableIndex < 0 || tableIndex >= _dynamicTable.Count
                 ? throw new InvalidOperationException("QPACK_DECOMPRESSION_FAILED: Invalid dynamic table index")
                 : _dynamicTable[tableIndex];
         }
 
         var staticIndex = (int)index;
+
         return staticIndex < 0 || staticIndex >= QPackConsts.StaticTable.Count
             ? throw new InvalidOperationException("QPACK_DECOMPRESSION_FAILED: Invalid static table index")
             : QPackConsts.StaticTable[staticIndex];
@@ -303,6 +312,7 @@ public class QPackDecoder
     }
 
     private ulong FromRelative(ulong index)
+
         // We don't really need to worry about overflows, GetField is going to fail anyway if we overflow.
         => (ulong)(TotalInsertCount - (long)index - 1);
 
@@ -336,6 +346,7 @@ public class QPackDecoder
             for (var i = _waiters.Count - 1; i >= 0; i--)
             {
                 var (required, tcs) = _waiters[i];
+
                 if (required > TotalInsertCount)
                     continue;
 
@@ -368,6 +379,7 @@ public class QPackDecoder
         _decoderOutgoingTask.WaitAsync(ct).GetAwaiter().GetResult();
         _decoderOutgoingWriter!.WritePrefixedIntAsync(increment, 6,
             QPackConsts.DecoderInstructionInsertCountIncrement, CancellationToken.None).GetAwaiter().GetResult();
+
         _decoderOutgoing!.FlushAsync(ct).GetAwaiter().GetResult();
     }
 

@@ -1,4 +1,4 @@
-namespace Arbiter.Application.Middleware;
+namespace Arbiter.Infrastructure.Middleware;
 
 public sealed class TransactionIdProvider
 {

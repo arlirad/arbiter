@@ -1,5 +1,3 @@
-using Arbiter.Api;
-using Arbiter.Api.Results;
 using Arbiter.Core.Enums;
 
 namespace Arbiter.Api.Tests;
@@ -27,6 +25,7 @@ public class RouteTests
         var result = _routeTable.Match(Method.Get, "/api/users/123");
 
         Assert.That(result, Is.Not.Null);
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Value.Parameters.ContainsKey("id"), Is.True);
@@ -40,6 +39,7 @@ public class RouteTests
         var result = _routeTable.Match(Method.Get, "/api/users/123/items/456");
 
         Assert.That(result, Is.Not.Null);
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Value.Parameters["id"], Is.EqualTo("123"));

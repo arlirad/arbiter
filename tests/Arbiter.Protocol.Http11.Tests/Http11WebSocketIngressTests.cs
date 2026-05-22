@@ -1,16 +1,17 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Arbiter.Protocol.Http11;
-using Arlirad.WebSocket;
+using Arbiter.Core.Enums;
+using Arbiter.Core.Interfaces;
+using Arbiter.Core.ValueObjects;
+using Arbiter.Infrastructure.Middleware;
+using Arbiter.Protocol.WebSocket;
 
 namespace Arbiter.Protocol.Http11.Tests;
 
 [TestFixture]
 public class Http11WebSocketIngressTests
 {
-    private CancellationTokenSource _cts = null!;
-
     [SetUp]
     public void SetUp() => _cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
@@ -20,6 +21,8 @@ public class Http11WebSocketIngressTests
         _cts.Cancel();
         _cts.Dispose();
     }
+
+    private CancellationTokenSource _cts = null!;
 
     private static (Stream serverStream, Stream clientStream) CreateStreamPair()
     {
@@ -33,7 +36,7 @@ public class Http11WebSocketIngressTests
         listener.Dispose();
         connectTask.GetAwaiter().GetResult();
 
-        return (new NetworkStream(serverSocket, ownsSocket: true), new NetworkStream(clientSocket, ownsSocket: true));
+        return (new NetworkStream(serverSocket, true), new NetworkStream(clientSocket, true));
     }
 
     [Test]
@@ -48,14 +51,14 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
             var request = await transaction.GetRequest();
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(request, Is.Not.Null);
-                Assert.That(request!.Upgrade, Is.AssignableTo<Arbiter.Core.Interfaces.IWebSocketUpgrade>());
-                Assert.That(request.Method, Is.EqualTo(Core.Enums.Method.Get));
+                Assert.That(request!.Upgrade, Is.AssignableTo<IWebSocketUpgrade>());
+                Assert.That(request.Method, Is.EqualTo(Method.Get));
                 Assert.That(request.Path, Is.EqualTo("/ws"));
             }
         }
@@ -73,7 +76,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(normalRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
             var request = await transaction.GetRequest();
 
             Assert.That(request!.Upgrade, Is.Null);
@@ -92,16 +95,19 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
             var request = await transaction.GetRequest();
-            var upgrade = (Arbiter.Core.Interfaces.IWebSocketUpgrade)request!.Upgrade!;
+            var upgrade = (IWebSocketUpgrade)request!.Upgrade!;
 
-            var headers = new Arbiter.Core.ValueObjects.Headers {
-                { "Upgrade", "websocket" },
-                { "Connection", "upgrade" },
+            var headers = new Headers {
+                {
+                    "Upgrade", "websocket"
+                }, {
+                    "Connection", "upgrade"
+                },
             };
 
-            await upgrade.AcceptAsync(new Arbiter.Core.ValueObjects.ReadOnlyHeaders(headers));
+            await upgrade.AcceptAsync(new ReadOnlyHeaders(headers));
 
             var buffer = new byte[256];
             var read = await clientStream.ReadAsync(buffer.AsMemory(), _cts.Token);
@@ -128,10 +134,10 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
             var request = await transaction.GetRequest();
 
-            Assert.That(request!.Upgrade, Is.AssignableTo<Arbiter.Core.Interfaces.IWebSocketUpgrade>());
+            Assert.That(request!.Upgrade, Is.AssignableTo<IWebSocketUpgrade>());
 
             var relayStream = await request.Upgrade!.AcceptAsync();
 
@@ -170,7 +176,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
             var request = await transaction.GetRequest();
             var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -187,7 +193,11 @@ public class Http11WebSocketIngressTests
             }, _cts.Token);
 
             await using var clientWs = new WebSocketConnection(clientStream);
-            var data = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
+
+            var data = new byte[] {
+                0xCA, 0xFE, 0xBA, 0xBE,
+            };
+
             await clientWs.SendBinaryAsync(data, _cts.Token);
             var reply = await clientWs.ReceiveBinaryAsync(_cts.Token);
             Assert.That(reply.ToArray(), Is.EqualTo(data));
@@ -209,7 +219,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
             var request = await transaction.GetRequest();
             var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -245,7 +255,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new Arbiter.Application.Middleware.TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
             var request = await transaction.GetRequest();
             var relayStream = await request!.Upgrade!.AcceptAsync();
 

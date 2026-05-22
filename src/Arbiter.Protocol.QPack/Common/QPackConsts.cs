@@ -1,6 +1,6 @@
-using Arlirad.Infrastructure.QPack.Models;
+using Arbiter.Protocol.QPack.Models;
 
-namespace Arlirad.Infrastructure.QPack.Common;
+namespace Arbiter.Protocol.QPack.Common;
 
 public static class QPackConsts
 {

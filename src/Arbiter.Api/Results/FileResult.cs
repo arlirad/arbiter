@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Text.Json;
 using Arbiter.Api.Http;
 
 namespace Arbiter.Api.Results;
@@ -37,6 +36,7 @@ public class FileStreamResult(Func<Stream> streamFactory, string contentType, st
         try
         {
             int bytesRead;
+
             while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
                 await context.Response.WriteAsync([.. buffer.Take(bytesRead)]);
         }

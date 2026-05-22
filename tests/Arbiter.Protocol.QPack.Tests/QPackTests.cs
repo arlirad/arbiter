@@ -1,8 +1,8 @@
-﻿using Arlirad.Infrastructure.QPack.Decoding;
-using Arlirad.Infrastructure.QPack.Streams;
-using Arlirad.QPack.Tests.Streams;
+﻿using Arbiter.Protocol.QPack.Decoding;
+using Arbiter.Protocol.QPack.Streams;
+using Arbiter.Protocol.QPack.Tests.Streams;
 
-namespace Arlirad.QPack.Tests;
+namespace Arbiter.Protocol.QPack.Tests;
 
 public class QPackTests
 {

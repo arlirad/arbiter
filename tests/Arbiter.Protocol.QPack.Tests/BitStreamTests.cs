@@ -1,6 +1,6 @@
-using Arlirad.Infrastructure.QPack.Streams;
+using Arbiter.Protocol.QPack.Streams;
 
-namespace Arlirad.QPack.Tests;
+namespace Arbiter.Protocol.QPack.Tests;
 
 public class BitStreamTests
 {
@@ -12,8 +12,7 @@ public class BitStreamTests
     [Test]
     public void BitStreamMisalignedTest()
     {
-        var data = new byte[]
-        {
+        var data = new byte[] {
             0xE7, 0xF9, 0xC0,
         };
 

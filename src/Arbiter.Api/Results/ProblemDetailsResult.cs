@@ -24,9 +24,11 @@ public class ProblemDetailsResult(ProblemDetails problemDetails) : IActionResult
             };
 
             var formatter = selector.Select(formatterContext);
+
             if (formatter is not null && formatter.CanWrite(typeof(ProblemDetails), "application/problem+json"))
             {
                 await formatter.WriteAsync(ProblemDetails, context);
+
                 return;
             }
         }

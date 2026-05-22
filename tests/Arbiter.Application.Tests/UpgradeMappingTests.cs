@@ -25,6 +25,7 @@ public class UpgradeMappingTests
         var context = mapper.ToDomain(request);
 
         Assert.That(context, Is.Not.Null);
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(context!.Request.IsUpgrade, Is.True);

@@ -15,7 +15,7 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.Extensions.Configuration.Json"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration" />
+        <PackageReference Include="Microsoft.Extensions.Configuration"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="NUnit"/>
         <PackageReference Include="NUnit.Analyzers">
@@ -31,6 +31,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Arbiter.Application\Arbiter.Application.csproj"/>
+        <ProjectReference Include="..\..\src\Arbiter.Infrastructure.Headers\Arbiter.Infrastructure.Headers.csproj"/>
+        <ProjectReference Include="..\..\src\Arbiter.Transport\Arbiter.Transport.csproj"/>
     </ItemGroup>
 
 </Project>

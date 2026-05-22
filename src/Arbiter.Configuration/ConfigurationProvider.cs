@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Microsoft.Extensions.Configuration;
@@ -10,18 +9,10 @@ namespace Arbiter.Configuration;
 
 public sealed class ConfigurationProvider : IDisposable
 {
+    private readonly IDisposable _changeTokenRegistration;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ConfigurationProvider>? _logger;
     private readonly ConcurrentDictionary<string, Entry> _sections = new();
-    private readonly IDisposable _changeTokenRegistration;
-
-    private sealed class Entry(BehaviorSubject<object?> subject, string snapshot, Type type)
-    {
-        public BehaviorSubject<object?> Subject { get; } = subject;
-        public string Snapshot { get; set; } = snapshot;
-        public Type Type { get; } = type;
-        public object Lock { get; } = new();
-    }
 
     public ConfigurationProvider(IConfiguration configuration, ILogger<ConfigurationProvider>? logger = null)
     {
@@ -30,6 +21,19 @@ public sealed class ConfigurationProvider : IDisposable
         _changeTokenRegistration = ChangeToken.OnChange(
             () => _configuration.GetReloadToken(),
             OnConfigurationChanged);
+    }
+
+    public void Dispose()
+    {
+        _changeTokenRegistration.Dispose();
+
+        foreach (var entry in _sections.Values)
+        {
+            entry.Subject.OnCompleted();
+            entry.Subject.Dispose();
+        }
+
+        _sections.Clear();
     }
 
     private void OnConfigurationChanged()
@@ -94,6 +98,7 @@ public sealed class ConfigurationProvider : IDisposable
             if (actual.Type == type)
             {
                 subject.Dispose();
+
                 return actual.Subject.Where(x => x is not null).Select(x => (T)x!);
             }
 
@@ -108,6 +113,7 @@ public sealed class ConfigurationProvider : IDisposable
     {
         var lines = new List<string>();
         FlattenSectionRecursive(section, lines);
+
         return string.Join("\n", lines);
     }
 
@@ -120,16 +126,24 @@ public sealed class ConfigurationProvider : IDisposable
             FlattenSectionRecursive(child, lines);
     }
 
-    public void Dispose()
+    private sealed class Entry(BehaviorSubject<object?> subject, string snapshot, Type type)
     {
-        _changeTokenRegistration.Dispose();
-
-        foreach (var entry in _sections.Values)
+        public BehaviorSubject<object?> Subject
         {
-            entry.Subject.OnCompleted();
-            entry.Subject.Dispose();
-        }
-
-        _sections.Clear();
+            get;
+        } = subject;
+        public string Snapshot
+        {
+            get;
+            set;
+        } = snapshot;
+        public Type Type
+        {
+            get;
+        } = type;
+        public object Lock
+        {
+            get;
+        } = new();
     }
 }

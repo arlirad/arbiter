@@ -54,13 +54,15 @@ public class Http3MultipleDataFrameTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await requestStream.WriteAsync(chunk1);
         await requestStream.WriteAsync(chunk2);
         await requestStream.WriteAsync(chunk3);
         await requestStream.FinishAsync();
 
-        var serverStream = await fixture.AcceptRequestStream(default);
-        foreach (var _ in await serverStream.ReadHeaders(default))
+        var serverStream = await fixture.AcceptRequestStream();
+
+        foreach (var _ in await serverStream.ReadHeaders())
         {
         }
 
@@ -69,9 +71,11 @@ public class Http3MultipleDataFrameTests
 
         while (true)
         {
-            var bytesRead = await serverStream.ReadAsync(buffer, default);
+            var bytesRead = await serverStream.ReadAsync(buffer);
+
             if (bytesRead == 0)
                 break;
+
             totalReceived.AddRange(buffer[..bytesRead]);
         }
 
@@ -90,13 +94,15 @@ public class Http3MultipleDataFrameTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await requestStream.WriteAsync(Array.Empty<byte>());
         await requestStream.WriteAsync("data"u8.ToArray());
         await requestStream.WriteAsync(Array.Empty<byte>());
         await requestStream.FinishAsync();
 
-        var serverStream = await fixture.AcceptRequestStream(default);
-        foreach (var _ in await serverStream.ReadHeaders(default))
+        var serverStream = await fixture.AcceptRequestStream();
+
+        foreach (var _ in await serverStream.ReadHeaders())
         {
         }
 
@@ -105,9 +111,11 @@ public class Http3MultipleDataFrameTests
 
         while (true)
         {
-            var bytesRead = await serverStream.ReadAsync(buffer, default);
+            var bytesRead = await serverStream.ReadAsync(buffer);
+
             if (bytesRead == 0)
                 break;
+
             totalReceived.AddRange(buffer[..bytesRead]);
         }
 
@@ -126,11 +134,13 @@ public class Http3MultipleDataFrameTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await requestStream.WriteAsync("A"u8.ToArray());
         await requestStream.WriteAsync("BC"u8.ToArray());
         await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -141,8 +151,10 @@ public class Http3MultipleDataFrameTests
         while (true)
         {
             var bytesRead = await serverStream.ReadAsync(buffer, CancellationToken.None);
+
             if (bytesRead == 0)
                 break;
+
             totalReceived.AddRange(buffer[..bytesRead]);
         }
 
@@ -172,6 +184,7 @@ public class Http3MultipleDataFrameTests
         await requestStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -182,8 +195,10 @@ public class Http3MultipleDataFrameTests
         while (true)
         {
             var bytesRead = await serverStream.ReadAsync(buffer, CancellationToken.None);
+
             if (bytesRead == 0)
                 break;
+
             totalReceived += bytesRead;
         }
 

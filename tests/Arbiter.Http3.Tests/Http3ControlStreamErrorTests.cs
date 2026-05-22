@@ -1,8 +1,8 @@
 using System.Net.Quic;
 using System.Runtime.Versioning;
 using Arbiter.Http3.Tests.Helpers;
-using Arlirad.Http3;
-using Arlirad.Http3.Streams;
+using Arbiter.Protocol.Http3;
+using Arbiter.Protocol.Http3.Streams;
 
 namespace Arbiter.Http3.Tests;
 
@@ -72,6 +72,7 @@ public class Http3ControlStreamErrorTests
         await Task.Delay(1000);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
         try
         {
             await fixture.ClientQuicConnection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, cts.Token);
@@ -189,8 +190,10 @@ public class Http3ControlStreamErrorTests
         await Task.Delay(300);
 
         using var verifyCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+
         var verifyStream = await fixture.ClientQuicConnection.OpenOutboundStreamAsync(
             QuicStreamType.Bidirectional, verifyCts.Token);
+
         Assert.That(verifyStream, Is.Not.Null);
     }
 }

@@ -1,4 +1,4 @@
-namespace Arlirad.Infrastructure.QPack.Common;
+namespace Arbiter.Protocol.QPack.Common;
 
 public static class HPackConsts
 {

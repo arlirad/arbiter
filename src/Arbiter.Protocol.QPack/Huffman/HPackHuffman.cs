@@ -1,7 +1,7 @@
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Streams;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Streams;
 
-namespace Arlirad.Infrastructure.QPack.Huffman;
+namespace Arbiter.Protocol.QPack.Huffman;
 
 public static class HPackHuffman
 {
@@ -13,6 +13,7 @@ public static class HPackHuffman
         while (bs.Position < bs.Length)
         {
             var result = Get(bs);
+
             if (result == -1)
                 break;
 
@@ -28,6 +29,7 @@ public static class HPackHuffman
             throw new Exception("Huffman decoding error");
 
         var remaining = bs.Length - bs.Position;
+
         if (remaining <= 0)
             return ms.ToArray();
 
@@ -47,6 +49,7 @@ public static class HPackHuffman
             return [];
 
         var totalBits = 0;
+
         foreach (var b in input)
             totalBits += HuffmanEncodeTable.Table[b].BitLength;
 
@@ -82,10 +85,12 @@ public static class HPackHuffman
             return 0;
 
         var totalBits = 0;
+
         foreach (var b in input)
             totalBits += HuffmanEncodeTable.Table[b].BitLength;
 
         var byteLength = (totalBits + 7) / 8;
+
         return byteLength;
     }
 
@@ -100,6 +105,7 @@ public static class HPackHuffman
                 continue;
 
             bs.Position += lenSection.Key;
+
             return sym;
         }
 

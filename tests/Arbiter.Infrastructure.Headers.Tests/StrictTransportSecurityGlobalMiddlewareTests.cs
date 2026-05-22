@@ -1,3 +1,4 @@
+using System.Net;
 using Arbiter.Application.Configuration;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
@@ -15,7 +16,7 @@ public class StrictTransportSecurityGlobalMiddlewareTests
         var context = CreateContext();
         var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask, CreateConfig());
 
-        await sut.Handle(new TransactionStub(secure: true), null, context);
+        await sut.Handle(new TransactionStub(true), null, context);
 
         Assert.That(context.Response.Headers["Strict-Transport-Security"], Is.Not.Null.And.Not.Empty);
     }
@@ -26,7 +27,7 @@ public class StrictTransportSecurityGlobalMiddlewareTests
         var context = CreateContext();
         var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask, CreateConfig());
 
-        await sut.Handle(new TransactionStub(secure: false), null, context);
+        await sut.Handle(new TransactionStub(), null, context);
 
         Assert.That(context.Response.Headers["Strict-Transport-Security"], Is.Null.Or.Empty);
     }
@@ -36,12 +37,14 @@ public class StrictTransportSecurityGlobalMiddlewareTests
     {
         var context = CreateContext();
         var nextInvoked = false;
+
         var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => {
             nextInvoked = true;
+
             return Task.CompletedTask;
         }, CreateConfig());
 
-        await sut.Handle(new TransactionStub(secure: true), null, context);
+        await sut.Handle(new TransactionStub(true), null, context);
 
         Assert.That(nextInvoked, Is.True);
     }
@@ -50,10 +53,11 @@ public class StrictTransportSecurityGlobalMiddlewareTests
     public async Task Header_contains_max_age()
     {
         var context = CreateContext();
-        var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
-            CreateConfig(maxAge: 86400));
 
-        await sut.Handle(new TransactionStub(secure: true), null, context);
+        var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
+            CreateConfig(86400));
+
+        await sut.Handle(new TransactionStub(true), null, context);
 
         Assert.That(context.Response.Headers["Strict-Transport-Security"]![0], Is.EqualTo("max-age=86400"));
     }
@@ -62,10 +66,11 @@ public class StrictTransportSecurityGlobalMiddlewareTests
     public async Task Header_includes_includeSubDomains_when_configured()
     {
         var context = CreateContext();
+
         var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
             CreateConfig(includeSubDomains: true));
 
-        await sut.Handle(new TransactionStub(secure: true), null, context);
+        await sut.Handle(new TransactionStub(true), null, context);
 
         Assert.That(context.Response.Headers["Strict-Transport-Security"]![0], Does.Contain("; includeSubDomains"));
     }
@@ -74,10 +79,11 @@ public class StrictTransportSecurityGlobalMiddlewareTests
     public async Task Header_includes_preload_when_configured()
     {
         var context = CreateContext();
+
         var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
             CreateConfig(includeSubDomains: true, preload: true));
 
-        await sut.Handle(new TransactionStub(secure: true), null, context);
+        await sut.Handle(new TransactionStub(true), null, context);
 
         Assert.That(context.Response.Headers["Strict-Transport-Security"]![0], Does.Contain("; preload"));
     }
@@ -86,10 +92,11 @@ public class StrictTransportSecurityGlobalMiddlewareTests
     public async Task Header_includes_all_directives_when_all_configured()
     {
         var context = CreateContext();
-        var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
-            CreateConfig(maxAge: 31536000, includeSubDomains: true, preload: true));
 
-        await sut.Handle(new TransactionStub(secure: true), null, context);
+        var sut = new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
+            CreateConfig(31536000, true, true));
+
+        await sut.Handle(new TransactionStub(true), null, context);
 
         Assert.That(context.Response.Headers["Strict-Transport-Security"]![0],
             Is.EqualTo("max-age=31536000; includeSubDomains; preload"));
@@ -100,7 +107,10 @@ public class StrictTransportSecurityGlobalMiddlewareTests
     {
         Assert.Throws<InvalidOperationException>(() =>
             new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
-                new StrictTransportSecurityConfig { Preload = true, IncludeSubDomains = false }));
+                new StrictTransportSecurityConfig {
+                    Preload = true,
+                    IncludeSubDomains = false,
+                }));
     }
 
     [Test]
@@ -108,14 +118,18 @@ public class StrictTransportSecurityGlobalMiddlewareTests
     {
         Assert.Throws<InvalidOperationException>(() =>
             new StrictTransportSecurityGlobalMiddleware((_, _, _) => Task.CompletedTask,
-                new StrictTransportSecurityConfig { Preload = true, IncludeSubDomains = true, MaxAge = 100 }));
+                new StrictTransportSecurityConfig {
+                    Preload = true,
+                    IncludeSubDomains = true,
+                    MaxAge = 100,
+                }));
     }
 
     private static StrictTransportSecurityConfig CreateConfig(int maxAge = 31536000, bool includeSubDomains = false, bool preload = false)
         => new() {
             MaxAge = maxAge,
             IncludeSubDomains = includeSubDomains,
-            Preload = preload
+            Preload = preload,
         };
 
     private static Context CreateContext()
@@ -130,7 +144,7 @@ public class StrictTransportSecurityGlobalMiddlewareTests
         public Protocol Protocol => Protocol.Http11;
         public bool IsSecure => secure;
         public int Port => secure ? 443 : 80;
-        public System.Net.IPAddress? RemoteAddress => null;
+        public IPAddress? RemoteAddress => null;
         public Task<RequestDto?> GetRequest() => Task.FromResult<RequestDto?>(null);
         public Task SetResponse(ResponseDto response) => Task.CompletedTask;
     }

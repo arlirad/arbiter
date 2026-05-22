@@ -1,7 +1,6 @@
 using System.Net.Quic;
 using System.Runtime.Versioning;
 using Arbiter.Http3.Tests.Helpers;
-using Arlirad.Http3;
 
 namespace Arbiter.Http3.Tests;
 
@@ -42,6 +41,7 @@ public class Http3ConnectionLifecycleTests
     public async Task Start_completes_without_error()
     {
         Assert.That(_fixture, Is.Not.Null);
+
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_fixture.ServerProtocol, Is.Not.Null);

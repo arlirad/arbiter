@@ -24,6 +24,7 @@ public partial class MultipartReader(string boundary, Stream stream)
                 continue;
 
             var headerEnd = part.IndexOf("\r\n\r\n");
+
             if (headerEnd < 0)
                 continue;
 
@@ -60,6 +61,7 @@ public partial class MultipartReader(string boundary, Stream stream)
             return files;
 
         var boundaryMatch = Regex.Match(contentType, @"boundary=(.+)$");
+
         if (!boundaryMatch.Success)
             return files;
 
@@ -70,6 +72,7 @@ public partial class MultipartReader(string boundary, Stream stream)
 
     [GeneratedRegex(@"name=""([^""]+)""")]
     private static partial Regex MyRegex();
+
     [GeneratedRegex(@"filename=""([^""]+)""")]
     private static partial Regex MyRegex1();
 }

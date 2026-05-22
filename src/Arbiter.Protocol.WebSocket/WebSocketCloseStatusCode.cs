@@ -1,4 +1,4 @@
-namespace Arlirad.WebSocket;
+namespace Arbiter.Protocol.WebSocket;
 
 public enum WebSocketCloseStatusCode
 {

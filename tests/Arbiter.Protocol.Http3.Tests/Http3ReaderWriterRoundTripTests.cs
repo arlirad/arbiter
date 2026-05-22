@@ -1,4 +1,4 @@
-using Arlirad.Http3.Streams;
+using Arbiter.Protocol.Http3.Streams;
 
 namespace Arbiter.Protocol.Http3.Tests;
 

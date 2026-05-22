@@ -1,11 +1,10 @@
-using System.Text;
-using Arlirad.Infrastructure.QPack.Common;
-using Arlirad.Infrastructure.QPack.Decoding;
-using Arlirad.Infrastructure.QPack.Encoding;
-using Arlirad.Infrastructure.QPack.Streams;
-using Arlirad.QPack.Tests.Streams;
+using Arbiter.Protocol.QPack.Common;
+using Arbiter.Protocol.QPack.Decoding;
+using Arbiter.Protocol.QPack.Encoding;
+using Arbiter.Protocol.QPack.Streams;
+using Arbiter.Protocol.QPack.Tests.Streams;
 
-namespace Arlirad.QPack.Tests;
+namespace Arbiter.Protocol.QPack.Tests;
 
 public class BackToBackEncoderDecoderTests
 {
@@ -16,7 +15,9 @@ public class BackToBackEncoderDecoderTests
         var decoderInstructions = new QueueStream();
 
         var encoder = new QPackEncoder();
-        var decoder = new QPackDecoder { InsertCountIncrementDelay = TimeSpan.Zero };
+        var decoder = new QPackDecoder {
+            InsertCountIncrementDelay = TimeSpan.Zero,
+        };
 
         await encoder.Start();
         await decoder.Start();
@@ -37,8 +38,8 @@ public class BackToBackEncoderDecoderTests
 
         var sectionStream = new MemoryStream();
 
-        await using (var writer = await encoder.GetSectionWriter(streamId: 0, stream: sectionStream,
-            ct: CancellationToken.None))
+        await using (var writer = await encoder.GetSectionWriter(0, sectionStream,
+            CancellationToken.None))
         {
             await writer.WritePrefix(CancellationToken.None);
             await writer.Write(":path", "/index.html", CancellationToken.None);
@@ -49,8 +50,8 @@ public class BackToBackEncoderDecoderTests
 
         var headers = new Dictionary<string, string>();
 
-        await using (var reader = await decoder.GetSectionReader(streamId: 0, buffer: sectionBytes,
-            length: sectionBytes.Length, ct: CancellationToken.None))
+        await using (var reader = await decoder.GetSectionReader(0, sectionBytes,
+            sectionBytes.Length, CancellationToken.None))
         {
             foreach (var field in reader)
                 headers[field.Name] = field.Value!;
@@ -72,8 +73,8 @@ public class BackToBackEncoderDecoderTests
 
         var sectionStream = new MemoryStream();
 
-        await using (var writer = await encoder.GetSectionWriter(streamId: 0, stream: sectionStream,
-            ct: CancellationToken.None))
+        await using (var writer = await encoder.GetSectionWriter(0, sectionStream,
+            CancellationToken.None))
         {
             await writer.WriteFieldSection([
                 (":path", "/index.html"),
@@ -85,8 +86,8 @@ public class BackToBackEncoderDecoderTests
 
         var headers = new Dictionary<string, string>();
 
-        await using (var reader = await decoder.GetSectionReader(streamId: 0, buffer: sectionBytes,
-            length: sectionBytes.Length, ct: CancellationToken.None))
+        await using (var reader = await decoder.GetSectionReader(0, sectionBytes,
+            sectionBytes.Length, CancellationToken.None))
         {
             foreach (var field in reader)
                 headers[field.Name] = field.Value!;
@@ -145,8 +146,8 @@ public class BackToBackEncoderDecoderTests
 
         var sectionStream = new MemoryStream();
 
-        await using (var writer = await encoder.GetSectionWriter(streamId: 0, stream: sectionStream,
-            ct: CancellationToken.None))
+        await using (var writer = await encoder.GetSectionWriter(0, sectionStream,
+            CancellationToken.None))
         {
             await writer.WriteFieldSection([
                 (":path", "/index.html"),
@@ -160,8 +161,8 @@ public class BackToBackEncoderDecoderTests
 
         var headers = new Dictionary<string, string>();
 
-        await using (var reader = await decoder.GetSectionReader(streamId: 0, buffer: sectionBytes,
-            length: sectionBytes.Length, ct: CancellationToken.None))
+        await using (var reader = await decoder.GetSectionReader(0, sectionBytes,
+            sectionBytes.Length, CancellationToken.None))
         {
             foreach (var field in reader)
                 headers[field.Name] = field.Value!;

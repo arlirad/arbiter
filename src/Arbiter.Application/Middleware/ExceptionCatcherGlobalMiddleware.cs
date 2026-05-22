@@ -8,6 +8,7 @@ namespace Arbiter.Application.Middleware;
 public class ExceptionCatcherGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
+
     public async Task Handle(ITransaction transaction, Site? site, Context context)
     {
         try

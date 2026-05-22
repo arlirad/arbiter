@@ -37,6 +37,7 @@ public class HttpResponse
         _body ??= new MemoryStream();
         var bytes = (encoding ?? Encoding.UTF8).GetBytes(text);
         _body.Write(bytes);
+
         return Task.CompletedTask;
     }
 
@@ -44,6 +45,7 @@ public class HttpResponse
     {
         _body ??= new MemoryStream();
         _body.Write(data);
+
         return Task.CompletedTask;
     }
 

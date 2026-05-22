@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Security;
+using System.Runtime.CompilerServices;
 using Arbiter.Application;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Enums;
@@ -14,6 +15,7 @@ public sealed class TcpTransport(Stream stream, bool isSecure, int port, IPAddre
             if (isSecure && stream is SslStream ssl)
             {
                 var protocol = ssl.NegotiatedApplicationProtocol;
+
                 if (protocol == SslApplicationProtocol.Http2)
                     return Protocol.Http2;
             }
@@ -26,7 +28,7 @@ public sealed class TcpTransport(Stream stream, bool isSecure, int port, IPAddre
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
 
-    public async IAsyncEnumerable<ITransportStream> GetStreams([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<ITransportStream> GetStreams([EnumeratorCancellation] CancellationToken ct)
     {
         yield return new TransportStream(stream, 0);
     }

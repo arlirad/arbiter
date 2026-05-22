@@ -1,25 +1,19 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Sockets;
-using Arbiter.Api;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Api.Tests;
 
 [TestFixture]
 public class UnixSocketApiTests
 {
-    private IApi _api = null!;
-    private HttpClient _client = null!;
-    private CancellationTokenSource _cts = null!;
-    private string _socketPath = null!;
-
     [SetUp]
     public async Task SetUp()
     {
         _socketPath = Path.Combine(Path.GetTempPath(), $"arbiter_api_test_{Guid.NewGuid():N}.sock");
         _cts = new CancellationTokenSource();
 
-        var builder = ApiBuilder.Create(new Microsoft.Extensions.DependencyInjection.ServiceCollection())
+        var builder = ApiBuilder.Create(new ServiceCollection())
             .WithUnixSocket(_socketPath);
 
         builder.ControllerTypes.Add(typeof(TestController));
@@ -34,7 +28,8 @@ public class UnixSocketApiTests
             ConnectCallback = async (context, ct) => {
                 var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
                 await socket.ConnectAsync(new UnixDomainSocketEndPoint(_socketPath), ct);
-                return new NetworkStream(socket, ownsSocket: true);
+
+                return new NetworkStream(socket, true);
             },
         };
 
@@ -62,6 +57,11 @@ public class UnixSocketApiTests
             }
         }
     }
+
+    private IApi _api = null!;
+    private HttpClient _client = null!;
+    private CancellationTokenSource _cts = null!;
+    private string _socketPath = null!;
 
     private async Task RunServer(CancellationToken ct)
     {

@@ -1,23 +1,18 @@
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
+using Arbiter.Infrastructure.Headers.Factories;
+using Arbiter.Infrastructure.Headers.Managers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Arbiter.Infrastructure.Headers;
 
 public static class DependencyInjection
 {
-    public static void ConfigureHeaderMiddleware(this GlobalMiddlewareChain chain, ServerHeadersConfig headersConfig)
+    public static IServiceCollection AddHeadersInfrastructure(this IServiceCollection services)
     {
-        if (headersConfig.Server)
-            chain.Add(next => new ServerHeaderGlobalMiddleware(next).Handle);
+        services.AddSingleton<IGlobalMiddlewareFactory, AltSvcGlobalMiddlewareFactory>();
+        services.AddSingleton<IGlobalMiddlewareFactory, HeaderGlobalMiddlewareFactory>();
+        services.AddSingleton<GlobalHeadersManager>();
 
-        if (headersConfig.Date)
-            chain.Add(next => new DateHeaderGlobalMiddleware(next).Handle);
-
-        if (headersConfig.RequestId)
-            chain.Add(next => new RequestIdGlobalMiddleware(next).Handle);
-
-        if (headersConfig.StrictTransportSecurity is { } hsts)
-            chain.Add(next => new StrictTransportSecurityGlobalMiddleware(next, hsts).Handle);
+        return services;
     }
 }

@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using System.Net.Quic;
 using System.Runtime.Versioning;
 using Arbiter.Http3.Tests.Helpers;
-using Arlirad.Http3.Streams;
 
 namespace Arbiter.Http3.Tests;
 
@@ -52,9 +50,11 @@ public class Http3StreamAbortTests
             [":authority"] = ["localhost"],
             ["content-length"] = ["100"],
         });
+
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -70,7 +70,7 @@ public class Http3StreamAbortTests
     {
         var fixture = _fixture!;
         var partialBody = new byte[64];
-        System.Random.Shared.NextBytes(partialBody);
+        Random.Shared.NextBytes(partialBody);
 
         var clientStream = await fixture.CreateClientRequestStreamAsync();
 
@@ -81,10 +81,12 @@ public class Http3StreamAbortTests
             [":authority"] = ["localhost"],
             ["content-length"] = ["1024"],
         });
+
         await clientStream.WriteAsync(partialBody, CancellationToken.None);
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -97,8 +99,10 @@ public class Http3StreamAbortTests
             try
             {
                 var bytesRead = await serverStream.ReadAsync(buffer, CancellationToken.None);
+
                 if (bytesRead == 0)
                     break;
+
                 totalRead += bytesRead;
             }
             catch
@@ -122,9 +126,11 @@ public class Http3StreamAbortTests
             [":scheme"] = ["https"],
             [":authority"] = ["localhost"],
         });
+
         await clientStream.FinishAsync();
 
         var serverStream = await fixture.AcceptRequestStream(CancellationToken.None);
+
         foreach (var _ in await serverStream.ReadHeaders(CancellationToken.None))
         {
         }
@@ -132,6 +138,7 @@ public class Http3StreamAbortTests
         await serverStream.WriteHeaders(new Dictionary<string, List<string>> {
             [":status"] = ["200"],
         }, CancellationToken.None);
+
         await serverStream.FinishAsync();
 
         foreach (var _ in await clientStream.ReadHeaders(CancellationToken.None))

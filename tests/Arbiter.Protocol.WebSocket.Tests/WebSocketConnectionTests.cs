@@ -1,5 +1,4 @@
 using System.IO.Pipelines;
-using Arlirad.WebSocket;
 
 namespace Arbiter.Protocol.WebSocket.Tests;
 
@@ -39,7 +38,10 @@ public class WebSocketConnectionTests
     public async Task SendBinary_receive_binary()
     {
         var (client, server) = CreatePair();
-        var data = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+
+        var data = new byte[] {
+            0x01, 0x02, 0x03, 0x04,
+        };
 
         await using (client)
         await using (server)
@@ -117,6 +119,7 @@ public class WebSocketConnectionTests
             await client.CloseAsync(WebSocketCloseStatusCode.Normal, "done");
 
             var msg = await server.ReceiveAsync();
+
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(msg.Opcode, Is.EqualTo(WebSocketOpcode.Close));
@@ -148,7 +151,10 @@ public class WebSocketConnectionTests
     public async Task ReceiveAsync_returns_binary_message()
     {
         var (client, server) = CreatePair();
-        var data = new byte[] { 0xCA, 0xFE };
+
+        var data = new byte[] {
+            0xCA, 0xFE,
+        };
 
         await using (client)
         await using (server)
@@ -285,7 +291,7 @@ public class WebSocketConnectionTests
             set => throw new NotSupportedException();
         }
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        public async override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
         {
             var result = await reader.ReadAsync(ct);
 
@@ -295,6 +301,7 @@ public class WebSocketConnectionTests
             var available = result.Buffer;
             var toCopy = (int)Math.Min(buffer.Length, available.Length);
             var slice = available.Slice(0, toCopy);
+
             foreach (var segment in slice)
             {
                 segment.Span.CopyTo(buffer.Span[..segment.Length]);
@@ -308,16 +315,19 @@ public class WebSocketConnectionTests
 
         public override int Read(byte[] buffer, int offset, int count)
             => ReadAsync(buffer.AsMemory(offset, count)).GetAwaiter().GetResult();
+
         public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
         {
             buffer.CopyTo(writer.GetMemory(buffer.Length));
             writer.Advance(buffer.Length);
+
             return ValueTask.CompletedTask;
         }
+
         public override void Write(byte[] buffer, int offset, int count)
             => WriteAsync(buffer.AsMemory(offset, count)).GetAwaiter().GetResult();
 
-        public override async Task FlushAsync(CancellationToken ct = default) => await writer.FlushAsync(ct);
+        public async override Task FlushAsync(CancellationToken ct = default) => await writer.FlushAsync(ct);
         public override void Flush() => FlushAsync().GetAwaiter().GetResult();
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();

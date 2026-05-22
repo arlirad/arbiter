@@ -1,19 +1,20 @@
-﻿using System.Reflection;
+using System.Net.Quic;
+using System.Reflection;
 using Arbiter.Application;
-using Arbiter.Application.Configuration;
 using Arbiter.Application.Interfaces;
-using Arbiter.Application.Middleware;
 using Arbiter.Core.Constants;
 using Arbiter.Infrastructure;
 using Arbiter.Infrastructure.Acme;
 using Arbiter.Infrastructure.Cors;
 using Arbiter.Infrastructure.Headers;
+using Arbiter.Infrastructure.Headers.Managers;
 using Arbiter.Infrastructure.Proxy;
 using Arbiter.Infrastructure.Rewriting;
+using Arbiter.Protocol.Http11;
+using Arbiter.Protocol.Http3;
 using Arbiter.Transport.Quic;
 using Arbiter.Transport.Tcp;
 using Arbiter.Transport.Unix;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -22,7 +23,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
-var log = Log.ForContext("SourceContext", "arbiter");
+var log = Log.ForContext("SourceContext", AppConstants.Name.ToLowerInvariant());
 
 var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0];
 log.Information("Starting {Name}/{Version}", AppConstants.Name, version);
@@ -33,31 +34,26 @@ try
         .CreateDefaultBuilder(args)
         .ConfigureServices((context, services) => {
             services.AddConfiguration(args);
+            services.AddHttp11Protocol();
+
+            if (QuicListener.IsSupported)
+                services.AddHttp3Protocol();
+
             services.AddTcpTransport();
             services.AddQuicTransport();
             services.AddUnixSocketTransport();
-            services.AddSingleton<IProtocolFactory, ProtocolFactory>();
             services.AddInfrastructure();
             services.AddAcmeInfrastructure();
             services.AddCorsInfrastructure();
             services.AddProxyInfrastructure();
             services.AddRewritingInfrastructure();
             services.AddApplication();
-            services.AddSingleton<Action<ServerHeadersConfig, GlobalMiddlewareChain>>((hc, c) => {
-                Arbiter.Application.DependencyInjection.ConfigureGlobalMiddlewareChain(c);
-                c.ConfigureHeaderMiddleware(hc);
-            });
+            services.AddHeadersInfrastructure();
         })
         .Build();
 
     var sp = host.Services;
-    var config = sp.GetRequiredService<IConfiguration>();
-    var headersConfig = config.GetSection("headers").Get<ServerHeadersConfig>() ?? new ServerHeadersConfig();
-
-    var chain = sp.GetRequiredService<GlobalMiddlewareChain>();
-    Arbiter.Application.DependencyInjection.ConfigureGlobalMiddlewareChain(chain);
-    chain.ConfigureHeaderMiddleware(headersConfig);
-    chain.Build(sp);
+    sp.GetRequiredService<GlobalHeadersManager>();
 
     var server = sp.GetRequiredService<IServer>();
     await server.Run(CancellationToken.None);

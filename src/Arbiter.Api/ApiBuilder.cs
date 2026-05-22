@@ -75,12 +75,14 @@ public sealed class ApiBuilder
     public ApiBuilder ConfigureJson(Action<JsonSerializerOptions> configure)
     {
         configure(_jsonOptions);
+
         return this;
     }
 
     public ApiBuilder Configure<TOptions>(Action<TOptions> configure) where TOptions : class, new()
     {
         _services.Configure(configure);
+
         return this;
     }
 
@@ -88,30 +90,35 @@ public sealed class ApiBuilder
     {
         Addresses.AddRange(listenOn);
         Port = port;
+
         return this;
     }
 
     public ApiBuilder WithTcp(int port)
     {
         Port = port;
+
         return this;
     }
 
     public ApiBuilder WithTls()
     {
         UseTls = true;
+
         return this;
     }
 
     public ApiBuilder WithUnixSocket(string path)
     {
         UnixSocketPath = path;
+
         return this;
     }
 
     public ApiBuilder WithRequestTimeout(TimeSpan timeout)
     {
         DefaultRequestTimeout = timeout;
+
         return this;
     }
 
@@ -144,6 +151,7 @@ public sealed class ApiBuilder
     public ApiBuilder AddFormatter(IOutputFormatter formatter)
     {
         OutputFormatters.Add(formatter);
+
         return this;
     }
 
@@ -186,6 +194,7 @@ public sealed class ApiBuilder
         });
 
         ServiceProvider = _services.BuildServiceProvider();
+
         return ServiceProvider.GetRequiredService<IApi>();
     }
 }
