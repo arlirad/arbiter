@@ -19,4 +19,8 @@
         <PackageReference Include="NetEscapades.Configuration.Yaml"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="Arbiter.Infrastructure.Tests"/>
+    </ItemGroup>
+
 </Project>

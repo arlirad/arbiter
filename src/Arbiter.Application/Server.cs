@@ -3,7 +3,6 @@ using Arbiter.Application.Configuration;
 using Arbiter.Application.Handlers;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
-using Arbiter.Configuration;
 using Serilog;
 
 namespace Arbiter.Application;
@@ -13,7 +12,7 @@ internal class Server(
     IProtocolFactory protocolFactory,
     SiteManager siteManager,
     IConfigManager configManager,
-    ConfigurationProvider configProvider,
+    ISitesProvider sitesProvider,
     TransactionHandler handler
 ) : IServer, IDisposable
 {
@@ -33,7 +32,7 @@ internal class Server(
 
         transportManager.Initialize();
 
-        var siteSubscription = configProvider.Observe<Dictionary<string, SiteConfig>>("Sites")
+        var siteSubscription = sitesProvider.ObserveSites()
             .Subscribe(async void (sites) => {
                 try
                 {

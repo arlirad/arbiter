@@ -9,11 +9,20 @@ namespace Arbiter.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static void AddInfrastructure(this IServiceCollection services)
+    public static void AddInfrastructure(this IServiceCollection services, string[] args)
     {
         services.AddSingleton<IConfigManager, ConfigManager>();
         services.AddKeyedScoped<IMiddleware, StaticMiddleware>("static");
         services.AddSingleton<TransactionIdProvider>();
+
+        var sitesDirectory = args.Any(s => s == "--local-config")
+            ? Path.Combine(Directory.GetCurrentDirectory(), "./cfg/sites")
+            : "/etc/sites";
+
+        services.AddSingleton<ISitesProvider>(sp =>
+            new SitesProvider(
+                sp.GetRequiredService<Arbiter.Configuration.ConfigurationProvider>(),
+                sitesDirectory));
     }
 
     public static void AddConfiguration(this IServiceCollection services, string[] args)

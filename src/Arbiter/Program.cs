@@ -42,7 +42,7 @@ try
             services.AddTcpTransport();
             services.AddQuicTransport();
             services.AddUnixSocketTransport();
-            services.AddInfrastructure();
+            services.AddInfrastructure(args);
             services.AddAcmeInfrastructure();
             services.AddCorsInfrastructure();
             services.AddProxyInfrastructure();
