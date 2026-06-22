@@ -17,7 +17,7 @@ public static class DependencyInjection
 
         var sitesDirectory = args.Any(s => s == "--local-config")
             ? Path.Combine(Directory.GetCurrentDirectory(), "./cfg/sites")
-            : "/etc/sites";
+            : "/etc/arbiter/sites";
 
         services.AddSingleton<ISitesProvider>(sp =>
             new SitesProvider(
