@@ -7,7 +7,7 @@ using Serilog;
 
 namespace Arbiter.Infrastructure.Middleware;
 
-public class StaticMiddleware : IMiddleware
+public class StaticMiddleware(HandleDelegate next) : IMiddleware
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "static");
 
@@ -18,6 +18,7 @@ public class StaticMiddleware : IMiddleware
     private List<string> _defaultFiles = [];
     private Dictionary<string, string> _mimeTypes = [];
     private string _root = null!;
+    private bool _fallthrough;
 
     public Task Configure(ComponentDataContainer data, IConfiguration config)
     {
@@ -29,6 +30,7 @@ public class StaticMiddleware : IMiddleware
         _defaultFiles = typedConfig?.DefaultFiles ?? [];
         _mimeTypes = typedConfig?.Mime ?? [];
         _root = typedConfig.Root;
+        _fallthrough = typedConfig?.Fallthrough ?? false;
 
         return Task.CompletedTask;
     }
@@ -53,6 +55,13 @@ public class StaticMiddleware : IMiddleware
 
             if (stream is null)
             {
+                if (_fallthrough)
+                {
+                    await next(context);
+
+                    return;
+                }
+
                 await context.Response.Set(Status.NotFound, Stream.Null);
 
                 return;

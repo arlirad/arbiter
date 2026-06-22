@@ -17,4 +17,9 @@ internal class StaticMiddlewareConfig
         get;
         set;
     }
+    public bool Fallthrough
+    {
+        get;
+        set;
+    }
 }
