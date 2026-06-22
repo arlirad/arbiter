@@ -16,27 +16,16 @@ public class RemainderStream(Stream inner, Stream? remainder = null) : Stream
 
     public async override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        var actualReadLength = 0;
-
         if (remainder is not null && remainder.Position != remainder.Length)
         {
             var maxReadLength = Math.Min(remainder.Length - remainder.Position, buffer.Length);
             var remainderReadLength = (int)Math.Max(0, Math.Min(int.MaxValue, maxReadLength));
 
-            if (remainderReadLength == 0)
-                return actualReadLength;
-
-            var remainderBuffer = buffer[..remainderReadLength];
-
-            buffer = buffer[remainderReadLength..];
-
-            actualReadLength += await remainder.ReadAsync(remainderBuffer, cancellationToken);
+            if (remainderReadLength > 0)
+                return await remainder.ReadAsync(buffer[..remainderReadLength], cancellationToken);
         }
 
-        if (buffer.Length > 0)
-            actualReadLength += await inner.ReadAsync(buffer, cancellationToken);
-
-        return actualReadLength;
+        return await inner.ReadAsync(buffer, cancellationToken);
     }
 
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();

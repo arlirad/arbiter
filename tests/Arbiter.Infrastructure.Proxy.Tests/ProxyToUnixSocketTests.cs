@@ -84,7 +84,7 @@ public class ProxyToUnixSocketTests
         var configDict = new Dictionary<string, string?> { { "Target", $"unix://{_socketPath}" } };
         var config = new ConfigurationBuilder().AddInMemoryCollection(configDict).Build();
 
-        await _proxy.Configure("proxy-test", new ComponentDataContainer(), config);
+        await _proxy.Configure(new ComponentDataContainer(), config);
     }
 
     [TearDown]

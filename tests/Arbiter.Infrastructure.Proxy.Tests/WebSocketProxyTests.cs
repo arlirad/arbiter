@@ -45,7 +45,7 @@ public class WebSocketProxyTests
         _proxy = new ProxyMiddleware();
         var configDict = new Dictionary<string, string?> { { "Target", $"http://localhost:{_backendPort}" } };
         var config = new ConfigurationBuilder().AddInMemoryCollection(configDict).Build();
-        await _proxy.Configure("ws-proxy-test", new ComponentDataContainer(), config);
+        await _proxy.Configure(new ComponentDataContainer(), config);
     }
 
     [TearDown]
@@ -446,6 +446,52 @@ public class WebSocketProxyTests
         Assert.That(msg, Is.EqualTo("from-backend"));
 
         await clientConn.DisposeAsync();
+        await backendTask;
+    }
+
+    [Test]
+    public async Task HandleWebSocket_relays_server_early_data_co_sent_with_handshake()
+    {
+        var mockUpgrade = new MockWebSocketUpgrade();
+        var context = CreateContext(mockUpgrade);
+
+        var backendTask = Task.Run(async () =>
+        {
+            var client = await _backendListener.AcceptTcpClientAsync(_cts.Token);
+            await using var stream = client.GetStream();
+
+            try
+            {
+                await ReadUpgradeRequest(stream, _cts.Token);
+
+                // Combine the 101 response headers and the first WS text frame
+                // into a single write so they arrive in the same TCP segment.
+                using var combined = new MemoryStream();
+                combined.Write("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: upgrade\r\n\r\n"u8.ToArray());
+
+                var frameWriter = new WebSocketFrameWriter(combined);
+                await frameWriter.WriteText("early-data", _cts.Token);
+
+                await stream.WriteAsync(combined.ToArray(), _cts.Token);
+                await stream.FlushAsync(_cts.Token);
+
+                var frameReader = new WebSocketFrameReader(stream);
+                await frameReader.ReadFrame(_cts.Token);
+            }
+            finally
+            {
+                client.Dispose();
+            }
+        }, _cts.Token);
+
+        var proxyTask = Task.Run(() => _proxy.Handle(context), _cts.Token);
+
+        await using var clientConn = new WebSocketConnection(mockUpgrade.TestSideStream);
+        var msg = await clientConn.ReceiveTextAsync(_cts.Token);
+        Assert.That(msg, Is.EqualTo("early-data"));
+
+        await clientConn.DisposeAsync();
+        await proxyTask;
         await backendTask;
     }
 }
