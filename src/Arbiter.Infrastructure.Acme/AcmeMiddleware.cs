@@ -14,7 +14,7 @@ internal class AcmeMiddleware(HandleDelegate next) : IMiddleware
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "acme");
     private DataModel? _data;
 
-    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, IConfiguration config)
     {
         _data = data.Get<DataModel>();
 

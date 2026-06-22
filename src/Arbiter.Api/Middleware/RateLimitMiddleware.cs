@@ -16,7 +16,7 @@ public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int
     private string? _forwardedIpHeader;
     private HashSet<IPAddress> _ignoredAddresses = [];
 
-    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, IConfiguration config)
     {
         _forwardedIpHeader = config["ForwardedIpHeader"];
 

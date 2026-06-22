@@ -7,7 +7,7 @@ namespace Arbiter.Api.Middleware;
 
 public class HttpsRedirectionMiddleware(HandleDelegate next, int httpsPort = 443) : IMiddleware
 {
-    public Task Configure(string path, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
+    public Task Configure(ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
 
     public async Task Handle(Context context)
     {

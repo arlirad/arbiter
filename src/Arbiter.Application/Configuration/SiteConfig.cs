@@ -2,11 +2,6 @@ namespace Arbiter.Application.Configuration;
 
 public class SiteConfig : IEquatable<SiteConfig?>
 {
-    public string? Path
-    {
-        get;
-        init;
-    }
     public List<Uri>? Bindings
     {
         get;
@@ -38,8 +33,7 @@ public class SiteConfig : IEquatable<SiteConfig?>
     {
         return other is not null
             && (ReferenceEquals(this, other)
-                || (Path == other.Path
-                    && SequenceEqual(Bindings, other.Bindings)
+                || (SequenceEqual(Bindings, other.Bindings)
                     && SequenceEqual(DefaultFiles, other.DefaultFiles)
                     && SequenceEqual(Handlers, other.Handlers)
                     && ListEquals(Middleware, other.Middleware)
@@ -47,7 +41,12 @@ public class SiteConfig : IEquatable<SiteConfig?>
     }
 
     public override bool Equals(object? obj) => Equals(obj as SiteConfig);
-    public override int GetHashCode() => Path?.GetHashCode() ?? 0;
+    public override int GetHashCode() => HashCode.Combine(
+        Bindings,
+        DefaultFiles,
+        Handlers,
+        Middleware,
+        Workers);
 
     private static bool SequenceEqual<T>(List<T>? a, List<T>? b)
     {

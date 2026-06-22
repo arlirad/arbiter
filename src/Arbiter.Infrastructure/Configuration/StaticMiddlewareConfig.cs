@@ -2,6 +2,11 @@ namespace Arbiter.Infrastructure.Configuration;
 
 internal class StaticMiddlewareConfig
 {
+    public string? Root
+    {
+        get;
+        set;
+    }
     public List<string>? DefaultFiles
     {
         get;

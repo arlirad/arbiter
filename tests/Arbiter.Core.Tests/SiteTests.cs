@@ -7,23 +7,6 @@ namespace Arbiter.Core.Tests;
 public class SiteTests
 {
     [Test]
-    public void Ctor_sets_path_from_constructor()
-    {
-        Task HandleDelegate(Context ctx) => Task.CompletedTask;
-
-        var bindings = new List<Uri> {
-            new("http://localhost:8080"),
-        };
-
-        var workers = new List<IWorker>();
-        var middlewares = new List<IMiddleware>();
-
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
-
-        Assert.That(site.Path, Is.EqualTo("/test"));
-    }
-
-    [Test]
     public void Ctor_sets_bindings_from_constructor()
     {
         Task HandleDelegate(Context ctx) => Task.CompletedTask;
@@ -36,7 +19,7 @@ public class SiteTests
         var workers = new List<IWorker>();
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.Bindings.Count, Is.EqualTo(2));
         Assert.That(site.Bindings[0].ToString(), Is.EqualTo("http://localhost:8080/"));
@@ -55,7 +38,7 @@ public class SiteTests
             new StubMiddleware(),
         };
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.Middleware.Count, Is.EqualTo(2));
     }
@@ -73,7 +56,7 @@ public class SiteTests
 
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.Workers.Count, Is.EqualTo(2));
     }
@@ -86,7 +69,7 @@ public class SiteTests
         var workers = new List<IWorker>();
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.HandleDelegate, Is.Not.Null);
     }
@@ -99,7 +82,7 @@ public class SiteTests
         var workers = new List<IWorker>();
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.Data, Is.Not.Null);
         Assert.That(site.Data, Is.InstanceOf<ComponentDataContainer>());
@@ -113,7 +96,7 @@ public class SiteTests
         var workers = new List<IWorker>();
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         var first = site.Data;
         var second = site.Data;
@@ -129,7 +112,7 @@ public class SiteTests
         var workers = new List<IWorker>();
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.DefaultFiles, Is.Not.Null);
         Assert.That(site.DefaultFiles.Count, Is.EqualTo(0));
@@ -146,7 +129,7 @@ public class SiteTests
             new StubMiddleware(),
         };
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.Middleware, Is.InstanceOf<IReadOnlyList<IMiddleware>>());
     }
@@ -163,7 +146,7 @@ public class SiteTests
 
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         Assert.That(site.Workers, Is.InstanceOf<IReadOnlyList<IWorker>>());
     }
@@ -185,7 +168,7 @@ public class SiteTests
 
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         await site.Start();
 
@@ -211,7 +194,7 @@ public class SiteTests
 
         var middlewares = new List<IMiddleware>();
 
-        var site = new Site("/test", bindings, middlewares, workers, HandleDelegate);
+        var site = new Site(bindings, middlewares, workers, HandleDelegate);
 
         await site.Stop();
 
@@ -237,7 +220,7 @@ public class SiteTests
 
     private class StubMiddleware : IMiddleware
     {
-        public Task Configure(string path, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
+        public Task Configure(ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
         public Task Handle(Context context) => Task.CompletedTask;
     }
 
@@ -258,7 +241,7 @@ public class SiteTests
             set;
         }
 
-        public Task Configure(string path, List<Uri> bindings, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
+        public Task Configure(List<Uri> bindings, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
 
         public Task Start()
         {

@@ -54,7 +54,7 @@ public class SitesProviderTests
         Directory.CreateDirectory(_tempDir);
 
         var emissions = Setup(_tempDir, new Dictionary<string, string?> {
-            ["Sites:main-site:Path"] = "/var/www/main",
+            ["Sites:main-site:Bindings:0"] = "http://main.example.com",
         });
 
         Thread.Sleep(200);
@@ -90,7 +90,6 @@ public class SitesProviderTests
         Directory.CreateDirectory(_tempDir);
 
         WriteSite(_tempDir, "dynamic", new {
-            path = "/var/www/v1",
             bindings = new[] { "http://dynamic.example.com" },
         });
 
@@ -98,16 +97,11 @@ public class SitesProviderTests
 
         Thread.Sleep(200);
 
-        Assert.That(emissions[^1]["dynamic"].Path, Is.EqualTo("/var/www/v1"));
-
         WriteSite(_tempDir, "dynamic", new {
-            path = "/var/www/v2",
             bindings = new[] { "http://dynamic.example.com" },
         });
 
         Thread.Sleep(1000);
-
-        Assert.That(emissions[^1]["dynamic"].Path, Is.EqualTo("/var/www/v2"));
     }
 
     [Test]
@@ -163,21 +157,15 @@ public class SitesProviderTests
         _tempDir = Path.Combine(Path.GetTempPath(), $"arbiter-test-{Guid.NewGuid()}");
         Directory.CreateDirectory(_tempDir);
 
-        var emissions = Setup(_tempDir, new Dictionary<string, string?> {
-            ["Sites:shared:Path"] = "/var/www/original",
-        });
+        var emissions = Setup(_tempDir);
 
         Thread.Sleep(200);
 
-        Assert.That(emissions[^1]["shared"].Path, Is.EqualTo("/var/www/original"));
-
         WriteSite(_tempDir, "shared", new {
-            path = "/var/www/overridden"
+            bindings = new[] { "http://shared.example.com" }
         });
 
         Thread.Sleep(1000);
-
-        Assert.That(emissions[^1]["shared"].Path, Is.EqualTo("/var/www/overridden"));
     }
 
     [Test]

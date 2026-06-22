@@ -56,7 +56,7 @@ public class CoreGlobalMiddlewareFactoryTests
 
     private static Context CreateContext() => new ContextFactory().Create(1, Method.Get, "/", [], null, null, "localhost", false, null)!;
 
-    private static Site CreateSite() => new("/", [], [], [], _ => Task.CompletedTask);
+    private static Site CreateSite() => new([], [], [], _ => Task.CompletedTask);
 
     private sealed class DummyTransaction : ITransaction
     {

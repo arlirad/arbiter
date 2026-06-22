@@ -20,7 +20,7 @@ public class CorsMiddleware(HandleDelegate next) : IMiddleware
 
     private List<string>? _allowedOrigins;
 
-    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, IConfiguration config)
     {
         var typedConfig = config.Get<ConfigModel>();
 

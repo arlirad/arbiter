@@ -102,7 +102,7 @@ public class CorsMiddlewareTests
             ])
             .Build();
 
-        middleware.Configure(null!, null!, config);
+        middleware.Configure(null!, config);
 
         return middleware;
     }

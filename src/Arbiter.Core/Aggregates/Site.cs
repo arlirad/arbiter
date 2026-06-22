@@ -3,7 +3,6 @@ using Arbiter.Core.Interfaces;
 namespace Arbiter.Core.Aggregates;
 
 public class Site(
-    string path,
     IEnumerable<Uri> bindings,
     IEnumerable<IMiddleware> middlewares,
     IEnumerable<IWorker> workers,
@@ -12,10 +11,6 @@ public class Site(
     private readonly List<IMiddleware> _middleware = [.. middlewares];
     private readonly List<IWorker> _workers = [.. workers];
 
-    public string Path
-    {
-        get;
-    } = path;
     public List<Uri> Bindings
     {
         get;

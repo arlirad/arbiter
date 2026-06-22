@@ -78,6 +78,12 @@ transports:
   #   paths: ["/tmp/arbiter/thighhigh"]
 
 sites:
+  main-site:
+    middleware:
+      - name: static
+        config:
+          root: /var/www/main
+          default_files: [index.html]
   example-app:
     bindings:
       - http://api.example.com

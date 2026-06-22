@@ -19,13 +19,16 @@ public class StaticMiddleware : IMiddleware
     private Dictionary<string, string> _mimeTypes = [];
     private string _root = null!;
 
-    public Task Configure(string path, ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, IConfiguration config)
     {
         var typedConfig = config.Get<StaticMiddlewareConfig>();
 
+        if (typedConfig?.Root is null)
+            throw new Exception("root is not set");
+
         _defaultFiles = typedConfig?.DefaultFiles ?? [];
         _mimeTypes = typedConfig?.Mime ?? [];
-        _root = path;
+        _root = typedConfig.Root;
 
         return Task.CompletedTask;
     }

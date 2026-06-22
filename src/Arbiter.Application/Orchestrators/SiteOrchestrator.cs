@@ -25,7 +25,6 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
             : LastHandleDelegate);
 
         var site = new Site(
-            siteConfig.Path!,
             siteConfig.Bindings!,
             middlewareChain.Select(m => m.Instance),
             workerInstances.Select(w => w.Instance),
@@ -34,12 +33,12 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
 
         foreach (var (Instance, Config) in middlewareChain)
         {
-            await Instance.Configure(site.Path, site.Data, Config!);
+            await Instance.Configure(site.Data, Config!);
         }
 
         foreach (var (Instance, Config) in workerInstances)
         {
-            await Instance.Configure(site.Path, site.Bindings, site.Data, Config!);
+            await Instance.Configure(site.Bindings, site.Data, Config!);
         }
 
         return site;

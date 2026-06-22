@@ -84,7 +84,6 @@ internal sealed class Api(
         var handleDelegate = new HandleDelegate(entryHandle);
 
         var site = new Site(
-            "api",
             [],
             allMiddleware,
             [],
@@ -94,10 +93,10 @@ internal sealed class Api(
         for (var i = 0; i < builder.MiddlewareEntries.Count; i++)
         {
             var config = builder.MiddlewareEntries[i].Config ?? emptyConfig;
-            await pipelineMiddleware[i].Configure(site.Path, site.Data, config);
+            await pipelineMiddleware[i].Configure(site.Data, config);
         }
 
-        await apiMiddleware.Configure(site.Path, site.Data, emptyConfig);
+        await apiMiddleware.Configure(site.Data, emptyConfig);
 
         return site;
     }

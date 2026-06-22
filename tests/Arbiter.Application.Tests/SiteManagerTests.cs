@@ -72,7 +72,7 @@ public class SiteManagerTests
     {
         var manager = new SiteManager(new ServiceProviderStub());
 
-        var site = new Site("/tmp", [new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
+        var site = new Site([new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
 
         var sitesField = typeof(SiteManager).GetField("_sites", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var configsField = typeof(SiteManager).GetField("_siteConfigs", BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -113,7 +113,7 @@ public class SiteManagerTests
     {
         var manager = new SiteManager(new ServiceProviderStub());
 
-        site = new Site("/tmp", [new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
+        site = new Site([new Uri("http://example.com:8080")], [], [], _ => Task.CompletedTask);
 
         var sites = new Dictionary<string, Site> {
             ["test"] = site,

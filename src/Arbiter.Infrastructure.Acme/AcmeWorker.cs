@@ -30,7 +30,7 @@ internal class AcmeWorker(
     private Task? _orderTask;
     private bool _tosAccepted;
 
-    public Task Configure(string path, List<Uri> bindings, ComponentDataContainer data, IConfiguration config)
+    public Task Configure(List<Uri> bindings, ComponentDataContainer data, IConfiguration config)
     {
         var typedConfig = config.Get<ConfigModel>();
 

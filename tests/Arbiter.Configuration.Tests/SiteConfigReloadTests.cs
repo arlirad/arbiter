@@ -19,7 +19,7 @@ public class SiteConfigReloadTests
     public void Observe_SiteConfig_emits_on_file_change()
     {
         _tempFile = Path.GetTempFileName();
-        File.WriteAllText(_tempFile, """{"Sites":{"test":{"Path":"/var/www","Bindings":["http://localhost:8080"],"Middleware":[{"Name":"proxy","Config":{"Target":"http://backend:5000"}}]}}}""");
+        File.WriteAllText(_tempFile, """{"Sites":{"test":{"Bindings":["http://localhost:8080"],"Middleware":[{"Name":"proxy","Config":{"Target":"http://backend:5000"}}]}}}""");
 
         var config = new ConfigurationBuilder()
             .AddJsonFile(_tempFile, false, true)
@@ -31,10 +31,9 @@ public class SiteConfigReloadTests
         provider.Observe<Dictionary<string, SiteConfig>>("Sites").Subscribe(values.Add);
 
         Assert.That(values, Has.Count.EqualTo(1));
-        Assert.That(values[0]["test"].Path, Is.EqualTo("/var/www"));
 
         Thread.Sleep(100);
-        File.WriteAllText(_tempFile, """{"Sites":{"test":{"Path":"/var/www","Bindings":["http://localhost:8080"],"Middleware":[{"Name":"proxy","Config":{"Target":"http://backend:6000"}}]}}}""");
+        File.WriteAllText(_tempFile, """{"Sites":{"test":{"Bindings":["http://localhost:8080"],"Middleware":[{"Name":"proxy","Config":{"Target":"http://backend:6000"}}]}}}""");
 
         Thread.Sleep(500);
 

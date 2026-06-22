@@ -10,7 +10,7 @@ namespace Arbiter.Api.Middleware;
 public class RequestLoggingMiddleware(HandleDelegate next) : IMiddleware
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "api");
-    public Task Configure(string path, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
+    public Task Configure(ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
 
     public async Task Handle(Context context)
     {
