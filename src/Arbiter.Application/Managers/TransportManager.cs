@@ -22,12 +22,12 @@ public class TransportManager(
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "transport");
 
-    private readonly ConcurrentDictionary<string, IAcceptor> _active = new();
+    private readonly ConcurrentDictionary<string, ITransport> _active = new();
     private readonly List<IPAddress> _addresses = [];
     private readonly AppConfigurationProvider _configProvider = configProvider;
     private readonly IConfiguration _configuration = configuration;
-    private readonly ConcurrentDictionary<string, IAcceptor> _draining = new();
-    private readonly Subject<IAcceptor> _newAcceptor = new();
+    private readonly ConcurrentDictionary<string, ITransport> _draining = new();
+    private readonly Subject<ITransport> _newTransport = new();
     private readonly HashSet<Protocol> _protocols = [Protocol.Http11, Protocol.Http3];
     private readonly SemaphoreSlim _reconfigureLock = new(1, 1);
     private readonly IServiceProvider _serviceProvider = serviceProvider;
@@ -35,14 +35,14 @@ public class TransportManager(
 
     private HashSet<string> _previousKeys = [];
 
-    public IObservable<IAcceptor> NewAcceptor => _newAcceptor;
-    public IEnumerable<IAcceptor> ActiveAcceptors => _active.Values;
+    public IObservable<ITransport> NewTransport => _newTransport;
+    public IEnumerable<ITransport> ActiveTransports => _active.Values;
 
     public void Dispose()
     {
         _subscriptions.Dispose();
         _reconfigureLock.Dispose();
-        _newAcceptor.Dispose();
+        _newTransport.Dispose();
     }
 
     public void Initialize()
@@ -90,11 +90,11 @@ public class TransportManager(
         {
             try
             {
-                if (_active.TryRemove(key, out var acceptor))
+                if (_active.TryRemove(key, out var transport))
                 {
-                    _draining[key] = acceptor;
+                    _draining[key] = transport;
 
-                    if (acceptor is IDisposable d)
+                    if (transport is IDisposable d)
                         d.Dispose();
 
                     Log.Information("'{Key}' removed, draining active connections", key);
@@ -118,19 +118,19 @@ public class TransportManager(
                         d.Dispose();
                 }
 
-                var acceptor = ResolveAcceptor(key);
+                var transport = ResolveTransport(key);
 
-                if (acceptor is null)
+                if (transport is null)
                     continue;
 
-                var config = BindConfig(key, acceptor);
+                var config = BindConfig(key, transport);
 
                 if (config is null)
                     continue;
 
-                await ConfigureAcceptor(acceptor, config, addresses, protocols);
-                _active[key] = acceptor;
-                _newAcceptor.OnNext(acceptor);
+                await ConfigureTransport(transport, config, addresses, protocols);
+                _active[key] = transport;
+                _newTransport.OnNext(transport);
                 Log.Information("'{Key}' started", key);
             }
             catch (Exception ex)
@@ -143,11 +143,11 @@ public class TransportManager(
         {
             try
             {
-                if (_active.TryGetValue(key, out var acceptor))
+                if (_active.TryGetValue(key, out var transport))
                 {
-                    var config = BindConfig(key, acceptor);
+                    var config = BindConfig(key, transport);
                     if (config is not null)
-                        await ConfigureAcceptor(acceptor, config, addresses, protocols);
+                        await ConfigureTransport(transport, config, addresses, protocols);
                 }
             }
             catch (Exception ex)
@@ -159,41 +159,41 @@ public class TransportManager(
         _previousKeys = currentKeys;
     }
 
-    private object? BindConfig(string key, IAcceptor acceptor)
+    private object? BindConfig(string key, ITransport transport)
     {
-        var configType = acceptor.GetType().GetConfigType<ITransportConfig>();
+        var configType = transport.GetType().GetConfigType<ITransportConfig>();
 
         return configType is not null
             ? _configuration.GetSection($"Transports:{key}").Get(configType)
             : null;
     }
 
-    private IAcceptor? ResolveAcceptor(string key)
+    private ITransport? ResolveTransport(string key)
     {
         try
         {
-            return _serviceProvider.GetRequiredKeyedService<IAcceptor>(key);
+            return _serviceProvider.GetRequiredKeyedService<ITransport>(key);
         }
         catch
         {
-            Log.Warning("No acceptor registered for '{Key}'", key);
+            Log.Warning("No transport registered for '{Key}'", key);
 
             return null;
         }
     }
 
-    private async ValueTask ConfigureAcceptor(
-        IAcceptor acceptor,
+    private async ValueTask ConfigureTransport(
+        ITransport transport,
         object config,
         List<IPAddress> addresses,
         HashSet<Protocol> protocols)
     {
-        var method = acceptor.GetType().GetMethod("ReconfigureAsync",
+        var method = transport.GetType().GetMethod("ReconfigureAsync",
             BindingFlags.Instance | BindingFlags.Public);
 
         if (method is null)
         {
-            Log.Warning("Acceptor '{Type}' does not implement ReconfigureAsync", acceptor.GetType().Name);
+            Log.Warning("Transport '{Type}' does not implement ReconfigureAsync", transport.GetType().Name);
 
             return;
         }
@@ -205,7 +205,7 @@ public class TransportManager(
             var t => throw new InvalidOperationException($"Unknown parameter type {t} in ReconfigureAsync"),
         }).ToArray();
 
-        var result = method.Invoke(acceptor, args);
+        var result = method.Invoke(transport, args);
 
         if (result is null)
             return;

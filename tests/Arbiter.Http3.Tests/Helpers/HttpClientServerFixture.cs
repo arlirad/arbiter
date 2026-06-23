@@ -136,9 +136,9 @@ public class HttpClientServerFixture : IAsyncDisposable
         });
     }
 
-    private async Task HandleConnectionAsync(QuicConnection connection, CancellationToken ct)
+    private async Task HandleConnectionAsync(System.Net.Quic.QuicConnection connection, CancellationToken ct)
     {
-        var transport = new QuicTransport(connection, Port, null);
+        var transport = new Arbiter.Transport.Quic.QuicConnection(connection, Port, null);
         await using var protocol = new Http3Protocol(new TransactionIdProvider());
 
         var tasks = new List<Task>();

@@ -55,10 +55,10 @@ internal class Server(
 
         _subscriptions.Add(siteSubscription);
 
-        _subscriptions.Add(transportManager.NewAcceptor.Subscribe(acceptor => _ = AcceptLoop(acceptor, ct)));
+        _subscriptions.Add(transportManager.NewTransport.Subscribe(transport => _ = AcceptLoop(transport, ct)));
 
-        foreach (var acceptor in transportManager.ActiveAcceptors)
-            _ = AcceptLoop(acceptor, ct);
+        foreach (var transport in transportManager.ActiveTransports)
+            _ = AcceptLoop(transport, ct);
 
         try
         {
@@ -69,14 +69,14 @@ internal class Server(
         }
     }
 
-    private async Task AcceptLoop(IAcceptor acceptor, CancellationToken ct)
+    private async Task AcceptLoop(ITransport transport, CancellationToken ct)
     {
         try
         {
             while (!ct.IsCancellationRequested)
             {
-                var transport = await acceptor.Accept(ct);
-                _ = HandleConnection(transport, ct);
+                var connection = await transport.Accept(ct);
+                _ = HandleConnection(connection, ct);
             }
         }
         catch (OperationCanceledException)
@@ -84,12 +84,12 @@ internal class Server(
         }
     }
 
-    private async Task HandleConnection(ITransport transport, CancellationToken ct)
+    private async Task HandleConnection(IConnection connection, CancellationToken ct)
     {
         try
         {
-            await using var protocol = protocolFactory.Create(transport.Protocol);
-            await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
+            await using var protocol = protocolFactory.Create(connection.Protocol);
+            await foreach (var transaction in protocol.AcceptTransactions(connection, ct))
                 _ = HandleWithLogging(transaction);
         }
         catch (OperationCanceledException)

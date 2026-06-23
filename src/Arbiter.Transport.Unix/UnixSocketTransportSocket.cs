@@ -1,11 +1,12 @@
 using System.Net.Sockets;
 
-namespace Arbiter.Transport.Tcp;
+namespace Arbiter.Transport.Unix;
 
-internal class TcpAcceptorSocket(Socket socket)
+internal class UnixSocketTransportSocket(Socket socket, string path)
 {
     private CancellationTokenSource _cts = new();
     public CancellationToken CancellationToken => _cts.Token;
+    public string Path => path;
 
     public async Task Stop()
     {
@@ -18,5 +19,16 @@ internal class TcpAcceptorSocket(Socket socket)
     {
         socket.Close();
         socket.Dispose();
+
+        if (File.Exists(Path))
+        {
+            try
+            {
+                File.Delete(Path);
+            }
+            catch
+            {
+            }
+        }
     }
 }

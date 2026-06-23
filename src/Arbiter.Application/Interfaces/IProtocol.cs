@@ -2,5 +2,5 @@ namespace Arbiter.Application.Interfaces;
 
 public interface IProtocol : IAsyncDisposable
 {
-    IAsyncEnumerable<ITransaction> AcceptTransactions(ITransport transport, CancellationToken ct);
+    IAsyncEnumerable<ITransaction> AcceptTransactions(IConnection connection, CancellationToken ct);
 }

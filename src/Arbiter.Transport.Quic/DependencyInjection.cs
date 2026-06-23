@@ -11,6 +11,6 @@ public static class DependencyInjection
         if (!QuicListener.IsSupported)
             return;
 
-        services.AddKeyedSingleton<IAcceptor, QuicAcceptor>("quic");
+        services.AddKeyedSingleton<ITransport, QuicTransport>("quic");
     }
 }

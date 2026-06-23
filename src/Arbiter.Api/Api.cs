@@ -32,14 +32,14 @@ internal sealed class Api(
 
         if (!string.IsNullOrEmpty(builder.UnixSocketPath))
         {
-            var unixAcceptor = new UnixSocketAcceptor();
-            await unixAcceptor.Bind([builder.UnixSocketPath], 128);
+            var unixTransport = new UnixSocketTransport();
+            await unixTransport.Bind([builder.UnixSocketPath], 128);
             Log.Information("API listening on unix://{Path}", builder.UnixSocketPath);
 
             while (!ct.IsCancellationRequested)
             {
-                var transport = await unixAcceptor.Accept(ct);
-                _ = HandleConnection(transport, ct);
+                var connection = await unixTransport.Accept(ct);
+                _ = HandleConnection(connection, ct);
             }
         }
         else
@@ -48,23 +48,23 @@ internal sealed class Api(
                 ? builder.Addresses
                 : [IPAddress.Any];
 
-            var tcpAcceptor = new TcpAcceptor(certificateManager);
-            await tcpAcceptor.Bind(addresses, [builder.Port], 128);
+            var tcpTransport = new TcpTransport(certificateManager);
+            await tcpTransport.Bind(addresses, [builder.Port], 128);
             Log.Information("API listening on {Addresses}:{Port}", string.Join(", ", addresses), builder.Port);
 
             while (!ct.IsCancellationRequested)
             {
-                var transport = await tcpAcceptor.Accept(ct);
-                _ = HandleConnection(transport, ct);
+                var connection = await tcpTransport.Accept(ct);
+                _ = HandleConnection(connection, ct);
             }
         }
     }
 
-    private async Task HandleConnection(ITransport transport, CancellationToken ct)
+    private async Task HandleConnection(IConnection connection, CancellationToken ct)
     {
         await using var protocol = new Http11Protocol(new TransactionIdProvider());
 
-        await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
+        await foreach (var transaction in protocol.AcceptTransactions(connection, ct))
             _ = HandleTransaction(transaction, ct);
     }
 
@@ -181,7 +181,6 @@ internal sealed class Api(
             }
             catch
             {
-                // Ignored
             }
         }
     }

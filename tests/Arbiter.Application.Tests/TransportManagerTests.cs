@@ -15,32 +15,32 @@ namespace Arbiter.Application.Tests;
 public class TransportManagerTests
 {
     [Test]
-    public async Task ReconfigureAsync_starts_acceptor_for_added_transport()
+    public async Task ReconfigureAsync_starts_transport_for_added_key()
     {
-        var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor);
+        var transport = new StubTransport();
+        using var manager = CreateManager("tcp", transport);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
 
-        Assert.That(manager.ActiveAcceptors.Count(), Is.EqualTo(1));
+        Assert.That(manager.ActiveTransports.Count(), Is.EqualTo(1));
     }
 
     [Test]
-    public async Task Acceptor_receives_reconfigure_on_add()
+    public async Task Transport_receives_reconfigure_on_add()
     {
-        var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor);
+        var transport = new StubTransport();
+        using var manager = CreateManager("tcp", transport);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
 
-        Assert.That(acceptor.ReconfigureCount, Is.EqualTo(1));
+        Assert.That(transport.ReconfigureCount, Is.EqualTo(1));
     }
 
     [Test]
-    public async Task ReconfigureAsync_moves_acceptor_to_draining_on_removal()
+    public async Task ReconfigureAsync_moves_transport_to_draining_on_removal()
     {
-        var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor);
+        var transport = new StubTransport();
+        using var manager = CreateManager("tcp", transport);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, [], [IPAddress.Loopback], [Protocol.Http11]);
@@ -49,7 +49,7 @@ public class TransportManagerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(manager.ActiveAcceptors, Is.Empty);
+            Assert.That(manager.ActiveTransports, Is.Empty);
             Assert.That(draining.ContainsKey("tcp"), Is.True);
         }
     }
@@ -57,9 +57,9 @@ public class TransportManagerTests
     [Test]
     public async Task ReconfigureAsync_axe_draining_on_re_enable()
     {
-        var acceptor = new StubAcceptor();
-        var newAcceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", newAcceptor);
+        var transport = new StubTransport();
+        var newTransport = new StubTransport();
+        using var manager = CreateManager("tcp", newTransport);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, [], [IPAddress.Loopback], [Protocol.Http11]);
@@ -71,7 +71,7 @@ public class TransportManagerTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(manager.ActiveAcceptors.Count(), Is.EqualTo(1));
+            Assert.That(manager.ActiveTransports.Count(), Is.EqualTo(1));
             Assert.That(GetDraining(manager), Is.Empty);
         }
     }
@@ -83,34 +83,34 @@ public class TransportManagerTests
 
         await InvokeReconfigureAsync(manager, ["unknown"], [IPAddress.Loopback], [Protocol.Http11]);
 
-        Assert.That(manager.ActiveAcceptors, Is.Empty);
+        Assert.That(manager.ActiveTransports, Is.Empty);
     }
 
     [Test]
     public async Task ReconfigureAsync_reconfigures_existing_transport()
     {
-        var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor);
+        var transport = new StubTransport();
+        using var manager = CreateManager("tcp", transport);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
 
-        Assert.That(acceptor.ReconfigureCount, Is.EqualTo(2));
+        Assert.That(transport.ReconfigureCount, Is.EqualTo(2));
     }
 
     [Test]
-    public async Task ReconfigureAsync_disposes_acceptor_on_removal()
+    public async Task ReconfigureAsync_disposes_transport_on_removal()
     {
-        var acceptor = new StubAcceptor();
-        using var manager = CreateManager("tcp", acceptor);
+        var transport = new StubTransport();
+        using var manager = CreateManager("tcp", transport);
 
         await InvokeReconfigureAsync(manager, ["tcp"], [IPAddress.Loopback], [Protocol.Http11]);
         await InvokeReconfigureAsync(manager, [], [IPAddress.Loopback], [Protocol.Http11]);
 
-        Assert.That(acceptor.IsDisposed, Is.True);
+        Assert.That(transport.IsDisposed, Is.True);
     }
 
-    private static TransportManager CreateManager(string? acceptorKey, IAcceptor? acceptor)
+    private static TransportManager CreateManager(string? transportKey, ITransport? transport)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> {
@@ -121,7 +121,7 @@ public class TransportManagerTests
             .Build();
 
         var configProvider = new ConfigurationProvider(configuration);
-        var serviceProvider = new StubServiceProvider(acceptorKey, acceptor);
+        var serviceProvider = new StubServiceProvider(transportKey, transport);
 
         return new TransportManager(serviceProvider, configuration, configProvider);
     }
@@ -137,14 +137,14 @@ public class TransportManagerTests
         await (ValueTask)method!.Invoke(manager, [keys, addresses, protocols])!;
     }
 
-    private static ConcurrentDictionary<string, IAcceptor> GetDraining(TransportManager manager)
+    private static ConcurrentDictionary<string, ITransport> GetDraining(TransportManager manager)
     {
         var field = typeof(TransportManager).GetField("_draining", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        return (ConcurrentDictionary<string, IAcceptor>)field!.GetValue(manager)!;
+        return (ConcurrentDictionary<string, ITransport>)field!.GetValue(manager)!;
     }
 
-    private sealed class StubAcceptor : IAcceptor, IAsyncConfigurable<List<IPAddress>, IpTransportConfig, HashSet<Protocol>>, IDisposable
+    private sealed class StubTransport : ITransport, IAsyncConfigurable<List<IPAddress>, IpTransportConfig, HashSet<Protocol>>, IDisposable
     {
         private int _reconfigureCount;
 
@@ -155,7 +155,7 @@ public class TransportManagerTests
             private set;
         }
 
-        public Task<ITransport> Accept(CancellationToken ct) => Task.FromException<ITransport>(new InvalidOperationException("stub"));
+        public Task<IConnection> Accept(CancellationToken ct) => Task.FromException<IConnection>(new InvalidOperationException("stub"));
 
         public ValueTask ReconfigureAsync(List<IPAddress> addresses, IpTransportConfig config, HashSet<Protocol> protocols)
         {
@@ -167,11 +167,11 @@ public class TransportManagerTests
         public void Dispose() => IsDisposed = true;
     }
 
-    private sealed class StubServiceProvider(string? acceptorKey, IAcceptor? acceptor) : IKeyedServiceProvider
+    private sealed class StubServiceProvider(string? transportKey, ITransport? transport) : IKeyedServiceProvider
     {
         public object? GetService(Type serviceType) => null;
 
-        public object? GetKeyedService(Type serviceType, object? key) => key?.ToString() == acceptorKey && serviceType == typeof(IAcceptor) ? acceptor : null;
+        public object? GetKeyedService(Type serviceType, object? key) => key?.ToString() == transportKey && serviceType == typeof(ITransport) ? transport : null;
 
         public object GetRequiredKeyedService(Type serviceType, object? key) => GetKeyedService(serviceType, key) ?? throw new InvalidOperationException();
     }

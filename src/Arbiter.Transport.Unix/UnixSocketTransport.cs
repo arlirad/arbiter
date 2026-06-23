@@ -9,17 +9,17 @@ using Serilog;
 
 namespace Arbiter.Transport.Unix;
 
-public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportConfig, HashSet<Protocol>>, IDisposable
+public class UnixSocketTransport : ITransport, IAsyncConfigurable<UnixTransportConfig, HashSet<Protocol>>, IDisposable
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "unix");
-    private readonly ConcurrentDictionary<string, UnixSocketAcceptorSocket> _sockets = new();
-    private Channel<ITransport>? _transports;
+    private readonly ConcurrentDictionary<string, UnixSocketTransportSocket> _sockets = new();
+    private Channel<IConnection>? _connections;
 
-    public async Task<ITransport> Accept(CancellationToken ct) => await _transports!.Reader.ReadAsync(ct);
+    public async Task<IConnection> Accept(CancellationToken ct) => await _connections!.Reader.ReadAsync(ct);
 
     public async ValueTask ReconfigureAsync(UnixTransportConfig config, HashSet<Protocol> protocols)
     {
-        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(config.QueueSize));
+        _connections ??= Channel.CreateBounded<IConnection>(new BoundedChannelOptions(config.QueueSize));
 
         if (config.Paths is null || config.Paths.Count == 0)
             Log.Warning("No paths configured");
@@ -40,7 +40,7 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
 
     public async Task Bind(IEnumerable<string> paths, int backlog)
     {
-        _transports ??= Channel.CreateBounded<ITransport>(new BoundedChannelOptions(4096));
+        _connections ??= Channel.CreateBounded<IConnection>(new BoundedChannelOptions(4096));
         var pathList = paths.ToList();
         await CreateSockets(pathList, backlog);
         await PruneSockets(pathList);
@@ -70,8 +70,8 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
         try
         {
             var stream = new NetworkStream(socket, false);
-            var transport = new UnixTransport(stream, -1, null);
-            await _transports.Writer.WriteAsync(transport, ct);
+            var connection = new UnixConnection(stream, -1, null);
+            await _connections.Writer.WriteAsync(connection, ct);
         }
         catch (OperationCanceledException)
         {
@@ -102,10 +102,10 @@ public class UnixSocketAcceptor : IAcceptor, IAsyncConfigurable<UnixTransportCon
             socket.Bind(endPoint);
             socket.Listen(backlog);
 
-            var acceptorSocket = new UnixSocketAcceptorSocket(socket, path);
+            var transportSocket = new UnixSocketTransportSocket(socket, path);
 
-            _sockets[path] = acceptorSocket;
-            _ = AcceptLoop(socket, acceptorSocket.CancellationToken);
+            _sockets[path] = transportSocket;
+            _ = AcceptLoop(socket, transportSocket.CancellationToken);
         }
 
         return Task.CompletedTask;

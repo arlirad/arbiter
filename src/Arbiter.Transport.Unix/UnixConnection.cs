@@ -6,7 +6,7 @@ using Arbiter.Core.Enums;
 
 namespace Arbiter.Transport.Unix;
 
-public sealed class UnixTransport(Stream stream, int port, IPAddress? remoteAddress) : ITransport
+public sealed class UnixConnection(Stream stream, int port, IPAddress? remoteAddress) : IConnection
 {
     public Protocol Protocol => Protocol.Http11;
     public bool IsSecure => false;
@@ -19,8 +19,8 @@ public sealed class UnixTransport(Stream stream, int port, IPAddress? remoteAddr
         yield return new TransportStream(stream, 0);
     }
 
-    public Task<ITransport> UpgradeAsync(Protocol targetProtocol)
-        => throw new NotSupportedException($"Cannot upgrade Unix transport to {targetProtocol}");
+    public Task<IConnection> UpgradeAsync(Protocol targetProtocol)
+        => throw new NotSupportedException($"Cannot upgrade Unix connection to {targetProtocol}");
 
     public async ValueTask DisposeAsync() => await stream.DisposeAsync();
 }

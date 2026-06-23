@@ -18,7 +18,7 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
         Headers = new ReadOnlyHeaders([]),
     }));
 
-    private UnixSocketAcceptor? _acceptor;
+    private UnixSocketTransport? _transport;
     private HttpClient? _client;
     private Task _serverLoop = null!;
     public string SocketPath
@@ -34,11 +34,11 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
 
         _client?.Dispose();
 
-        if (_acceptor is not null)
+        if (_transport is not null)
         {
-            if (_acceptor.GetType()
+            if (_transport.GetType()
                     .GetField("_sockets", BindingFlags.NonPublic | BindingFlags.Instance)?
-                    .GetValue(_acceptor) is not IDictionary<string, object> sockets)
+                    .GetValue(_transport) is not IDictionary<string, object> sockets)
                 return;
 
             foreach (var socketObj in sockets.Values)
@@ -69,8 +69,8 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
 
     private async Task InitializeAsync()
     {
-        _acceptor = new UnixSocketAcceptor();
-        await _acceptor.Bind([SocketPath], 128);
+        _transport = new UnixSocketTransport();
+        await _transport.Bind([SocketPath], 128);
 
         await Task.Yield();
 
@@ -96,8 +96,8 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
                 {
                     try
                     {
-                        var transport = await _acceptor.Accept(ct);
-                        _ = HandleConnection(transport, ct);
+                        var connection = await _transport.Accept(ct);
+                        _ = HandleConnection(connection, ct);
                     }
                     catch (OperationCanceledException)
                     {
@@ -114,11 +114,11 @@ public class UnixSocketFixture(string socketPath, Func<RequestDto, Task<Response
         });
     }
 
-    private async Task HandleConnection(ITransport transport, CancellationToken ct)
+    private async Task HandleConnection(IConnection connection, CancellationToken ct)
     {
         await using var protocol = new Http11Protocol(new TransactionIdProvider());
 
-        await foreach (var transaction in protocol.AcceptTransactions(transport, ct))
+        await foreach (var transaction in protocol.AcceptTransactions(connection, ct))
         {
             _ = HandleTransaction(transaction);
         }

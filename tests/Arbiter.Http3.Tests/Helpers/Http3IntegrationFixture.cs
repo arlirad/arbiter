@@ -5,6 +5,7 @@ using System.Runtime.Versioning;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
+using Arbiter.Application.Interfaces;
 using Arbiter.Infrastructure.Middleware;
 using Arbiter.Protocol.Http3;
 using Arbiter.Protocol.Http3.Streams;
@@ -19,7 +20,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly Channel<Http3RequestStream> _requestChannel = Channel.CreateBounded<Http3RequestStream>(new BoundedChannelOptions(256));
-    private QuicConnection? _clientConnection;
+    private System.Net.Quic.QuicConnection? _clientConnection;
     private QuicListener? _listener;
     private Http3Protocol? _serverProtocol;
 
@@ -29,7 +30,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         private set;
     }
     public Http3Protocol ServerProtocol => _serverProtocol!;
-    public QuicConnection ClientConnection => _clientConnection!;
+    public System.Net.Quic.QuicConnection ClientConnection => _clientConnection!;
 
     public async ValueTask DisposeAsync()
     {
@@ -91,17 +92,17 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
             },
         };
 
-        _clientConnection = await QuicConnection.ConnectAsync(clientOptions);
+        _clientConnection = await System.Net.Quic.QuicConnection.ConnectAsync(clientOptions);
         var serverQuicConnection = await _listener.AcceptConnectionAsync(CancellationToken.None);
 
-        var serverTransport = new QuicTransport(serverQuicConnection, Port, null);
+        var serverTransport = new Arbiter.Transport.Quic.QuicConnection(serverQuicConnection, Port, null);
         _serverProtocol = new Http3Protocol(new TransactionIdProvider());
 
         _ = ServeRequests(serverTransport);
     }
 
     private ValueTask<QuicServerConnectionOptions> ConnectionOptionsCallback(
-        QuicConnection connection,
+        System.Net.Quic.QuicConnection connection,
         SslClientHelloInfo clientHello,
         CancellationToken ct)
     {
@@ -121,7 +122,7 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
         return ValueTask.FromResult(options);
     }
 
-    private async Task ServeRequests(QuicTransport serverTransport)
+    private async Task ServeRequests(IConnection serverTransport)
     {
         var ct = _cts.Token;
 

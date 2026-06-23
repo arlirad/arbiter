@@ -20,13 +20,13 @@ public class Http3Protocol(TransactionIdProvider transactionIdProvider) : IProto
         ?? throw new InvalidOperationException("Protocol not started");
 
     public async IAsyncEnumerable<ITransaction> AcceptTransactions(
-        ITransport transport,
+        IConnection connection,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        if (transport is not QuicTransport quicTransport)
-            throw new InvalidOperationException("Http3Protocol requires QuicTransport");
+        if (connection is not Arbiter.Transport.Quic.QuicConnection quicConnection)
+            throw new InvalidOperationException("Http3Protocol requires QuicConnection");
 
-        _connection = new Http3Connection(quicTransport.Connection);
+        _connection = new Http3Connection(quicConnection.InnerConnection);
 
         try
         {
@@ -41,7 +41,7 @@ public class Http3Protocol(TransactionIdProvider transactionIdProvider) : IProto
             yield break;
         }
 
-        await foreach (var transportStream in transport.GetStreams(ct))
+        await foreach (var transportStream in connection.GetStreams(ct))
         {
             var quicStream = (QuicStream)transportStream.Stream;
 
@@ -50,7 +50,7 @@ public class Http3Protocol(TransactionIdProvider transactionIdProvider) : IProto
             if (requestStream is null)
                 continue;
 
-            yield return new Http3Transaction(transactionIdProvider, requestStream, quicTransport.Port, quicTransport.RemoteAddress);
+            yield return new Http3Transaction(transactionIdProvider, requestStream, quicConnection.Port, quicConnection.RemoteAddress);
         }
     }
 

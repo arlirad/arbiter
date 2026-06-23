@@ -6,7 +6,7 @@ namespace Arbiter.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-internal class QuicAcceptorListener(QuicListener listener)
+internal class QuicTransportListener(QuicListener listener)
 {
     private CancellationTokenSource _cts = new();
     public CancellationToken CancellationToken => _cts.Token;

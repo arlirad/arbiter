@@ -316,23 +316,23 @@ public class UnixSocketIntegrationTests
     }
 }
 
-public class UnixSocketAcceptorTests
+public class UnixSocketTransportTests
 {
     [Test]
     public async Task Bind_creates_socket_file()
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"arbiter_test_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor();
+        var transport = new UnixSocketTransport();
 
         try
         {
-            await acceptor.Bind([tempPath], 128);
+            await transport.Bind([tempPath], 128);
 
             Assert.That(File.Exists(tempPath), Is.True);
         }
         finally
         {
-            await CleanupAcceptor(acceptor, tempPath);
+            await CleanupTransport(transport, tempPath);
         }
     }
 
@@ -340,18 +340,18 @@ public class UnixSocketAcceptorTests
     public async Task Bind_idempotent()
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"arbiter_test_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor();
+        var transport = new UnixSocketTransport();
 
         try
         {
-            await acceptor.Bind([tempPath], 128);
-            await acceptor.Bind([tempPath], 128);
+            await transport.Bind([tempPath], 128);
+            await transport.Bind([tempPath], 128);
 
             Assert.That(File.Exists(tempPath), Is.True);
         }
         finally
         {
-            await CleanupAcceptor(acceptor, tempPath);
+            await CleanupTransport(transport, tempPath);
         }
     }
 
@@ -360,11 +360,11 @@ public class UnixSocketAcceptorTests
     {
         var pathA = Path.Combine(Path.GetTempPath(), $"arbiter_test_a_{Guid.NewGuid():N}.sock");
         var pathB = Path.Combine(Path.GetTempPath(), $"arbiter_test_b_{Guid.NewGuid():N}.sock");
-        var acceptor = new UnixSocketAcceptor();
+        var transport = new UnixSocketTransport();
 
         try
         {
-            await acceptor.Bind([pathA, pathB], 128);
+            await transport.Bind([pathA, pathB], 128);
 
             using (Assert.EnterMultipleScope())
             {
@@ -372,7 +372,7 @@ public class UnixSocketAcceptorTests
                 Assert.That(File.Exists(pathB), Is.True);
             }
 
-            await acceptor.Bind([pathA], 128);
+            await transport.Bind([pathA], 128);
 
             await Task.Delay(100);
 
@@ -384,27 +384,27 @@ public class UnixSocketAcceptorTests
         }
         finally
         {
-            await CleanupAcceptor(acceptor, pathA);
-            await CleanupAcceptor(acceptor, pathB);
+            await CleanupTransport(transport, pathA);
+            await CleanupTransport(transport, pathB);
         }
     }
 
     [Test]
     public void Port_is_negative_one()
     {
-        var acceptor = new UnixSocketAcceptor();
+        var transport = new UnixSocketTransport();
 
-        var field = acceptor.GetType()
-            .GetField("_transports", BindingFlags.NonPublic | BindingFlags.Instance);
+        var field = transport.GetType()
+            .GetField("_connections", BindingFlags.NonPublic | BindingFlags.Instance);
 
         Assert.That(field, Is.Not.Null);
     }
 
-    private static async Task CleanupAcceptor(UnixSocketAcceptor acceptor, string path)
+    private static async Task CleanupTransport(UnixSocketTransport transport, string path)
     {
-        var sockets = acceptor.GetType()
+        var sockets = transport.GetType()
             .GetField("_sockets", BindingFlags.NonPublic | BindingFlags.Instance)?
-            .GetValue(acceptor) as IDictionary<string, object>;
+            .GetValue(transport) as IDictionary<string, object>;
 
         if (sockets is not null && sockets.TryGetValue(path, out var socketObj))
         {

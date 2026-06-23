@@ -7,15 +7,15 @@ namespace Arbiter.Protocol.Http11;
 public class Http11Protocol(TransactionIdProvider transactionIdProvider) : IProtocol
 {
     public async IAsyncEnumerable<ITransaction> AcceptTransactions(
-        ITransport transport,
+        IConnection connection,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        await foreach (var transportStream in transport.GetStreams(ct))
+        await foreach (var transportStream in connection.GetStreams(ct))
         {
             var stream = transportStream.Stream;
-            var isSecure = transport.IsSecure;
-            var port = transport.Port;
-            var remoteAddress = transport.RemoteAddress;
+            var isSecure = connection.IsSecure;
+            var port = connection.Port;
+            var remoteAddress = connection.RemoteAddress;
 
             while (true)
             {

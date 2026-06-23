@@ -1,42 +1,186 @@
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Security;
-using System.Runtime.CompilerServices;
-using Arbiter.Application;
+using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Channels;
 using Arbiter.Application.Interfaces;
+using Arbiter.Configuration;
 using Arbiter.Core.Enums;
+using Arbiter.Transport.Configuration;
+using Serilog;
 
 namespace Arbiter.Transport.Tcp;
 
-public sealed class TcpTransport(Stream stream, bool isSecure, int port, IPAddress? remoteAddress) : ITransport
+public class TcpTransport(ICertificateManager certificateManager) : ITransport, IAsyncConfigurable<List<IPAddress>, IpTransportConfig, HashSet<Protocol>>, IDisposable
 {
-    public Protocol Protocol
+    private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "tcp");
+    private readonly ConcurrentDictionary<IPEndPoint, TcpTransportSocket> _sockets = new();
+    private Channel<IConnection>? _connections;
+
+    public async Task<IConnection> Accept(CancellationToken ct) => await _connections!.Reader.ReadAsync(ct);
+
+    public async ValueTask ReconfigureAsync(List<IPAddress> addresses, IpTransportConfig config, HashSet<Protocol> protocols)
     {
-        get {
-            if (isSecure && stream is SslStream ssl)
+        var hasHttp11 = protocols.Contains(Protocol.Http11);
+        var hasHttp2 = protocols.Contains(Protocol.Http2);
+
+        if (!hasHttp11 && !hasHttp2)
+            return;
+
+        if (config.Ports is null || config.Ports.Count == 0)
+            Log.Warning("No ports configured");
+
+        _connections ??= Channel.CreateBounded<IConnection>(new BoundedChannelOptions(config.QueueSize));
+        await Bind(addresses, config.Ports, config.Backlog);
+    }
+
+    public void Dispose()
+    {
+        foreach (var socket in _sockets.Values)
+        {
+            socket.Stop();
+            socket.Close();
+        }
+
+        _sockets.Clear();
+    }
+
+    public async Task Bind(IEnumerable<IPAddress> addresses, IEnumerable<int> ports, int backlog)
+    {
+        _connections ??= Channel.CreateBounded<IConnection>(new BoundedChannelOptions(4096));
+        var endPoints = new List<IPEndPoint>();
+
+        foreach (var address in addresses)
+        {
+            foreach (var port in ports)
+                endPoints.Add(new IPEndPoint(address, port));
+        }
+
+        await CreateSocket(endPoints, backlog);
+        await PruneSockets(endPoints);
+    }
+
+    private async Task AcceptLoop(Socket socket, CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
             {
-                var protocol = ssl.NegotiatedApplicationProtocol;
-
-                if (protocol == SslApplicationProtocol.Http2)
-                    return Protocol.Http2;
+                var connection = await socket.AcceptAsync(ct);
+                _ = ConnectionLoop(connection, ct);
             }
-
-            return Protocol.Http11;
+        }
+        catch (OperationCanceledException)
+        {
         }
     }
 
-    public bool IsSecure => isSecure;
-    public int Port => port;
-    public IPAddress? RemoteAddress => remoteAddress;
-
-    public async IAsyncEnumerable<ITransportStream> GetStreams([EnumeratorCancellation] CancellationToken ct)
+    private async Task ConnectionLoop(Socket socket, CancellationToken ct)
     {
-        yield return new TransportStream(stream, 0);
+        try
+        {
+            Stream stream = new NetworkStream(socket);
+
+            var secure = await CheckForSsl(socket);
+            var port = (socket.LocalEndPoint as IPEndPoint)?.Port ?? 0;
+            var remoteAddress = (socket.RemoteEndPoint as IPEndPoint)?.Address;
+
+            if (secure)
+                stream = await WrapInSsl(stream);
+
+            var connection = new TcpConnection(stream, secure, port, remoteAddress);
+
+            await _connections.Writer.WriteAsync(connection, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            socket.Dispose();
+        }
+        catch (Exception)
+        {
+            socket.Dispose();
+        }
     }
 
-    public Task<ITransport> UpgradeAsync(Protocol targetProtocol)
-        => targetProtocol == Protocol.Http2
-            ? Task.FromResult<ITransport>(new Http2TransportPlaceholder(stream, IsSecure, Port, RemoteAddress))
-            : throw new NotSupportedException($"Cannot upgrade TCP transport to {targetProtocol}");
+    private static async Task<bool> CheckForSsl(Socket socket)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(1);
 
-    public async ValueTask DisposeAsync() => await stream.DisposeAsync();
+        try
+        {
+            var length = await socket.ReceiveAsync(buffer, SocketFlags.Peek);
+
+            return length != 0 && buffer[0] == 22;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private async Task<Stream> WrapInSsl(Stream stream)
+    {
+        var ssl = new SslStream(stream, false);
+
+        await ssl.AuthenticateAsServerAsync(new SslServerAuthenticationOptions {
+            ServerCertificateSelectionCallback = CertificateSelectionCallback,
+            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+            ApplicationProtocols = [SslApplicationProtocol.Http11, SslApplicationProtocol.Http2],
+        });
+
+        return ssl;
+    }
+
+    private X509Certificate2 CertificateSelectionCallback(object sender, string? hostName)
+        => hostName is null ? certificateManager.GetFallback() : certificateManager.Get(hostName) ?? certificateManager.GetFallback();
+
+    private Task CreateSocket(List<IPEndPoint> endPoints, int backlog)
+    {
+        var newEndpoints = endPoints.Where(e => !_sockets.ContainsKey(e)).ToList();
+
+        if (newEndpoints.Count > 0)
+            Log.Information("Binding {Count} endpoint(s): {Endpoints}", newEndpoints.Count, newEndpoints);
+
+        foreach (var endPoint in newEndpoints)
+        {
+            var socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+            socket.Bind(endPoint);
+            socket.Listen(backlog);
+
+            var transportSocket = new TcpTransportSocket(socket);
+
+            _sockets[endPoint] = transportSocket;
+            _ = AcceptLoop(socket, transportSocket.CancellationToken);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task PruneSockets(IEnumerable<IPEndPoint> endPoints)
+    {
+        var toRemove = _sockets.Keys
+            .Where(e => !endPoints.Any(ep => ep.Equals(e)))
+            .ToList();
+
+        if (toRemove.Count > 0)
+            Log.Information("Pruning {Count} endpoint(s): {Endpoints}", toRemove.Count, toRemove);
+
+        var cancellationTasks = new List<Task>();
+
+        foreach (var endpoint in toRemove)
+        {
+            if (_sockets.TryRemove(endpoint, out var socket))
+            {
+                cancellationTasks.Add(socket.Stop());
+                _ = Task.Run(socket.Close);
+            }
+        }
+
+        if (cancellationTasks.Count > 0)
+            await Task.WhenAll(cancellationTasks);
+    }
 }
