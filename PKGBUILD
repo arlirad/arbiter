@@ -4,10 +4,15 @@ pkgrel=2
 pkgdesc=""
 arch=('x86_64')
 license=('MIT')
-makedepends=('dotnet-sdk')
+makedepends=('dotnet-sdk' 'git')
 source=("git+https://github.com/arlirad/arbiter")
 sha256sums=('SKIP')
 options=(!strip !debug)
+
+pkgver() {
+    cd "$srcdir/arbiter"
+    git describe --tags --abbrev=0 | sed 's/^v//'
+}
 
 build() {
     cd "$srcdir/arbiter"
