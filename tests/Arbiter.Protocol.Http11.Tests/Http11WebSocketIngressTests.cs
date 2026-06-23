@@ -51,7 +51,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback);
             var request = await transaction.GetRequest();
 
             using (Assert.EnterMultipleScope())
@@ -76,7 +76,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(normalRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback);
             var request = await transaction.GetRequest();
 
             Assert.That(request!.Upgrade, Is.Null);
@@ -95,7 +95,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback);
             var request = await transaction.GetRequest();
             var upgrade = (IWebSocketUpgrade)request!.Upgrade!;
 
@@ -134,7 +134,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback);
             var request = await transaction.GetRequest();
 
             Assert.That(request!.Upgrade, Is.AssignableTo<IWebSocketUpgrade>());
@@ -176,7 +176,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback);
             var request = await transaction.GetRequest();
             var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -219,7 +219,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback);
             var request = await transaction.GetRequest();
             var relayStream = await request!.Upgrade!.AcceptAsync();
 
@@ -255,7 +255,7 @@ public class Http11WebSocketIngressTests
             await clientStream.WriteAsync(upgradeRequest, _cts.Token);
             await clientStream.FlushAsync(_cts.Token);
 
-            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback, _cts.Token);
+            var transaction = new Http11Transaction(new TransactionIdProvider(), serverStream, false, 80, IPAddress.Loopback);
             var request = await transaction.GetRequest();
             var relayStream = await request!.Upgrade!.AcceptAsync();
 

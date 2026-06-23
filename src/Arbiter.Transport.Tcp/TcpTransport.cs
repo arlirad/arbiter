@@ -34,14 +34,14 @@ public class TcpTransport(ICertificateManager certificateManager) : ITransport, 
             Log.Warning("No ports configured");
 
         _connections ??= Channel.CreateBounded<IConnection>(new BoundedChannelOptions(config.QueueSize));
-        await Bind(addresses, config.Ports, config.Backlog);
+        await Bind(addresses, config.Ports ?? [], config.Backlog);
     }
 
     public void Dispose()
     {
         foreach (var socket in _sockets.Values)
         {
-            socket.Stop();
+            _ = socket.Stop();
             socket.Close();
         }
 
@@ -93,7 +93,7 @@ public class TcpTransport(ICertificateManager certificateManager) : ITransport, 
 
             var connection = new TcpConnection(stream, secure, port, remoteAddress);
 
-            await _connections.Writer.WriteAsync(connection, ct);
+            await _connections!.Writer.WriteAsync(connection, ct);
         }
         catch (OperationCanceledException)
         {

@@ -27,6 +27,6 @@ public interface ITransaction
         get;
     }
 
-    Task<RequestDto?> GetRequest();
-    Task SetResponse(ResponseDto response);
+    Task<RequestDto?> GetRequest(CancellationToken ct = default);
+    Task SetResponse(ResponseDto response, CancellationToken ct = default);
 }

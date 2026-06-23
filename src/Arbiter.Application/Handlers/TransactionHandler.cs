@@ -12,9 +12,9 @@ internal class TransactionHandler(SiteManager siteManager, ContextMapper context
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
 
-    public async Task Handle(ITransaction transaction)
+    public async Task Handle(ITransaction transaction, CancellationToken ct = default)
     {
-        var request = await transaction.GetRequest();
+        var request = await transaction.GetRequest(ct);
 
         if (request is null)
             return;
@@ -31,7 +31,7 @@ internal class TransactionHandler(SiteManager siteManager, ContextMapper context
         await Handle(transaction, site, context, request);
 
         if (!context.IsUpgraded)
-            await SendResponse(transaction, context);
+            await SendResponse(transaction, context, ct);
     }
 
     private async Task Handle(ITransaction transaction, Site? site, Context context, RequestDto request)
@@ -57,10 +57,10 @@ internal class TransactionHandler(SiteManager siteManager, ContextMapper context
         }
     }
 
-    private static async Task SendResponse(ITransaction transaction, Context context)
+    private static async Task SendResponse(ITransaction transaction, Context context, CancellationToken ct)
     {
         var response = ContextMapper.ToDto(context);
 
-        await transaction.SetResponse(response);
+        await transaction.SetResponse(response, ct);
     }
 }

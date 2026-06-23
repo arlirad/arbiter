@@ -69,7 +69,7 @@ public class BackToBackEncoderDecoderTests
     public async Task FieldSection_WriteFieldSection_StaticAndLiteral_RoundTrip()
     {
         var (_, _, encoder, decoder) = await MakePair();
-        encoder.Initialize(4096, 0);
+        _ = encoder.Initialize(4096, 0);
 
         var sectionStream = new MemoryStream();
 
@@ -142,7 +142,7 @@ public class BackToBackEncoderDecoderTests
     public async Task WriteFieldSection_WithHuffman_RoundTrip()
     {
         var (_, _, encoder, decoder) = await MakePair();
-        encoder.Initialize(4096, 0);
+        _ = encoder.Initialize(4096, 0);
 
         var sectionStream = new MemoryStream();
 

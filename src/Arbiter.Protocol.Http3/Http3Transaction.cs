@@ -26,11 +26,11 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
 
-    public async Task<RequestDto?> GetRequest()
+    public async Task<RequestDto?> GetRequest(CancellationToken ct = default)
     {
         try
         {
-            return await GetRequestCore();
+            return await GetRequestCore(ct);
         }
         catch (QuicException)
         {
@@ -42,37 +42,37 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         }
     }
 
-    public async Task SetResponse(ResponseDto response)
+    public async Task SetResponse(ResponseDto response, CancellationToken ct = default)
     {
         try
         {
-            await WriteStatusAndHeaders((int)response.Status, response.Headers);
+            await WriteStatusAndHeaders((int)response.Status, response.Headers, ct);
         }
         catch (QuicException)
         {
-            await AbortCleanup(response);
+            await AbortCleanup(response, ct);
 
             return;
         }
         catch (IOException)
         {
-            await AbortCleanup(response);
+            await AbortCleanup(response, ct);
 
             return;
         }
 
-        await Finish(response);
+        await Finish(response, ct);
     }
 
     public Http3RequestStream GetRequestStream() => requestStream;
 
-    private async Task<RequestDto?> GetRequestCore()
+    private async Task<RequestDto?> GetRequestCore(CancellationToken ct)
     {
         var headers = new Headers();
 
         string? method = null, scheme = null, authority = null, path = null, protocol = null;
 
-        foreach (var header in await requestStream.ReadHeaders())
+        foreach (var header in await requestStream.ReadHeaders(ct))
         {
             switch (header.Key)
             {
@@ -105,7 +105,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
         if (method is null || scheme is null || authority is null || path is null)
         {
-            await EarlyAbort(Status.BadRequest);
+            await EarlyAbort(Status.BadRequest, ct);
 
             return null;
         }
@@ -114,12 +114,12 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         {
             if (string.IsNullOrEmpty(protocol) || !string.Equals(protocol, "websocket", StringComparison.OrdinalIgnoreCase))
             {
-                await EarlyAbort(Status.NotImplemented);
+                await EarlyAbort(Status.NotImplemented, ct);
 
                 return null;
             }
 
-            var parsedAuthority = await ParseAuthority(authority, port);
+            var parsedAuthority = await ParseAuthority(authority, port, ct);
 
             if (parsedAuthority is null)
                 return null;
@@ -148,7 +148,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
                 if (closeBracket < 0)
                 {
-                    await EarlyAbort(Status.BadRequest);
+                    await EarlyAbort(Status.BadRequest, ct);
 
                     return null;
                 }
@@ -161,7 +161,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
                     if (!int.TryParse(portStr, out var authorityPort) || authorityPort != port)
                     {
-                        await EarlyAbort(Status.MisdirectedRequest);
+                        await EarlyAbort(Status.MisdirectedRequest, ct);
 
                         return null;
                     }
@@ -175,14 +175,14 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
                 if (parts.Length > 2)
                 {
-                    await EarlyAbort(Status.BadRequest);
+                    await EarlyAbort(Status.BadRequest, ct);
 
                     return null;
                 }
 
                 if (!int.TryParse(parts[1], out var authorityPort) || authorityPort != port)
                 {
-                    await EarlyAbort(Status.MisdirectedRequest);
+                    await EarlyAbort(Status.MisdirectedRequest, ct);
 
                     return null;
                 }
@@ -195,7 +195,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
         if (!mappedEnum.HasValue)
         {
-            await EarlyAbort(Status.BadRequest);
+            await EarlyAbort(Status.BadRequest, ct);
 
             return null;
         }
@@ -208,26 +208,26 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
             Authority = authority,
             Path = path,
             Headers = new ReadOnlyHeaders(headers),
-            Stream = await requestStream.ReadFrame(CancellationToken.None) ? requestStream : null,
+            Stream = await requestStream.ReadFrame(ct) ? requestStream : null,
             IsSecure = true,
             RemoteAddress = remoteAddress,
         };
     }
 
-    private async Task EarlyAbort(Status status)
+    private async Task EarlyAbort(Status status, CancellationToken ct)
     {
         try
         {
-            await WriteStatusAndHeaders(StatusCodeMapper.ToCode(status));
-            await requestStream.FinishAsync();
+            await WriteStatusAndHeaders(StatusCodeMapper.ToCode(status), null, ct);
+            await requestStream.FinishAsync(ct);
         }
         finally
         {
-            await requestStream.RetireAsync();
+            await requestStream.RetireAsync(ct);
         }
     }
 
-    private async Task WriteStatusAndHeaders(int status, ReadOnlyHeaders? responseHeaders = null)
+    private async Task WriteStatusAndHeaders(int status, ReadOnlyHeaders? responseHeaders = null, CancellationToken ct = default)
     {
         var headers = new Dictionary<string, List<string>> {
             [":status"] = [status.ToString()],
@@ -236,21 +236,21 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         if (responseHeaders is not null)
             headers = headers.Concat(responseHeaders);
 
-        await requestStream.WriteHeaders(headers);
+        await requestStream.WriteHeaders(headers, ct);
     }
 
-    private async Task Finish(ResponseDto response)
+    private async Task Finish(ResponseDto response, CancellationToken ct)
     {
         try
         {
             if (response.Stream is not null && !response.Status.IsBodyForbidden())
             {
                 if (response.Stream.CanSeek)
-                    await requestStream.CopyFromInSingleFrame(response.Stream);
+                    await requestStream.CopyFromInSingleFrame(response.Stream, ct);
                 else
-                    await response.Stream.CopyToAsync(requestStream);
+                    await response.Stream.CopyToAsync(requestStream, ct);
 
-                await response.Stream.FlushAsync();
+                await response.Stream.FlushAsync(ct);
             }
         }
         catch (QuicException)
@@ -267,7 +267,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
         try
         {
-            await requestStream.FinishAsync();
+            await requestStream.FinishAsync(ct);
         }
         catch (QuicException)
         {
@@ -278,7 +278,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
         try
         {
-            await requestStream.RetireAsync();
+            await requestStream.RetireAsync(ct);
         }
         catch (QuicException)
         {
@@ -288,14 +288,14 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         }
     }
 
-    private async Task AbortCleanup(ResponseDto response)
+    private async Task AbortCleanup(ResponseDto response, CancellationToken ct)
     {
         if (response.Stream is not null)
             await response.Stream.DisposeAsync();
 
         try
         {
-            await requestStream.FinishAsync();
+            await requestStream.FinishAsync(ct);
         }
         catch (QuicException)
         {
@@ -306,7 +306,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
         try
         {
-            await requestStream.RetireAsync();
+            await requestStream.RetireAsync(ct);
         }
         catch (QuicException)
         {
@@ -316,7 +316,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         }
     }
 
-    private async Task<string?> ParseAuthority(string authority, int expectedPort)
+    private async Task<string?> ParseAuthority(string authority, int expectedPort, CancellationToken ct)
     {
         if (!authority.Contains(':'))
             return authority;
@@ -329,7 +329,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
             if (closeBracket < 0)
             {
-                await EarlyAbort(Status.BadRequest);
+                await EarlyAbort(Status.BadRequest, ct);
 
                 return null;
             }
@@ -344,7 +344,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
             if (int.TryParse(portStr, out var authorityPort) && authorityPort == expectedPort)
                 return authority[1..closeBracket];
 
-            await EarlyAbort(Status.MisdirectedRequest);
+            await EarlyAbort(Status.MisdirectedRequest, ct);
 
             return null;
         }
@@ -353,7 +353,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
 
         if (parts.Length > 2)
         {
-            await EarlyAbort(Status.BadRequest);
+            await EarlyAbort(Status.BadRequest, ct);
 
             return null;
         }
@@ -361,7 +361,7 @@ public class Http3Transaction(TransactionIdProvider transactionIdProvider, Http3
         if (int.TryParse(parts[1], out var authPort) && authPort == expectedPort)
             return parts[0];
 
-        await EarlyAbort(Status.MisdirectedRequest);
+        await EarlyAbort(Status.MisdirectedRequest, ct);
 
         return null;
     }

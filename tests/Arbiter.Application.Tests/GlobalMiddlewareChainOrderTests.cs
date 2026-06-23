@@ -48,7 +48,7 @@ public class GlobalMiddlewareChainOrderTests
         public bool IsSecure => false;
         public int Port => 80;
         public IPAddress? RemoteAddress => null;
-        public Task<RequestDto?> GetRequest() => Task.FromResult<RequestDto?>(null);
-        public Task SetResponse(ResponseDto response) => Task.CompletedTask;
+        public Task<RequestDto?> GetRequest(CancellationToken ct = default) => Task.FromResult<RequestDto?>(null);
+        public Task SetResponse(ResponseDto response, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

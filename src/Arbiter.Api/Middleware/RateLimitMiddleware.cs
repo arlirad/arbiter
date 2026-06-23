@@ -26,7 +26,7 @@ public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int
         {
             _ignoredAddresses = [
                 .. ignored.Select(a => IPAddress.TryParse(a, out var ip) ? ip : null)
-                    .Where(ip => ip is not null)!,
+                    .OfType<IPAddress>(),
             ];
         }
 

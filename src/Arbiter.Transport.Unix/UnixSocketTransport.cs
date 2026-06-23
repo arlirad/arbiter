@@ -24,14 +24,14 @@ public class UnixSocketTransport : ITransport, IAsyncConfigurable<UnixTransportC
         if (config.Paths is null || config.Paths.Count == 0)
             Log.Warning("No paths configured");
 
-        await Bind(config.Paths, config.Backlog);
+        await Bind(config.Paths ?? [], config.Backlog);
     }
 
     public void Dispose()
     {
         foreach (var socket in _sockets.Values)
         {
-            socket.Stop();
+            _ = socket.Stop();
             socket.Close();
         }
 
@@ -71,7 +71,7 @@ public class UnixSocketTransport : ITransport, IAsyncConfigurable<UnixTransportC
         {
             var stream = new NetworkStream(socket, false);
             var connection = new UnixConnection(stream, -1, null);
-            await _connections.Writer.WriteAsync(connection, ct);
+            await _connections!.Writer.WriteAsync(connection, ct);
         }
         catch (OperationCanceledException)
         {

@@ -7,7 +7,7 @@ public static class HeadersFinder
 {
     private static readonly byte[] Pattern = "\r\n\r\n"u8.ToArray();
 
-    public static async Task<(Stream? headers, Stream? remainder)> GetHeadersClampedStream(Stream inner)
+    public static async Task<(Stream? headers, Stream? remainder)> GetHeadersClampedStream(Stream inner, CancellationToken ct = default)
     {
         var buffer = ArrayPool<byte>.Shared.Rent(16368);
 
@@ -17,7 +17,7 @@ public static class HeadersFinder
 
             while (true)
             {
-                var length = await inner.ReadAsync(buffer.AsMemory(offset));
+                var length = await inner.ReadAsync(buffer.AsMemory(offset), ct);
 
                 if (length == 0)
                     break;
@@ -57,13 +57,13 @@ public static class HeadersFinder
         }
     }
 
-    public static async Task<Headers?> ParseHeaders(StreamReader reader)
+    public static async Task<Headers?> ParseHeaders(StreamReader reader, CancellationToken ct = default)
     {
         var headers = new Headers();
 
         while (true)
         {
-            var line = await reader.ReadLineAsync();
+            var line = await reader.ReadLineAsync(ct);
 
             if (line is null)
                 return null;

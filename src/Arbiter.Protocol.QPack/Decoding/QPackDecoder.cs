@@ -288,7 +288,7 @@ public class QPackDecoder
                 if (referredField is null)
                     throw new InvalidOperationException("QPACK_ENCODER_STREAM_ERROR: invalid table reference");
 
-                Insert(referredField.Name, referredField.Value, ct);
+                Insert(referredField.Name, referredField.Value!, ct);
             }
             else
             {

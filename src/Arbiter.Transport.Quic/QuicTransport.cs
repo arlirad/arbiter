@@ -37,7 +37,7 @@ public class QuicTransport(ICertificateManager certificateManager, AltSvcService
 
         if (config.Announce is not null)
         {
-            var port = config.Ports.OrderBy(p => p).FirstOrDefault();
+            var port = (config.Ports ?? []).OrderBy(p => p).FirstOrDefault();
             if (port != 0)
                 altSvcService.Set("h3", $":{port}", config.Announce.MaxAge);
         }
@@ -50,7 +50,7 @@ public class QuicTransport(ICertificateManager certificateManager, AltSvcService
 
         foreach (var address in addresses)
         {
-            foreach (var port in config.Ports)
+            foreach (var port in config.Ports ?? [])
                 endpoints.Add(new IPEndPoint(address, port));
         }
 
@@ -61,8 +61,8 @@ public class QuicTransport(ICertificateManager certificateManager, AltSvcService
     {
         foreach (var listener in _listeners.Values)
         {
-            listener.Stop();
-            listener.Close();
+            _ = listener.Stop();
+            _ = listener.Close();
         }
 
         _listeners.Clear();
@@ -105,7 +105,7 @@ public class QuicTransport(ICertificateManager certificateManager, AltSvcService
 
             var connection = new QuicConnection(quicConnection, port, remoteAddress);
 
-            await _connections.Writer.WriteAsync(connection, ct);
+            await _connections!.Writer.WriteAsync(connection, ct);
         }
         catch (OperationCanceledException)
         {

@@ -29,7 +29,7 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
 
         _defaultFiles = typedConfig?.DefaultFiles ?? [];
         _mimeTypes = typedConfig?.Mime ?? [];
-        _root = typedConfig.Root;
+        _root = typedConfig!.Root;
         _fallthrough = typedConfig?.Fallthrough ?? false;
 
         return Task.CompletedTask;

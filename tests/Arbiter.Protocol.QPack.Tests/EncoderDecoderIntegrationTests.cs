@@ -36,7 +36,7 @@ public class EncoderDecoderIntegrationTests
         encoder.SetIncomingStream(decToEnc);
 
         decoder.MaxTableCapacity = tableCapacity;
-        encoder.Initialize(tableCapacity, blockedStreams);
+        _ = encoder.Initialize(tableCapacity, blockedStreams);
 
         return (encToDec, decToEnc, encoder, decoder);
     }
@@ -141,7 +141,7 @@ public class EncoderDecoderIntegrationTests
         await encoder.Start();
 
         encoder.SetOutgoingStream(encToDec);
-        encoder.Initialize(220, 0);
+        _ = encoder.Initialize(220, 0);
 
         var buffer = new byte[16];
         await encToDec.ReadExactlyAsync(new Memory<byte>(buffer, 0, 3), CancellationToken.None);

@@ -19,7 +19,7 @@ public class Http11Protocol(TransactionIdProvider transactionIdProvider) : IProt
 
             while (true)
             {
-                var transaction = new Http11Transaction(transactionIdProvider, stream, isSecure, port, remoteAddress, ct);
+                var transaction = new Http11Transaction(transactionIdProvider, stream, isSecure, port, remoteAddress);
 
                 yield return transaction;
 

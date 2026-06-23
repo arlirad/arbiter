@@ -194,7 +194,7 @@ public class QPackEncoder
     private async Task SendInsertWithLiteralName(byte[] nameBytes, byte[] valueBytes, CancellationToken ct)
     {
         await _encoderOutgoingWriter!.WritePrefixedIntAsync(nameBytes.Length, 5, 0b0100_0000, ct);
-        await _encoderOutgoing.WriteAsync(nameBytes, ct);
+        await _encoderOutgoing!.WriteAsync(nameBytes, ct);
         await WriteStringValue(valueBytes, ct);
     }
 
@@ -208,7 +208,7 @@ public class QPackEncoder
         var huffmanBit = (byte)(useHuffman ? 0b1000_0000 : 0);
 
         await _encoderOutgoingWriter!.WritePrefixedIntAsync(valueToWrite.Length, 7, huffmanBit, ct);
-        await _encoderOutgoing.WriteAsync(valueToWrite, ct);
+        await _encoderOutgoing!.WriteAsync(valueToWrite, ct);
     }
 
     public async Task<long> InsertEntry(string name, string value, CancellationToken ct)

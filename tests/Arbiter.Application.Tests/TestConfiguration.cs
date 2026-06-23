@@ -15,10 +15,10 @@ public class TestConfiguration : IConfiguration
             _data[kvp.Key] = kvp.Value;
     }
 
-    public string this[string key]
+    public string? this[string key]
     {
         get => _data.TryGetValue(key, out var v) ? v ?? "" : "";
-        set => _data[key] = value;
+        set => _data[key] = value ?? "";
     }
 
     public IConfigurationSection GetSection(string key) => new TestSection(this, key);
@@ -43,10 +43,10 @@ public class TestConfiguration : IConfiguration
 
         public string Path => key;
 
-        public string this[string key1]
+        public string? this[string key1]
         {
             get => root[key + ":" + key1];
-            set => root[key + ":" + key1] = value;
+            set => root[key + ":" + key1] = value ?? "";
         }
 
         public IConfigurationSection GetSection(string key1) => new TestSection(root, key + ":" + key1);

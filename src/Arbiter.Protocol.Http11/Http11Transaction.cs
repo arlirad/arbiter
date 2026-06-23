@@ -11,7 +11,7 @@ using IPAddress = System.Net.IPAddress;
 
 namespace Arbiter.Protocol.Http11;
 
-public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stream stream, bool isSecure, int port, IPAddress? remoteAddress, CancellationToken ct)
+public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stream stream, bool isSecure, int port, IPAddress? remoteAddress)
     : ITransaction
 {
     private const string NewLine = "\r\n";
@@ -61,11 +61,11 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
     public int Port => port;
     public IPAddress? RemoteAddress => remoteAddress;
 
-    public async Task<RequestDto?> GetRequest()
+    public async Task<RequestDto?> GetRequest(CancellationToken ct = default)
     {
         try
         {
-            return await GetRequestCore();
+            return await GetRequestCore(ct);
         }
         catch (IOException)
         {
@@ -73,7 +73,7 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
         }
     }
 
-    public async Task SetResponse(ResponseDto response)
+    public async Task SetResponse(ResponseDto response, CancellationToken ct = default)
     {
         try
         {
@@ -90,7 +90,8 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
                 var statusPhrase = StatusCodeMapper.ToReasonPhrase(response.Status);
                 var responseLine = $"{version} {statusCode} {statusPhrase}";
 
-                await writer.WriteLineAsync(responseLine);
+                await writer.WriteAsync(responseLine.AsMemory(), ct);
+                await writer.WriteAsync(NewLine.AsMemory(), ct);
 
                 foreach (var header in response.Headers)
                 {
@@ -101,7 +102,10 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
                     }
 
                     foreach (var instance in header.Value)
-                        await writer.WriteLineAsync($"{header.Key}: {instance}");
+                    {
+                        await writer.WriteAsync($"{header.Key}: {instance}".AsMemory(), ct);
+                        await writer.WriteAsync(NewLine.AsMemory(), ct);
+                    }
                 }
 
                 if (!response.Status.IsBodyForbidden()
@@ -111,20 +115,23 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
 
                     if (_responseStream.CanSeek || _responseStream is ClampedStream)
                     {
-                        await writer.WriteLineAsync($"Content-Length: {_responseStream.Length}");
+                        await writer.WriteAsync($"Content-Length: {_responseStream.Length}".AsMemory(), ct);
+                        await writer.WriteAsync(NewLine.AsMemory(), ct);
                     }
                     else
                     {
-                        await writer.WriteLineAsync($"Transfer-Encoding: {ChunkedEncoding}");
+                        await writer.WriteAsync($"Transfer-Encoding: {ChunkedEncoding}".AsMemory(), ct);
+                        await writer.WriteAsync(NewLine.AsMemory(), ct);
                         _chunked = true;
                     }
                 }
                 else if (ShouldSendZeroContentLength(response.Status))
                 {
-                    await writer.WriteLineAsync("Content-Length: 0");
+                    await writer.WriteAsync("Content-Length: 0".AsMemory(), ct);
+                    await writer.WriteAsync(NewLine.AsMemory(), ct);
                 }
 
-                await writer.WriteLineAsync();
+                await writer.WriteAsync(NewLine.AsMemory(), ct);
             }
             catch (IOException)
             {
@@ -155,19 +162,19 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
             return;
         }
 
-        _ = Finish();
+        _ = Finish(ct);
     }
 
-    private async Task<RequestDto?> GetRequestCore()
+    private async Task<RequestDto?> GetRequestCore(CancellationToken ct)
     {
-        var (headerStream, remainder) = await HeadersFinder.GetHeadersClampedStream(stream);
+        var (headerStream, remainder) = await HeadersFinder.GetHeadersClampedStream(stream, ct);
 
         if (headerStream is null)
             return null;
 
         var reader = new StreamReader(headerStream);
 
-        var requestLine = await reader.ReadLineAsync();
+        var requestLine = await reader.ReadLineAsync(ct);
 
         if (requestLine is null)
             return null;
@@ -184,7 +191,7 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
         if (!method.HasValue || !version.HasValue)
             return null;
 
-        var headers = await HeadersFinder.ParseHeaders(reader);
+        var headers = await HeadersFinder.ParseHeaders(reader, ct);
 
         if (headers is null)
             return null;
@@ -259,7 +266,7 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
         };
     }
 
-    private async Task Finish()
+    private async Task Finish(CancellationToken ct)
     {
         try
         {
@@ -268,14 +275,14 @@ public class Http11Transaction(TransactionIdProvider transactionIdProvider, Stre
                 if (_chunked)
                 {
                     await using var wrapped = new HttpChunkedStream(stream);
-                    await _responseStream.CopyToAsync(wrapped);
+                    await _responseStream.CopyToAsync(wrapped, ct);
                 }
                 else
                 {
-                    await _responseStream.CopyToAsync(stream);
+                    await _responseStream.CopyToAsync(stream, ct);
                 }
 
-                await stream.FlushAsync();
+                await stream.FlushAsync(ct);
             }
         }
         catch (IOException)

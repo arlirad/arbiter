@@ -13,7 +13,7 @@ public class RouteTests
     [Test]
     public void Match_ExactRoute_ReturnsParameters()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users");
+        var result = _routeTable!.Match(Method.Get, "/api/users");
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Value.Route.Method, Is.EqualTo(Method.Get));
@@ -22,7 +22,7 @@ public class RouteTests
     [Test]
     public void Match_RouteWithSingleParameter_ReturnsParameters()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/123");
+        var result = _routeTable!.Match(Method.Get, "/api/users/123");
 
         Assert.That(result, Is.Not.Null);
 
@@ -36,7 +36,7 @@ public class RouteTests
     [Test]
     public void Match_RouteWithMultipleParameters_ReturnsParameters()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/123/items/456");
+        var result = _routeTable!.Match(Method.Get, "/api/users/123/items/456");
 
         Assert.That(result, Is.Not.Null);
 
@@ -50,7 +50,7 @@ public class RouteTests
     [Test]
     public void Match_StaticSegment_ReturnsNullForWrongPath()
     {
-        var result = _routeTable.Match(Method.Get, "/api/products");
+        var result = _routeTable!.Match(Method.Get, "/api/products");
 
         Assert.That(result, Is.Null);
     }
@@ -58,7 +58,7 @@ public class RouteTests
     [Test]
     public void Match_WrongMethod_ReturnsNull()
     {
-        var result = _routeTable.Match(Method.Post, "/api/users/123");
+        var result = _routeTable!.Match(Method.Post, "/api/users/123");
 
         Assert.That(result, Is.Null);
     }
@@ -66,7 +66,7 @@ public class RouteTests
     [Test]
     public void Match_OptionalParameter_WithoutParameter_ReturnsNullParameter()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/optional");
+        var result = _routeTable!.Match(Method.Get, "/api/users/optional");
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Value.Parameters.ContainsKey("id"), Is.False);
@@ -75,7 +75,7 @@ public class RouteTests
     [Test]
     public void Match_OptionalParameter_WithParameter_ReturnsParameterValue()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/optional/123");
+        var result = _routeTable!.Match(Method.Get, "/api/users/optional/123");
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Value.Parameters["id"], Is.EqualTo("123"));
@@ -84,7 +84,7 @@ public class RouteTests
     [Test]
     public void Match_CatchAllParameter_ReturnsRemainingPath()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/files/docs/2024/readme.txt");
+        var result = _routeTable!.Match(Method.Get, "/api/users/files/docs/2024/readme.txt");
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Value.Parameters["path"], Is.EqualTo("docs/2024/readme.txt"));
@@ -93,7 +93,7 @@ public class RouteTests
     [Test]
     public void Match_CatchAllParameter_SingleSegment_ReturnsSegment()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/files/readme.txt");
+        var result = _routeTable!.Match(Method.Get, "/api/users/files/readme.txt");
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Value.Parameters["path"], Is.EqualTo("readme.txt"));
@@ -102,7 +102,7 @@ public class RouteTests
     [Test]
     public void Match_RouteWithIntConstraint_ValidInt_ReturnsParameters()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/123");
+        var result = _routeTable!.Match(Method.Get, "/api/users/123");
 
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Value.Parameters["id"], Is.EqualTo("123"));
@@ -111,7 +111,7 @@ public class RouteTests
     [Test]
     public void Match_RouteWithIntConstraint_InvalidInt_ReturnsNull()
     {
-        var result = _routeTable.Match(Method.Get, "/api/users/abc");
+        var result = _routeTable!.Match(Method.Get, "/api/users/abc");
 
         Assert.That(result, Is.Null);
     }

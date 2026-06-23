@@ -90,7 +90,7 @@ internal class Server(
         {
             await using var protocol = protocolFactory.Create(connection.Protocol);
             await foreach (var transaction in protocol.AcceptTransactions(connection, ct))
-                _ = HandleWithLogging(transaction);
+                _ = HandleWithLogging(transaction, ct);
         }
         catch (OperationCanceledException)
         {
@@ -101,11 +101,11 @@ internal class Server(
         }
     }
 
-    private async Task HandleWithLogging(ITransaction transaction)
+    private async Task HandleWithLogging(ITransaction transaction, CancellationToken ct)
     {
         try
         {
-            await handler.Handle(transaction);
+            await handler.Handle(transaction, ct);
         }
         catch (Exception e)
         {

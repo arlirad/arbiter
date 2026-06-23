@@ -138,13 +138,13 @@ internal sealed class Api(
         return (resolvedMiddlewares, apiMiddleware);
     }
 
-    private async Task HandleTransaction(ITransaction transaction, CancellationToken _)
+    private async Task HandleTransaction(ITransaction transaction, CancellationToken ct)
     {
         Context? context = null;
 
         try
         {
-            var request = await transaction.GetRequest();
+            var request = await transaction.GetRequest(ct);
 
             if (request is null)
                 return;
@@ -165,7 +165,7 @@ internal sealed class Api(
 
             await _site!.HandleDelegate(context);
 
-            await SendResponse(transaction, context);
+            await SendResponse(transaction, context, ct);
         }
         catch (Exception ex)
         {
@@ -176,7 +176,7 @@ internal sealed class Api(
                 if (context is not null)
                 {
                     await context.Response.Set(Status.InternalServerError);
-                    await SendResponse(transaction, context);
+                    await SendResponse(transaction, context, ct);
                 }
             }
             catch
@@ -185,7 +185,7 @@ internal sealed class Api(
         }
     }
 
-    private static async Task SendResponse(ITransaction transaction, Context context)
+    private static async Task SendResponse(ITransaction transaction, Context context, CancellationToken ct)
     {
         var response = new ResponseDto {
             Status = context.Response.Status ?? Status.Ok,
@@ -193,7 +193,7 @@ internal sealed class Api(
             Stream = context.Response.Stream,
         };
 
-        await transaction.SetResponse(response);
+        await transaction.SetResponse(response, ct);
     }
 
     private sealed class MiddlewareChainServiceProvider(IServiceProvider innerProvider, MiddlewareChainOrchestrator orchestrator) : IServiceProvider
