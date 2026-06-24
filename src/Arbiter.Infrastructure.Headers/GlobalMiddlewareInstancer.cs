@@ -5,7 +5,7 @@ namespace Arbiter.Infrastructure.Headers;
 
 public class HeaderGlobalMiddlewareInstancer : IHeaderGlobalMiddlewareInstancer
 {
-    public List<IGlobalMiddleware> Instance(ServerHeadersConfig config, HandleDelegate next)
+    public List<IGlobalMiddleware> Instance(ServerHeadersConfig config, GlobalHandleDelegate next)
     {
         var list = new List<IGlobalMiddleware>();
 

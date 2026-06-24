@@ -5,7 +5,7 @@ using Arbiter.Core.Constants;
 
 namespace Arbiter.Infrastructure.Headers;
 
-public class ServerHeaderGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
+public class ServerHeaderGlobalMiddleware(GlobalHandleDelegate next) : IGlobalMiddleware
 {
     private static readonly string ServerHeader = $"{AppConstants.Name}/{typeof(ServerHeaderGlobalMiddleware).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0]}";
 

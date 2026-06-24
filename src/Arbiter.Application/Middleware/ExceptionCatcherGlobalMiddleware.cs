@@ -5,7 +5,7 @@ using Serilog;
 
 namespace Arbiter.Application.Middleware;
 
-public class ExceptionCatcherGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
+public class ExceptionCatcherGlobalMiddleware(GlobalHandleDelegate next) : IGlobalMiddleware
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "server");
 

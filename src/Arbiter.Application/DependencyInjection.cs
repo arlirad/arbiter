@@ -9,7 +9,6 @@ using Arbiter.Configuration;
 using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using SiteHandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Application;
 
@@ -34,7 +33,7 @@ public static class DependencyInjection
         services.AddScoped<MiddlewareChainDelegateOrchestrator>();
         services.AddScoped<SiteOrchestrator>();
 
-        services.AddTransient<SiteHandleDelegate>(sp => {
+        services.AddTransient<HandleDelegate>(sp => {
             var factory = sp.GetRequiredService<MiddlewareChainDelegateOrchestrator>();
 
             return factory.GetNext();

@@ -7,9 +7,9 @@ namespace Arbiter.Infrastructure.Headers;
 public class StrictTransportSecurityGlobalMiddleware : IGlobalMiddleware
 {
     private readonly StrictTransportSecurityConfig _config;
-    private readonly HandleDelegate _next;
+    private readonly GlobalHandleDelegate _next;
 
-    public StrictTransportSecurityGlobalMiddleware(HandleDelegate next, StrictTransportSecurityConfig config)
+    public StrictTransportSecurityGlobalMiddleware(GlobalHandleDelegate next, StrictTransportSecurityConfig config)
     {
         _next = next;
         _config = config;

@@ -13,7 +13,6 @@ using Arbiter.Transport.Tcp;
 using Arbiter.Transport.Unix;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Api;
 

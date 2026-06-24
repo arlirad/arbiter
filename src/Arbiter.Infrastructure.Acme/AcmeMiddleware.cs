@@ -6,7 +6,6 @@ using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Acme.Config;
 using Arbiter.Infrastructure.Acme.Models;
 using Serilog;
-using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Acme;
 

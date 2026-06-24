@@ -13,7 +13,7 @@ public class HeaderGlobalMiddlewareFactory : IGlobalMiddlewareFactory
         configProvider.Observe<ServerHeadersConfig>("headers").Subscribe(config => _currentConfig = config);
     }
 
-    public HandleDelegate Create(HandleDelegate next)
+    public GlobalHandleDelegate Create(GlobalHandleDelegate next)
     {
         var config = _currentConfig ?? new ServerHeadersConfig();
 

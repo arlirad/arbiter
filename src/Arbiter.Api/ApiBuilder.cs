@@ -9,7 +9,6 @@ using Arbiter.Core.Aggregates;
 using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Api;
 

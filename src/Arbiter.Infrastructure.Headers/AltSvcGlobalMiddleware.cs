@@ -4,7 +4,7 @@ using Arbiter.Core.Aggregates;
 
 namespace Arbiter.Infrastructure.Headers;
 
-public class AltSvcGlobalMiddleware(HandleDelegate next, AltSvcService altSvc) : IGlobalMiddleware
+public class AltSvcGlobalMiddleware(GlobalHandleDelegate next, AltSvcService altSvc) : IGlobalMiddleware
 {
     public Task Handle(ITransaction transaction, Site? site, Context context)
     {

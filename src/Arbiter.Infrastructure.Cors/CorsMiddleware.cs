@@ -3,7 +3,6 @@ using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Cors.Config;
-using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Cors;
 

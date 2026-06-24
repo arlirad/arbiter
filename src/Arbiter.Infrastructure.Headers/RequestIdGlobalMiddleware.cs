@@ -3,7 +3,7 @@ using Arbiter.Core.Aggregates;
 
 namespace Arbiter.Infrastructure.Headers;
 
-public class RequestIdGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
+public class RequestIdGlobalMiddleware(GlobalHandleDelegate next) : IGlobalMiddleware
 {
     public async Task Handle(ITransaction transaction, Site? site, Context context)
     {

@@ -6,9 +6,9 @@ namespace Arbiter.Application.Middleware;
 
 public sealed class GlobalMiddlewareChain
 {
-    private volatile HandleDelegate _delegate = LastHandle;
+    private volatile GlobalHandleDelegate _delegate = LastHandle;
 
-    public HandleDelegate Delegate
+    public GlobalHandleDelegate Delegate
     {
         get => _delegate;
         set => _delegate = value;
@@ -16,7 +16,7 @@ public sealed class GlobalMiddlewareChain
 
     public void Build(IServiceProvider sp)
     {
-        var next = (HandleDelegate)LastHandle;
+        var next = (GlobalHandleDelegate)LastHandle;
 
         foreach (var factory in sp.GetRequiredService<IEnumerable<IGlobalMiddlewareFactory>>())
             next = factory.Create(next);

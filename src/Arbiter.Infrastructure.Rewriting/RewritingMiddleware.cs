@@ -2,7 +2,6 @@ using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Rewriting.Config;
-using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Rewriting;
 

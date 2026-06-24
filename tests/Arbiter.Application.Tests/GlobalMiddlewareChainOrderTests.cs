@@ -32,7 +32,7 @@ public class GlobalMiddlewareChainOrderTests
 
     private sealed class RecordingFactory(string name, List<string> order) : IGlobalMiddlewareFactory
     {
-        public HandleDelegate Create(HandleDelegate next)
+        public GlobalHandleDelegate Create(GlobalHandleDelegate next)
         {
             return async (transaction, site, context) => {
                 order.Add(name);

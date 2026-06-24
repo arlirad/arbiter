@@ -4,7 +4,6 @@ using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Infrastructure.Config;
 using Serilog;
-using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Middleware;
 

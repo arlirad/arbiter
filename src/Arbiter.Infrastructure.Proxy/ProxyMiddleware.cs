@@ -10,7 +10,6 @@ using Arbiter.Infrastructure.Proxy.Config;
 using Arbiter.Infrastructure.Proxy.Connectors;
 using Arbiter.Infrastructure.Proxy.Mappers;
 using Arbiter.Infrastructure.Streams;
-using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Proxy;
 
