@@ -5,9 +5,9 @@ using Arbiter.Api.Controllers;
 using Arbiter.Api.Formatters;
 using Arbiter.Application.Interfaces;
 using Arbiter.Application.Managers;
+using Arbiter.Core.Aggregates;
 using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
@@ -50,7 +50,7 @@ public sealed class ApiBuilder
     {
         get;
     } = [];
-    internal List<(Type Type, IConfiguration? Config)> MiddlewareEntries
+    internal List<(Type Type, Func<IMiddleware, ComponentDataContainer, Task>? Configure)> MiddlewareEntries
     {
         get;
     } = [];
@@ -140,10 +140,27 @@ public sealed class ApiBuilder
         return this;
     }
 
-    public ApiBuilder UseMiddleware<TMiddleware>(IConfiguration? config = null) where TMiddleware : class, IMiddleware
+    public ApiBuilder UseMiddleware<TMiddleware>() where TMiddleware : class, IMiddleware
     {
         _services.AddTransient<TMiddleware>();
-        MiddlewareEntries.Add((typeof(TMiddleware), config));
+        MiddlewareEntries.Add((typeof(TMiddleware), null));
+
+        return this;
+    }
+
+    public ApiBuilder UseMiddleware<TMiddleware>(Func<IMiddleware, ComponentDataContainer, Task> configure) where TMiddleware : class, IMiddleware
+    {
+        _services.AddTransient<TMiddleware>();
+        MiddlewareEntries.Add((typeof(TMiddleware), configure));
+
+        return this;
+    }
+
+    public ApiBuilder UseMiddleware<TMiddleware, TConfig>(TConfig config) where TMiddleware : class, IConfigurableMiddleware<TConfig> where TConfig : new()
+    {
+        _services.AddTransient<TMiddleware>();
+        MiddlewareEntries.Add((typeof(TMiddleware),
+            (mw, data) => ((IConfigurableMiddleware<TConfig>)mw).Configure(data, config)));
 
         return this;
     }

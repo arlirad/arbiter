@@ -3,7 +3,7 @@ using Arbiter.Core.Enums;
 using Arbiter.Core.Factories;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Cors;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Cors.Config;
 
 namespace Arbiter.Infrastructure.Tests;
 
@@ -94,13 +94,11 @@ public class CorsMiddlewareTests
     {
         var middleware = new CorsMiddleware(_ => Task.CompletedTask);
 
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection([
-                new KeyValuePair<string, string?>("AllowOrigin:0", origins[0]),
-                .. methods?.Select((m, i) => new KeyValuePair<string, string?>($"AllowMethods:{i}", m)) ?? [],
-                .. headers?.Select((h, i) => new KeyValuePair<string, string?>($"AllowHeaders:{i}", h)) ?? [],
-            ])
-            .Build();
+        var config = new CorsConfig {
+            AllowOrigin = origins,
+            AllowMethods = methods,
+            AllowHeaders = headers,
+        };
 
         middleware.Configure(null!, config);
 

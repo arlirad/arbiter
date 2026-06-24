@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.Json;
+using Arbiter.Api.Formatters;
 using Arbiter.Application.DTOs;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
@@ -9,7 +11,6 @@ using Arbiter.Infrastructure.Middleware;
 using Arbiter.Protocol.Http11;
 using Arbiter.Transport.Tcp;
 using Arbiter.Transport.Unix;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
@@ -69,10 +70,7 @@ internal sealed class Api(
     }
 
     private async Task<Site> BuildSite()
-
     {
-        var emptyConfig = new ConfigurationBuilder().Build();
-
         var (pipelineMiddleware, apiMiddleware) = await BuildMiddlewareChainAsync();
 
         var allMiddleware = pipelineMiddleware.Concat([apiMiddleware]).ToList();
@@ -81,22 +79,19 @@ internal sealed class Api(
             ? pipelineMiddleware[0].Handle
             : apiMiddleware.Handle;
 
-        var handleDelegate = new HandleDelegate(entryHandle);
-
         var site = new Site(
             [],
             allMiddleware,
             [],
-            handleDelegate
+            entryHandle
         );
 
         for (var i = 0; i < builder.MiddlewareEntries.Count; i++)
         {
-            var config = builder.MiddlewareEntries[i].Config ?? emptyConfig;
-            await pipelineMiddleware[i].Configure(site.Data, config);
+            var configure = builder.MiddlewareEntries[i].Configure;
+            if (configure is not null)
+                await configure(pipelineMiddleware[i], site.Data);
         }
-
-        await apiMiddleware.Configure(site.Data, emptyConfig);
 
         return site;
     }
@@ -108,7 +103,11 @@ internal sealed class Api(
         static Task terminal(Context _) => Task.CompletedTask;
         orchestrator.SetNext(terminal);
 
-        var apiMiddleware = new ApiMiddleware(builder.ControllerTypes, serviceProvider);
+        var apiMiddleware = new ApiMiddleware(
+            builder.ControllerTypes,
+            serviceProvider,
+            serviceProvider.GetRequiredService<JsonSerializerOptions>(),
+            serviceProvider.GetRequiredService<OutputFormatterSelector>());
         orchestrator.SetNext(apiMiddleware.Handle);
 
         var pipelineMiddlewareTypes = builder.MiddlewareEntries

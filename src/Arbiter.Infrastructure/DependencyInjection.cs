@@ -1,5 +1,7 @@
+using Arbiter.Application;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Interfaces;
+using Arbiter.Infrastructure.Config;
 using Arbiter.Infrastructure.Configuration;
 using Arbiter.Infrastructure.Middleware;
 using Microsoft.Extensions.Configuration;
