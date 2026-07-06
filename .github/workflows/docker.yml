@@ -2,11 +2,11 @@ name: Docker
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
     tags:
       - 'v*'
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
       run: |
         if [[ ${{ github.ref }} == refs/tags/v* ]]; then
           echo "TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-        elif [[ ${{ github.ref }} == refs/heads/master ]]; then
+        elif [[ ${{ github.ref }} == refs/heads/main ]]; then
           echo "TAG=latest" >> $GITHUB_OUTPUT
         else
           echo "TAG=pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
