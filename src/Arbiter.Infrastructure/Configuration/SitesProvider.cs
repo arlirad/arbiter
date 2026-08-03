@@ -38,7 +38,7 @@ internal sealed class SitesProvider : ISitesProvider, IDisposable
         _watcher = new FileSystemWatcher(sitesDirectory) {
             IncludeSubdirectories = false,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.DirectoryName | NotifyFilters.Size,
-            EnableRaisingEvents = true
+            EnableRaisingEvents = true,
         };
         _watcher.Filters.Add("*.yaml");
         _watcher.Filters.Add("*.yml");
