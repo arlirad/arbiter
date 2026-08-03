@@ -135,7 +135,7 @@ public class SitesProviderTests
 
         File.WriteAllText(Path.Join(_tempDir, "broken.yaml"), "{{{ not yaml");
         WriteSite(_tempDir, "good", new {
-            bindings = new[] { "http://good.example.com" }
+            bindings = new[] { "http://good.example.com" },
         });
 
         var emissions = Setup(_tempDir);
@@ -162,7 +162,7 @@ public class SitesProviderTests
         Thread.Sleep(200);
 
         WriteSite(_tempDir, "shared", new {
-            bindings = new[] { "http://shared.example.com" }
+            bindings = new[] { "http://shared.example.com" },
         });
 
         Thread.Sleep(1000);
@@ -175,7 +175,7 @@ public class SitesProviderTests
         Directory.CreateDirectory(_tempDir);
 
         WriteSite(_tempDir, "standalone", new {
-            bindings = new[] { "http://standalone.example.com" }
+            bindings = new[] { "http://standalone.example.com" },
         });
 
         var emissions = Setup(_tempDir);
