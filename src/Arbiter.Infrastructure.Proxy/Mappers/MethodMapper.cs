@@ -15,6 +15,7 @@ public static class MethodMapper
             Method.Delete => HttpMethod.Delete,
             Method.Post => HttpMethod.Post,
             Method.Patch => HttpMethod.Patch,
+            Method.Query => HttpMethod.Query,
             Method.Connect => HttpMethod.Connect,
             _ => throw new ArgumentOutOfRangeException(nameof(method), method, null),
         };

@@ -87,6 +87,25 @@ public class CorsMiddlewareTests
         }
     }
 
+    [Test]
+    public async Task Options_preserves_query_method_in_allow_methods()
+    {
+        var middleware = CreateMiddleware(["*"], ["GET", "QUERY"], ["Content-Type"]);
+
+        var context = CreateContext(Method.Options, new Dictionary<string, List<string>> {
+            ["Origin"] = ["https://example.com"],
+        });
+
+        await middleware.Handle(context);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(context.Response.Status, Is.EqualTo(Status.Ok));
+            Assert.That(context.Response.Headers["Access-Control-Allow-Methods"]?.FirstOrDefault(),
+                Is.EqualTo("GET, QUERY"));
+        }
+    }
+
     private static CorsMiddleware CreateMiddleware(
         List<string> origins,
         List<string>? methods = null,

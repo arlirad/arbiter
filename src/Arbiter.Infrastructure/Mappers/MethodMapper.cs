@@ -15,6 +15,7 @@ public static class MethodMapper
             "DELETE" => Method.Delete,
             "POST" => Method.Post,
             "PATCH" => Method.Patch,
+            "QUERY" => Method.Query,
             _ => null,
         };
     }
@@ -30,6 +31,7 @@ public static class MethodMapper
             Method.Delete => "DELETE",
             Method.Post => "POST",
             Method.Patch => "PATCH",
+            Method.Query => "QUERY",
             _ => null,
         };
     }
