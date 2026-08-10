@@ -1,6 +1,6 @@
 pkgname=arbiter
-pkgver=3.0.0
-pkgrel=2
+pkgver=3.3.0
+pkgrel=1
 pkgdesc=""
 arch=('x86_64')
 license=('MIT')
