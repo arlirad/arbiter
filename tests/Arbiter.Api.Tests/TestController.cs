@@ -16,6 +16,9 @@ public class TestController : IApiController
     [HttpPost]
     public static IActionResult Create() => new CreatedResult("/api/users/1", null);
 
+    [HttpQuery("query")]
+    public static IActionResult Query() => new OkResult();
+
     [HttpPut("{id}")]
     public static IActionResult Update(int id) => new OkResult();
 

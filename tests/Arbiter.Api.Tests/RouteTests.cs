@@ -64,6 +64,36 @@ public class RouteTests
     }
 
     [Test]
+    public void Match_QueryRoute_ReturnsQueryMethod()
+    {
+        var result = _routeTable!.Match(Method.Query, "/api/users/query");
+
+        Assert.That(result, Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Value.Route.Method, Is.EqualTo(Method.Query));
+            Assert.That(result.Value.Route.ControllerType, Is.EqualTo(typeof(TestController)));
+        }
+    }
+
+    [Test]
+    public void Match_QueryRoute_WrongMethod_ReturnsNull()
+    {
+        var result = _routeTable!.Match(Method.Get, "/api/users/query");
+
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void GetAllowedMethods_QueryRoute_ContainsQuery()
+    {
+        var allowed = _routeTable!.GetAllowedMethods("/api/users/query");
+
+        Assert.That(allowed, Does.Contain("QUERY"));
+    }
+
+    [Test]
     public void Match_OptionalParameter_WithoutParameter_ReturnsNullParameter()
     {
         var result = _routeTable!.Match(Method.Get, "/api/users/optional");

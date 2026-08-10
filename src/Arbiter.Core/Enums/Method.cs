@@ -11,4 +11,5 @@ public enum Method
     Options,
     Trace,
     Patch,
+    Query,
 }
