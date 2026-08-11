@@ -1,25 +1,21 @@
-namespace Arbiter.Infrastructure.Cors.Models;
+namespace Arbiter.Infrastructure.Cors.Config;
 
-internal class ConfigModel
+public sealed record CorsConfig
 {
     public List<string>? AllowOrigin
     {
-        get;
-        set;
+        get; init;
     }
     public List<string>? AllowMethods
     {
-        get;
-        set;
+        get; init;
     }
     public List<string>? AllowHeaders
     {
-        get;
-        set;
+        get; init;
     }
     public bool? AllowCredentials
     {
-        get;
-        set;
+        get; init;
     }
 }

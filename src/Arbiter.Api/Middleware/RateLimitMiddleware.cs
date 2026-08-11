@@ -1,31 +1,33 @@
 using System.Collections.Concurrent;
 using System.Net;
+using Arbiter.Api.Middleware;
+using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Microsoft.Extensions.Configuration;
+using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Api.Middleware;
 
-public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int windowSeconds = 60) : IMiddleware
+public class RateLimitMiddleware(HandleDelegate next) : IConfigurableMiddleware<RateLimitConfig>
 {
     private readonly ConcurrentDictionary<string, RateLimitEntry> _clients = new();
-    private readonly int _maxRequests = maxRequests;
-    private readonly HandleDelegate _next = next;
-    private readonly TimeSpan _window = TimeSpan.FromSeconds(windowSeconds);
+    private int _maxRequests = 100;
+    private TimeSpan _window = TimeSpan.FromSeconds(60);
     private string? _forwardedIpHeader;
     private HashSet<IPAddress> _ignoredAddresses = [];
 
-    public Task Configure(ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, RateLimitConfig config)
     {
-        _forwardedIpHeader = config["ForwardedIpHeader"];
+        _maxRequests = config.MaxRequests;
+        _window = TimeSpan.FromSeconds(config.WindowSeconds);
+        _forwardedIpHeader = config.ForwardedIpHeader;
 
-        var ignored = config.GetSection("IgnoredAddresses").Get<string[]>();
-
-        if (ignored is not null)
+        if (config.IgnoredAddresses is not null)
         {
             _ignoredAddresses = [
-                .. ignored.Select(a => IPAddress.TryParse(a, out var ip) ? ip : null)
+                .. config.IgnoredAddresses
+                    .Select(a => IPAddress.TryParse(a, out var ip) ? ip : null)
                     .OfType<IPAddress>(),
             ];
         }
@@ -37,7 +39,7 @@ public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int
     {
         if (context.Request.RemoteAddress is not null && _ignoredAddresses.Contains(context.Request.RemoteAddress))
         {
-            await _next(context);
+            await next(context);
 
             return;
         }
@@ -62,7 +64,7 @@ public class RateLimitMiddleware(HandleDelegate next, int maxRequests = 100, int
         }
 
         entry.Count++;
-        await _next(context);
+        await next(context);
     }
 
     private string ResolveClientIp(Context context)

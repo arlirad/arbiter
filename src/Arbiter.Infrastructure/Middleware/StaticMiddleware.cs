@@ -1,13 +1,14 @@
+using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Arbiter.Infrastructure.Configuration;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Config;
 using Serilog;
+using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Middleware;
 
-public class StaticMiddleware(HandleDelegate next) : IMiddleware
+public class StaticMiddleware(HandleDelegate next) : IConfigurableMiddleware<StaticConfig>
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "static");
 
@@ -20,17 +21,15 @@ public class StaticMiddleware(HandleDelegate next) : IMiddleware
     private string _root = null!;
     private bool _fallthrough;
 
-    public Task Configure(ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, StaticConfig typedConfig)
     {
-        var typedConfig = config.Get<StaticMiddlewareConfig>();
-
-        if (typedConfig?.Root is null)
+        if (typedConfig.Root is null)
             throw new Exception("root is not set");
 
-        _defaultFiles = typedConfig?.DefaultFiles ?? [];
-        _mimeTypes = typedConfig?.Mime ?? [];
-        _root = typedConfig!.Root;
-        _fallthrough = typedConfig?.Fallthrough ?? false;
+        _defaultFiles = typedConfig.DefaultFiles ?? [];
+        _mimeTypes = typedConfig.Mime ?? [];
+        _root = typedConfig.Root;
+        _fallthrough = typedConfig.Fallthrough;
 
         return Task.CompletedTask;
     }
