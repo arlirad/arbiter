@@ -1,6 +1,6 @@
 using System.Buffers;
-using System.Net.Quic;
 using System.Runtime.Versioning;
+using Arbiter.Application.Interfaces;
 using Arbiter.Protocol.Http3.Enums;
 using Arbiter.Protocol.Http3.Framing;
 using Arbiter.Protocol.QPack.Decoding;
@@ -10,10 +10,12 @@ namespace Arbiter.Protocol.Http3.Streams;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class Http3RequestStream(Http3Connection connection, long streamId, QuicStream inner) : Stream
+public class Http3RequestStream(Http3Connection connection, long streamId, IMultiplexedStream multiplexedStream) : Stream
 {
-    private readonly Http3FrameReader _reader = new(inner);
-    private readonly Http3FrameWriter _writer = new(inner);
+    private readonly Stream _inner = multiplexedStream.Stream;
+    private readonly IMultiplexedStream _multiplexedStream = multiplexedStream;
+    private readonly Http3FrameReader _reader = new(multiplexedStream.Stream);
+    private readonly Http3FrameWriter _writer = new(multiplexedStream.Stream);
     private Http3Frame? _currentDataFrame;
     private QPackFieldSectionReader? _currentHeaderReader;
     private byte[]? _pendingHeaders;
@@ -127,13 +129,13 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
                 {
                     dfh[..dfhLen].CopyTo(hdrBuf.AsSpan(hdrLen));
                     data.Span.CopyTo(hdrBuf.AsSpan(hdrLen + dfhLen));
-                    await inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, totalLen), ct);
+                    await _inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, totalLen), ct);
                 }
                 else
                 {
                     dfh[..dfhLen].CopyTo(hdrBuf.AsSpan(hdrLen));
-                    await inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, hdrLen + dfhLen), ct);
-                    await inner.WriteAsync(data, ct);
+                    await _inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, hdrLen + dfhLen), ct);
+                    await _inner.WriteAsync(data, ct);
                 }
             }
             finally
@@ -145,7 +147,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         }
 
         await _writer.WriteFrameHeader(FrameType.Data, (ulong)data.Length, ct);
-        await inner.WriteAsync(data, ct);
+        await _inner.WriteAsync(data, ct);
     }
 
     public async Task CopyFromInSingleFrame(Stream stream, CancellationToken ct = default)
@@ -170,13 +172,13 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
                 {
                     dfh[..dfhLen].CopyTo(hdrBuf.AsSpan(hdrLen));
                     await stream.ReadExactlyAsync(hdrBuf.AsMemory(hdrLen + dfhLen, remaining), ct);
-                    await inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, totalLen), ct);
+                    await _inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, totalLen), ct);
                 }
                 else
                 {
                     dfh[..dfhLen].CopyTo(hdrBuf.AsSpan(hdrLen));
-                    await inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, hdrLen + dfhLen), ct);
-                    await stream.CopyToAsync(inner, ct);
+                    await _inner.WriteAsync(new ReadOnlyMemory<byte>(hdrBuf, 0, hdrLen + dfhLen), ct);
+                    await stream.CopyToAsync(_inner, ct);
                 }
             }
             finally
@@ -188,7 +190,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
         }
 
         await _writer.WriteFrameHeader(FrameType.Data, (ulong)(stream.Length - stream.Position), ct);
-        await stream.CopyToAsync(inner, ct);
+        await stream.CopyToAsync(_inner, ct);
     }
 
     public override void Flush()
@@ -205,7 +207,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
 
             try
             {
-                await inner.WriteAsync(new ReadOnlyMemory<byte>(buf, 0, len), ct);
+                await _inner.WriteAsync(new ReadOnlyMemory<byte>(buf, 0, len), ct);
             }
             finally
             {
@@ -224,7 +226,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
 
             try
             {
-                await inner.WriteAsync(new ReadOnlyMemory<byte>(buf, 0, len), ct);
+                await _inner.WriteAsync(new ReadOnlyMemory<byte>(buf, 0, len), ct);
             }
             finally
             {
@@ -232,7 +234,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
             }
         }
 
-        inner.CompleteWrites();
+        await _multiplexedStream.CompleteWritesAsync(ct);
     }
 
     public async Task RetireAsync(CancellationToken ct = default)
@@ -266,7 +268,7 @@ public class Http3RequestStream(Http3Connection connection, long streamId, QuicS
             _pendingHeaders = null;
         }
 
-        await inner.DisposeAsync();
+        await _inner.DisposeAsync();
         await base.DisposeAsync();
     }
 

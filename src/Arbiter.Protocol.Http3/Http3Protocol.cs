@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Arbiter.Application.Interfaces;
 using Arbiter.Infrastructure.Middleware;
-using Arbiter.Transport.Quic;
 
 namespace Arbiter.Protocol.Http3;
 
@@ -23,10 +22,10 @@ public class Http3Protocol(TransactionIdProvider transactionIdProvider) : IProto
         IConnection connection,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        if (connection is not Arbiter.Transport.Quic.QuicConnection quicConnection)
-            throw new InvalidOperationException("Http3Protocol requires QuicConnection");
+        if (connection is not IMultiplexedConnection mux)
+            throw new InvalidOperationException("Http3Protocol requires an IMultiplexedConnection");
 
-        _connection = new Http3Connection(quicConnection.InnerConnection);
+        _connection = new Http3Connection(mux);
 
         try
         {
@@ -41,16 +40,17 @@ public class Http3Protocol(TransactionIdProvider transactionIdProvider) : IProto
             yield break;
         }
 
-        await foreach (var transportStream in connection.GetStreams(ct))
+        await foreach (var ts in connection.GetStreams(ct))
         {
-            var quicStream = (QuicStream)transportStream.Stream;
+            if (ts is not IMultiplexedStream ms)
+                throw new InvalidOperationException("Expected IMultiplexedStream from IMultiplexedConnection.");
 
-            var requestStream = _connection.FeedInboundStream(quicStream);
+            var requestStream = _connection.FeedInboundStream(ms);
 
             if (requestStream is null)
                 continue;
 
-            yield return new Http3Transaction(transactionIdProvider, requestStream, quicConnection.Port, quicConnection.RemoteAddress);
+            yield return new Http3Transaction(transactionIdProvider, requestStream, mux.Port, mux.RemoteAddress);
         }
     }
 
