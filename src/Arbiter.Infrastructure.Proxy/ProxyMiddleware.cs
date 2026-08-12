@@ -1,19 +1,20 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
+using Arbiter.Infrastructure.Proxy.Config;
 using Arbiter.Infrastructure.Proxy.Connectors;
 using Arbiter.Infrastructure.Proxy.Mappers;
-using Arbiter.Infrastructure.Proxy.Models;
 using Arbiter.Infrastructure.Streams;
-using Microsoft.Extensions.Configuration;
+using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Proxy;
 
-public class ProxyMiddleware : IMiddleware
+public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
 {
     private static readonly HashSet<string> DisallowedHeaders =
         new(
@@ -41,16 +42,14 @@ public class ProxyMiddleware : IMiddleware
     private HttpClient _client = null!;
     private IProxyConnector _connector = null!;
 
-    public Task Configure(ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, ProxyConfig config)
     {
-        var typedConfig = config.Get<ConfigModel>();
-
-        if (typedConfig?.Target is null)
+        if (config.Target is null)
             throw new Exception("target is not set");
 
-        _connector = typedConfig.Target.Scheme.Equals("unix", StringComparison.OrdinalIgnoreCase)
-            ? new UnixProxyConnector(typedConfig.Target.AbsolutePath)
-            : new TcpProxyConnector(typedConfig.Target);
+        _connector = config.Target.Scheme.Equals("unix", StringComparison.OrdinalIgnoreCase)
+            ? new UnixProxyConnector(config.Target.AbsolutePath)
+            : new TcpProxyConnector(config.Target);
 
         _client = new HttpClient(_connector.CreateHandler(), false);
 

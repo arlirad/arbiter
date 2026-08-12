@@ -1,6 +1,5 @@
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Interfaces;
-using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Core.Tests;
 
@@ -220,7 +219,6 @@ public class SiteTests
 
     private class StubMiddleware : IMiddleware
     {
-        public Task Configure(ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
         public Task Handle(Context context) => Task.CompletedTask;
     }
 
@@ -230,18 +228,6 @@ public class SiteTests
         {
             get;
         } = [];
-        public int StartIndex
-        {
-            get;
-            set;
-        }
-        public int StopIndex
-        {
-            get;
-            set;
-        }
-
-        public Task Configure(List<Uri> bindings, ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
 
         public Task Start()
         {

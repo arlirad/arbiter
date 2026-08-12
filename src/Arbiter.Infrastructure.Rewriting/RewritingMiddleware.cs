@@ -1,23 +1,22 @@
+using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Interfaces;
-using Arbiter.Infrastructure.Rewriting.Models;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Rewriting.Config;
+using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Rewriting;
 
-public class RewritingMiddleware(HandleDelegate next) : IMiddleware
+public class RewritingMiddleware(HandleDelegate next) : IConfigurableMiddleware<RewritingConfig>
 {
     private List<CompiledRule> _compiledRules = [];
 
-    public Task Configure(ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, RewritingConfig config)
     {
-        var typedConfig = config.Get<ConfigModel>();
-
-        if (typedConfig?.Rules is null)
+        if (config.Rules is null)
             throw new Exception("rules are not set");
 
         _compiledRules = [
-            .. typedConfig.Rules.Select(r => CompiledRule.Compile(r.From, r.To))
+            .. config.Rules.Select(r => CompiledRule.Compile(r.From, r.To))
                 .Where(r => r is not null)
                 .Select(r => r!),
         ];
