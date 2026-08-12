@@ -1,7 +1,6 @@
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Api.HealthChecks;
 
@@ -31,20 +30,15 @@ public class HealthCheckResult
 
 public class HealthCheckMiddleware(HandleDelegate next, string healthPath = "/health") : IMiddleware
 {
-    private readonly string _healthPath = healthPath;
-    private readonly HandleDelegate _next = next;
-
-    public Task Configure(ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
-
     public async Task Handle(Context context)
     {
-        if (context.Request.Path == _healthPath && context.Request.Method == Method.Get)
+        if (context.Request.Path == healthPath && context.Request.Method == Method.Get)
         {
             await context.Response.Set(Status.Ok, new MemoryStream());
 
             return;
         }
 
-        await _next(context);
+        await next(context);
     }
 }

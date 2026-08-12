@@ -8,21 +8,23 @@ using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Application.Orchestrators;
 
-internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager configManager)
+internal class SiteOrchestrator(
+    IServiceProvider serviceProvider,
+    IConfigManager configManager)
 {
     public async Task<Site> Orchestrate(SiteConfig siteConfig)
     {
         var workers = siteConfig.Workers ?? [];
         var middlewareChain = CreateMiddlewareChain(siteConfig);
         var workerInstances = workers
-            .Select<SiteComponentConfig, (IWorker Instance, IConfiguration Config)>(w =>
-                (Instance: InstanceWorker(w.Name!),
+            .Select<SiteComponentConfig, (string Name, IWorker Instance, IConfiguration Config)>(w =>
+                (w.Name!, InstanceWorker(w.Name!),
                     MergeConfigs(configManager.GetDefaultWorkerConfig(w.Name!), w.Config)))
             .ToList();
 
-        var handleDelegate = (HandleDelegate)(middlewareChain.Count > 0
-            ? middlewareChain.First().Instance.Handle
-            : LastHandleDelegate);
+        HandleDelegate handleDelegate = middlewareChain.Count > 0
+            ? middlewareChain[0].Instance.Handle
+            : LastHandleDelegate;
 
         var site = new Site(
             siteConfig.Bindings!,
@@ -31,20 +33,22 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
             handleDelegate
         );
 
-        foreach (var (Instance, Config) in middlewareChain)
+        foreach (var (_, Instance, Config) in middlewareChain)
         {
-            await Instance.Configure(site.Data, Config!);
+            if (Instance is IConfigurableMiddleware configurable)
+                await configurable.Configure(site.Data, Config);
         }
 
-        foreach (var (Instance, Config) in workerInstances)
+        foreach (var (_, Instance, Config) in workerInstances)
         {
-            await Instance.Configure(site.Bindings, site.Data, Config!);
+            if (Instance is IConfigurableWorker configurable)
+                await configurable.Configure(site.Bindings, site.Data, Config);
         }
 
         return site;
     }
 
-    private List<(IMiddleware Instance, IConfiguration Config)> CreateMiddlewareChain(SiteConfig siteConfig)
+    private List<(string Name, IMiddleware Instance, IConfiguration Config)> CreateMiddlewareChain(SiteConfig siteConfig)
     {
         if (siteConfig.Middleware is null)
             return [];
@@ -55,13 +59,12 @@ internal class SiteOrchestrator(IServiceProvider serviceProvider, IConfigManager
 
         var middlewareConfigs = new List<SiteComponentConfig>(siteConfig.Middleware);
 
-        // We have to reverse the config list so we know what handler comes next.
         middlewareConfigs.Reverse();
 
         var middlewareChainReversed = middlewareConfigs
-            .Select<SiteComponentConfig, (IMiddleware Instance, IConfiguration Config)>(m => {
-                var middleware = (Instance: InstanceMiddleware(m.Name!),
-                    MergeConfigs(configManager.GetDefaultMiddlewareConfig(m.Name!), m.Config));
+            .Select<SiteComponentConfig, (string Name, IMiddleware Instance, IConfiguration Config)>(m => {
+                var middleware = (Name: m.Name!, Instance: InstanceMiddleware(m.Name!),
+                    Config: MergeConfigs(configManager.GetDefaultMiddlewareConfig(m.Name!), m.Config));
 
                 chainOrchestrator.SetNext(middleware.Instance.Handle);
 

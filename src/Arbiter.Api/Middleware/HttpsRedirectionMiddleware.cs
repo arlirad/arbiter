@@ -1,14 +1,11 @@
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Microsoft.Extensions.Configuration;
 
 namespace Arbiter.Api.Middleware;
 
 public class HttpsRedirectionMiddleware(HandleDelegate next, int httpsPort = 443) : IMiddleware
 {
-    public Task Configure(ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
-
     public async Task Handle(Context context)
     {
         if (!context.Request.IsSecure)

@@ -1,5 +1,5 @@
 pkgname=arbiter
-pkgver=3.3.0
+pkgver=3.3.1
 pkgrel=1
 pkgdesc=""
 arch=('x86_64')
