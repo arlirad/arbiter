@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
 using System.Net.Quic;
 using System.Runtime.Versioning;
-using System.Threading.Channels;
+using Arbiter.Application.Interfaces;
 using Arbiter.Protocol.Http3.Enums;
 using Arbiter.Protocol.Http3.Framing;
 using Arbiter.Protocol.Http3.Streams;
@@ -14,9 +14,8 @@ namespace Arbiter.Protocol.Http3;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public class Http3Connection(QuicConnection connection) : IAsyncDisposable
+public class Http3Connection(IMultiplexedConnection connection) : IAsyncDisposable
 {
-    private const int MaxWaitingStreams = 64;
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "http3");
 
     private static readonly Dictionary<SettingsParameter, Func<Http3Connection, ulong>> SettingsToWrite = new() {
@@ -28,9 +27,6 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 
     private readonly CancellationTokenSource _cts = new();
     private readonly Http3ConnectionSettings _peerSettings = new();
-
-    private readonly Channel<Http3RequestStream> _requestStreams =
-        Channel.CreateBounded<Http3RequestStream>(MaxWaitingStreams);
 
     internal readonly QPackDecoder Decoder = new();
 
@@ -68,35 +64,32 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         await OpenOutgoingStreams();
     }
 
-    public Http3RequestStream? FeedInboundStream(QuicStream stream)
+    public Http3RequestStream? FeedInboundStream(IMultiplexedStream stream)
     {
-        if (stream.Type == QuicStreamType.Unidirectional)
+        if (stream.Direction == MultiplexedStreamDirection.Unidirectional)
         {
             _ = HandleUnidirectionalStream(stream);
 
             return null;
         }
 
-        var requestStream = new Http3RequestStream(this, stream.Id, stream);
-        _ = _requestStreams.Writer.WriteAsync(requestStream, _cts.Token);
-
-        return requestStream;
+        return new Http3RequestStream(this, stream.StreamId, stream);
     }
 
-    private async Task HandleUnidirectionalStream(QuicStream stream)
+    private async Task HandleUnidirectionalStream(IMultiplexedStream stream)
     {
         try
         {
             var ct = _cts.Token;
 
             var buffer = new byte[16];
-            var reader = new Http3Reader(stream);
+            var reader = new Http3Reader(stream.Stream);
             var type = (StreamType)await reader.ReadVarInt(buffer, ct);
 
             switch (type)
             {
                 case StreamType.Control:
-                    if (Interlocked.Exchange(ref _peerControlStream, stream) != null)
+                    if (Interlocked.Exchange(ref _peerControlStream, stream.Stream) != null)
                     {
                         await RaiseConnectionError(ErrorCode.StreamCreationError);
 
@@ -111,11 +104,11 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
 
                     break;
                 case StreamType.Encoder:
-                    Encoder.SetIncomingStream(stream);
+                    Encoder.SetIncomingStream(stream.Stream);
 
                     break;
                 case StreamType.Decoder:
-                    Decoder.SetIncomingStream(stream);
+                    Decoder.SetIncomingStream(stream.Stream);
 
                     break;
             }
@@ -128,16 +121,16 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Log.Error(ex, "HandleUnidirectionalStream error stream {StreamId}", stream.Id);
+            Log.Error(ex, "HandleUnidirectionalStream error stream {StreamId}", stream.StreamId);
         }
     }
 
-    private async Task HandleControlStream(QuicStream stream)
+    private async Task HandleControlStream(IMultiplexedStream stream)
     {
         var ct = _cts.Token;
 
         var varIntBuffer = new byte[8];
-        var frameReader = new Http3FrameReader(stream);
+        var frameReader = new Http3FrameReader(stream.Stream);
         var frame = await frameReader.ReadFrame(ct);
 
         if (frame.Type != FrameType.Settings)
@@ -263,17 +256,17 @@ public class Http3Connection(QuicConnection connection) : IAsyncDisposable
         await OpenDecoderStream();
     }
 
-    private async Task<QuicStream> OpenOutgoingStream(StreamType type)
+    private async Task<Stream> OpenOutgoingStream(StreamType type)
     {
         var ct = _cts.Token;
 
         var buffer = new byte[16];
-        var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, ct);
-        var writer = new Http3Writer(stream);
+        var ms = await connection.OpenStreamAsync(MultiplexedStreamDirection.Unidirectional, ct);
+        var writer = new Http3Writer(ms.Stream);
 
         await writer.WriteVarInt((ulong)type, buffer, ct);
 
-        return stream;
+        return ms.Stream;
     }
 
     private async Task OpenControlStream()
