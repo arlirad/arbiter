@@ -7,7 +7,10 @@ namespace Arbiter.Application.Interfaces;
 public interface IMultiplexedStream : ITransportStream
 {
     /// <summary>Whether this stream is unidirectional or bidirectional.</summary>
-    MultiplexedStreamDirection Direction { get; }
+    MultiplexedStreamDirection Direction
+    {
+        get;
+    }
 
     /// <summary>Half-close the write side of the stream (no more data will be written).</summary>
     ValueTask CompleteWritesAsync(CancellationToken ct = default);
