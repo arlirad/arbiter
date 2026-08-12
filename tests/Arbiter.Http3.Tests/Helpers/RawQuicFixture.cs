@@ -116,7 +116,7 @@ public class RawQuicFixture : IAsyncDisposable
         _serverQuicConnection = await acceptTask;
     }
 
-    public Http3Connection CreateServerHttp3Connection() => new(_serverQuicConnection!);
+    public Http3Connection CreateServerHttp3Connection() => new(new Arbiter.Transport.Quic.QuicConnection(_serverQuicConnection!, Port, null));
 
     public async Task<QuicStream> OpenClientUnidirectionalStreamAsync()
     {
@@ -127,7 +127,7 @@ public class RawQuicFixture : IAsyncDisposable
     }
 
     public static void FeedInboundStream(QuicStream stream, Http3Connection connection)
-        => connection.FeedInboundStream(stream);
+        => connection.FeedInboundStream(new Arbiter.Transport.Quic.QuicMultiplexedStream(stream));
 
     public async Task<QuicStream> AcceptServerInboundStream(CancellationToken ct = default)
     {

@@ -151,6 +151,6 @@ public class Http3IntegrationFixture(X509Certificate2 certificate) : IAsyncDispo
     {
         var stream = await OpenClientStreamAsync(ct);
 
-        return new Http3RequestStream(_serverProtocol!.ServerConnection, stream.Id, stream);
+        return new Http3RequestStream(_serverProtocol!.ServerConnection, stream.Id, new Arbiter.Transport.Quic.QuicMultiplexedStream(stream));
     }
 }
