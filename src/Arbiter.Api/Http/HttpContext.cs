@@ -63,11 +63,10 @@ public class HttpContext
 
     public async Task<WebSocket?> AcceptWebSocketAsync()
     {
-        if (_context.Request.Upgrade is not IWebSocketUpgrade upgrade)
+        if (_context.Request.Upgrade is not IWebSocketUpgrade)
             return null;
 
-        var stream = await upgrade.AcceptAsync();
-        _context.IsUpgraded = true;
+        var stream = await _context.AcceptUpgradeAsync();
 
         var connection = new WebSocketConnection(stream);
 

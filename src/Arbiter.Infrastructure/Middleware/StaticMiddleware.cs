@@ -67,7 +67,7 @@ public class StaticMiddleware(HandleDelegate next) : IConfigurableMiddleware<Sta
             }
 
             if (_mimeTypes.TryGetValue(Path.GetExtension(path), out var mime))
-                context.Response.Headers.ContentType = mime;
+                context.Response.ContentType = mime;
 
             await context.Response.Set(Status.Ok, stream);
         }

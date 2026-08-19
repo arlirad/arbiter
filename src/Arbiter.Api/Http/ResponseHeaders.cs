@@ -4,16 +4,21 @@ namespace Arbiter.Api.Http;
 
 public class ResponseHeaders
 {
-    private readonly Headers _inner;
+    private readonly ResponseContext _response;
 
-    internal ResponseHeaders(Headers inner)
+    internal ResponseHeaders(ResponseContext response)
     {
-        _inner = inner;
+        _response = response;
     }
 
     public string? this[string key]
     {
-        get => _inner[key]?.FirstOrDefault();
-        set => _inner[key] = value is not null ? [value] : null;
+        get => _response.Headers[key]?.FirstOrDefault();
+        set {
+            if (value is null)
+                _response.RemoveHeader(key);
+            else
+                _response.SetHeader(key, value);
+        }
     }
 }

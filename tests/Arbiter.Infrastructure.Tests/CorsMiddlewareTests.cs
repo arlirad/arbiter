@@ -106,6 +106,39 @@ public class CorsMiddlewareTests
         }
     }
 
+    [Test]
+    public async Task Matching_origin_appends_vary_origin()
+    {
+        var middleware = new CorsMiddleware(ctx => {
+            ctx.Response.AddHeader("Vary", "Accept-Encoding");
+            return Task.CompletedTask;
+        });
+
+        await middleware.Configure(null!, new CorsConfig { AllowOrigin = ["*"] });
+
+        var context = CreateContext(Method.Get, new Dictionary<string, List<string>> {
+            ["Origin"] = ["https://example.com"],
+        });
+
+        await middleware.Handle(context);
+
+        Assert.That(context.Response.Headers["Vary"], Is.EqualTo(new List<string> { "Accept-Encoding", "Origin" }));
+    }
+
+    [Test]
+    public async Task Matching_origin_sets_vary_origin_when_request_has_no_vary()
+    {
+        var middleware = CreateMiddleware(["*"]);
+
+        var context = CreateContext(Method.Get, new Dictionary<string, List<string>> {
+            ["Origin"] = ["https://example.com"],
+        });
+
+        await middleware.Handle(context);
+
+        Assert.That(context.Response.Headers["Vary"], Is.EqualTo(new List<string> { "Origin" }));
+    }
+
     private static CorsMiddleware CreateMiddleware(
         List<string> origins,
         List<string>? methods = null,

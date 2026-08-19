@@ -12,19 +12,21 @@ public class HttpResponse
     internal HttpResponse(ResponseContext response)
     {
         _response = response;
-        Headers = new ResponseHeaders(response.Headers);
+        Headers = new ResponseHeaders(response);
     }
+
+    private int? _statusCode;
 
     public int StatusCode
     {
-        get;
-        set;
-    } = 200;
+        get => _statusCode ?? 200;
+        set => _statusCode = value;
+    }
 
     public string? ContentType
     {
-        get => _response.Headers.ContentType;
-        set => _response.Headers.ContentType = value;
+        get => _response.ContentType;
+        set => _response.ContentType = value;
     }
 
     public ResponseHeaders Headers
@@ -51,8 +53,11 @@ public class HttpResponse
 
     internal void Apply()
     {
+        if (_statusCode is null && _body is null)
+            return;
+
         _body?.Position = 0;
 
-        _response.Set((Status)StatusCode, _body);
+        _response.Set((Status)(_statusCode ?? 200), _body);
     }
 }
