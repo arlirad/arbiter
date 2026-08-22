@@ -11,7 +11,7 @@ public class ServerHeaderGlobalMiddleware(HandleDelegate next) : IGlobalMiddlewa
 
     public async Task Handle(ITransaction transaction, Site? site, Context context)
     {
-        context.Response.Headers.Add("Server", ServerHeader);
+        context.Response.AddHeader("Server", ServerHeader);
         await next(transaction, site, context);
     }
 }

@@ -188,7 +188,7 @@ internal sealed class Api(
     {
         var response = new ResponseDto {
             Status = context.Response.Status ?? Status.Ok,
-            Headers = new ReadOnlyHeaders(context.Response.Headers),
+            Headers = context.Response.Headers,
             Stream = context.Response.Stream,
         };
 

@@ -10,11 +10,11 @@ public class HttpsRedirectionMiddleware(HandleDelegate next, int httpsPort = 443
     {
         if (!context.Request.IsSecure)
         {
-            var host = context.Request.Headers["Host"]?.FirstOrDefault() ?? "localhost";
+            var host = context.Request.Header("Host") ?? "localhost";
             var path = context.Request.Path;
             var redirectUrl = $"https://{host}:{httpsPort}{path}";
 
-            context.Response.Headers["Location"] = [redirectUrl];
+            context.Response.SetHeader("Location", redirectUrl);
             await context.Response.Set(Status.MovedPermanently, Stream.Null);
 
             return;

@@ -7,7 +7,7 @@ public class RequestIdGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
 {
     public async Task Handle(ITransaction transaction, Site? site, Context context)
     {
-        context.Response.Headers.Add("X-Request-Id", transaction.Id.ToString());
+        context.Response.AddHeader("X-Request-Id", transaction.Id.ToString());
         await next(transaction, site, context);
     }
 }

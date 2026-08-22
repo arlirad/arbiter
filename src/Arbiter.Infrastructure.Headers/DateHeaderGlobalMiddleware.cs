@@ -7,7 +7,7 @@ public class DateHeaderGlobalMiddleware(HandleDelegate next) : IGlobalMiddleware
 {
     public async Task Handle(ITransaction transaction, Site? site, Context context)
     {
-        context.Response.Headers.Add("Date", DateTimeOffset.UtcNow.ToString("R"));
+        context.Response.AddHeader("Date", DateTimeOffset.UtcNow.ToString("R"));
         await next(transaction, site, context);
     }
 }

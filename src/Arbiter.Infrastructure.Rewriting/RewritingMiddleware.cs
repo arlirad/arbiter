@@ -40,7 +40,7 @@ public class RewritingMiddleware(HandleDelegate next) : IConfigurableMiddleware<
             break;
         }
 
-        context.Request.Path = path;
+        context.Request.RewritePath(path);
 
         return next(context);
     }

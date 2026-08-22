@@ -20,7 +20,17 @@ public class Context
     }
     public bool IsUpgraded
     {
-        get;
-        set;
+        get; private set;
+    }
+
+    public async Task<Stream> AcceptUpgradeAsync(ReadOnlyHeaders? responseHeaders = null)
+    {
+        if (Request.Upgrade is null)
+            throw new InvalidOperationException("Request is not an upgrade request");
+
+        var stream = await Request.Upgrade.AcceptAsync(responseHeaders);
+        IsUpgraded = true;
+
+        return stream;
     }
 }

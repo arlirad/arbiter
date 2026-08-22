@@ -9,7 +9,7 @@ public class AltSvcGlobalMiddleware(HandleDelegate next, AltSvcService altSvc) :
     public Task Handle(ITransaction transaction, Site? site, Context context)
     {
         if (altSvc.HeaderValue is { } value)
-            context.Response.Headers.AltSvc = value;
+            context.Response.SetHeader("Alt-Svc", value);
 
         return next(transaction, site, context);
     }
