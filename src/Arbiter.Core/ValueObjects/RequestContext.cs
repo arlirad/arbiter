@@ -39,7 +39,7 @@ public class RequestContext
     public string Path
     {
         get;
-        set;
+        private set;
     }
     public ReadOnlyHeaders Headers
     {
@@ -67,4 +67,8 @@ public class RequestContext
     {
         get;
     }
+
+    public void RewritePath(string path) => Path = path;
+
+    public string? Header(string name) => Headers[name]?.FirstOrDefault();
 }

@@ -58,9 +58,9 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
 
     public async Task Handle(Context context)
     {
-        if (context.Request.Upgrade is IWebSocketUpgrade upgrade)
+        if (context.Request.Upgrade is IWebSocketUpgrade)
         {
-            await HandleWebSocket(context, upgrade);
+            await HandleWebSocket(context);
 
             return;
         }
@@ -108,7 +108,7 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
         }
     }
 
-    private async Task HandleWebSocket(Context context, IWebSocketUpgrade upgrade)
+    private async Task HandleWebSocket(Context context)
     {
         var targetUri = _connector.BuildTargetUri(context.Request.Path);
         var host = _connector.GetHost(context);
@@ -174,8 +174,7 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
                 return;
             }
 
-            var clientStream = await upgrade.AcceptAsync(new ReadOnlyHeaders(responseHeaders));
-            context.IsUpgraded = true;
+            var clientStream = await context.AcceptUpgradeAsync(new ReadOnlyHeaders(responseHeaders));
             connection.Detach();
 
             try
@@ -248,7 +247,7 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
             if (ShouldIgnoreHeader(header.Key, header.Value, ref connectionHeaders, DisallowedHeaders))
                 continue;
 
-            context.Response.Headers[header.Key] = header.Value;
+            context.Response.SetHeader(header.Key, header.Value);
         }
     }
 
@@ -307,7 +306,7 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
             if (ShouldIgnoreHeader(header.Key, valueList, ref connectionHeaders, DisallowedHeaders))
                 continue;
 
-            context.Response.Headers[header.Key] = valueList;
+            context.Response.SetHeader(header.Key, valueList);
         }
 
         foreach (var header in response.Content.Headers)
@@ -315,7 +314,7 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
             if (DisallowedResponseContentHeaders.Contains(header.Key))
                 continue;
 
-            context.Response.Headers[header.Key] = [.. header.Value];
+            context.Response.SetHeader(header.Key, [.. header.Value]);
         }
 
         if (response.Content.Headers.ContentType is null)
@@ -330,7 +329,7 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
             segments.Add($"charset={response.Content.Headers.ContentType.CharSet}");
 
         if (segments.Count > 0)
-            context.Response.Headers.ContentType = string.Join("; ", segments);
+            context.Response.ContentType = string.Join("; ", segments);
     }
 
     private static bool ShouldIgnoreHeader(

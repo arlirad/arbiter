@@ -45,28 +45,24 @@ public class CorsMiddleware(HandleDelegate next) : IConfigurableMiddleware<CorsC
 
         if (_allowedOrigins is not null)
         {
-            var origin = context.Request.Headers[OriginHeader]?.FirstOrDefault();
+            var origin = context.Request.Header(OriginHeader);
 
             if (origin is not null && (_allowedOrigins.Contains("*") || _allowedOrigins.Contains(origin)))
             {
-                context.Response.Headers.Replace(AllowOriginHeader, origin);
+                context.Response.SetHeader(AllowOriginHeader, origin);
 
-                if (context.Response.Headers[VaryHeader] is not null)
-                {
-                    context.Response.Headers.Replace(VaryHeader,
-                        context.Response.Headers[VaryHeader]!.First() + ", " + OriginHeader);
-                }
+                context.Response.AppendHeader(VaryHeader, OriginHeader);
             }
         }
 
         if (_allowedMethodsValue is not null)
-            context.Response.Headers.Replace(AllowMethodsHeader, _allowedMethodsValue);
+            context.Response.SetHeader(AllowMethodsHeader, _allowedMethodsValue);
 
         if (_allowedHeadersValue is not null)
-            context.Response.Headers.Replace(AllowHeadersHeader, _allowedHeadersValue);
+            context.Response.SetHeader(AllowHeadersHeader, _allowedHeadersValue);
 
         if (_allowedCredentialsValue is not null)
-            context.Response.Headers.Replace(AllowCredentialsHeader, _allowedCredentialsValue);
+            context.Response.SetHeader(AllowCredentialsHeader, _allowedCredentialsValue);
 
         if (context.Request.Method == Method.Options)
             await context.Response.Set(Status.Ok);

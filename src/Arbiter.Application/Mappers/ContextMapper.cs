@@ -1,5 +1,6 @@
 using Arbiter.Application.DTOs;
 using Arbiter.Core.Aggregates;
+using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
 
@@ -18,8 +19,8 @@ internal class ContextMapper(IContextFactory contextFactory)
     public static ResponseDto ToDto(Context context)
     {
         return new ResponseDto {
-            Status = context.Response.Status!.Value,
-            Headers = new ReadOnlyHeaders(context.Response.Headers),
+            Status = context.Response.Status ?? Status.Ok,
+            Headers = context.Response.Headers,
             Stream = context.Response.Stream,
         };
     }
