@@ -96,6 +96,15 @@ public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
                 targetRequest.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
 
+        // The protocol parsers move the client's Host/:authority into Request.Authority and strip it from
+        // the header collection, so it must be re-attached here. Otherwise the handler synthesizes Host from
+        // the upstream target URI and the client's authority only reaches the target as X-Forwarded-Host.
+        if (context.Request.Authority is not null)
+        {
+            targetRequest.Headers.Remove("Host");
+            targetRequest.Headers.TryAddWithoutValidation("Host", [context.Request.Authority]);
+        }
+
         AddForwardingHeaders(targetRequest.Headers, context);
 
         try
