@@ -5,5 +5,6 @@ namespace Arbiter.Infrastructure.Proxy;
 
 public static class DependencyInjection
 {
-    public static void AddProxyInfrastructure(this IServiceCollection services) => services.AddKeyedScoped<IMiddleware, ProxyMiddleware>("proxy");
+    public static void AddProxyInfrastructure(this IServiceCollection services)
+        => services.AddKeyedScoped<IMiddleware, ProxyMiddleware>("proxy");
 }

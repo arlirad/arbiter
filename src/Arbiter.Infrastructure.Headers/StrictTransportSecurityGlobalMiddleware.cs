@@ -33,7 +33,7 @@ public class StrictTransportSecurityGlobalMiddleware : IGlobalMiddleware
             if (_config.Preload)
                 value += "; preload";
 
-            context.Response.Headers.Add("Strict-Transport-Security", value);
+            context.Response.AddHeader("Strict-Transport-Security", value);
         }
 
         await _next(transaction, site, context);

@@ -5,5 +5,6 @@ namespace Arbiter.Infrastructure.Rewriting;
 
 public static class DependencyInjection
 {
-    public static void AddRewritingInfrastructure(this IServiceCollection services) => services.AddKeyedScoped<IMiddleware, RewritingMiddleware>("rewrite");
+    public static void AddRewritingInfrastructure(this IServiceCollection services)
+        => services.AddKeyedScoped<IMiddleware, RewritingMiddleware>("rewrite");
 }

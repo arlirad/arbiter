@@ -8,7 +8,7 @@ using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Proxy;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Proxy.Config;
 using Serilog;
 
 namespace Arbiter.Infrastructure.Proxy.Tests;
@@ -43,9 +43,7 @@ public class WebSocketProxyTests
         _cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         _proxy = new ProxyMiddleware();
-        var configDict = new Dictionary<string, string?> { { "Target", $"http://localhost:{_backendPort}" } };
-        var config = new ConfigurationBuilder().AddInMemoryCollection(configDict).Build();
-        await _proxy.Configure(new ComponentDataContainer(), config);
+        await _proxy.Configure(new ComponentDataContainer(), new ProxyConfig { Target = new Uri($"http://localhost:{_backendPort}") });
     }
 
     [TearDown]
@@ -104,7 +102,7 @@ public class WebSocketProxyTests
         await stream.FlushAsync();
     }
 
-    private static Context CreateContext(IWebSocketUpgrade upgrade, string path = "/ws")
+    private static Context CreateContext(IWebSocketUpgrade upgrade, string path = "/ws", string authority = "localhost")
     {
         var headers = new Dictionary<string, List<string>> {
             { "Host", ["localhost"] },
@@ -121,7 +119,7 @@ public class WebSocketProxyTests
             headers,
             null,
             upgrade,
-            "localhost",
+            authority,
             false,
             null
         )!;
@@ -286,6 +284,43 @@ public class WebSocketProxyTests
         await backendTask;
 
         Assert.That(context.Response.Status, Is.EqualTo(Status.Unauthorized));
+    }
+
+    [Test]
+    public async Task HandleWebSocket_forwards_original_authority_as_host_header()
+    {
+        const string authority = "opencode.example.com";
+        var mockUpgrade = new MockWebSocketUpgrade();
+        var context = CreateContext(mockUpgrade, "/ws", authority);
+
+        var backendTask = Task.Run(async () => {
+            var client = await _backendListener.AcceptTcpClientAsync(_cts.Token);
+            await using var stream = client.GetStream();
+
+            try
+            {
+                var request = await ReadUpgradeRequest(stream, _cts.Token);
+
+                var hostLines = request.Split("\r\n")
+                    .Where(line => line.StartsWith("Host:", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                Assert.That(hostLines, Is.EqualTo(new List<string> { $"Host: {authority}" }));
+
+                var response = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
+                await stream.WriteAsync(response, _cts.Token);
+                await stream.FlushAsync(_cts.Token);
+            }
+            finally
+            {
+                client.Dispose();
+            }
+        }, _cts.Token);
+
+        await _proxy.Handle(context);
+        await backendTask;
+
+        Assert.That(context.Response.Status, Is.EqualTo(Status.Forbidden));
     }
 
     [Test]

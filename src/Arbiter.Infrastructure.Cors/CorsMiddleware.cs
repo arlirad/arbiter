@@ -1,12 +1,13 @@
+using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Arbiter.Infrastructure.Cors.Models;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Cors.Config;
+using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Cors;
 
-public class CorsMiddleware(HandleDelegate next) : IMiddleware
+public class CorsMiddleware(HandleDelegate next) : IConfigurableMiddleware<CorsConfig>
 {
     private const string AllowOriginHeader = "Access-Control-Allow-Origin";
     private const string AllowMethodsHeader = "Access-Control-Allow-Methods";
@@ -20,20 +21,18 @@ public class CorsMiddleware(HandleDelegate next) : IMiddleware
 
     private List<string>? _allowedOrigins;
 
-    public Task Configure(ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, CorsConfig config)
     {
-        var typedConfig = config.Get<ConfigModel>();
+        if (config.AllowOrigin is not null)
+            _allowedOrigins = config.AllowOrigin;
 
-        if (typedConfig?.AllowOrigin is not null)
-            _allowedOrigins = typedConfig.AllowOrigin;
+        if (config.AllowMethods is not null)
+            _allowedMethodsValue = string.Join(", ", config.AllowMethods);
 
-        if (typedConfig?.AllowMethods is not null)
-            _allowedMethodsValue = string.Join(", ", typedConfig.AllowMethods);
+        if (config.AllowHeaders is not null)
+            _allowedHeadersValue = string.Join(", ", config.AllowHeaders);
 
-        if (typedConfig?.AllowHeaders is not null)
-            _allowedHeadersValue = string.Join(", ", typedConfig.AllowHeaders);
-
-        if (typedConfig?.AllowCredentials.GetValueOrDefault() == true)
+        if (config.AllowCredentials.GetValueOrDefault() == true)
             _allowedCredentialsValue = "true";
 
         return Task.CompletedTask;
@@ -46,28 +45,24 @@ public class CorsMiddleware(HandleDelegate next) : IMiddleware
 
         if (_allowedOrigins is not null)
         {
-            var origin = context.Request.Headers[OriginHeader]?.FirstOrDefault();
+            var origin = context.Request.Header(OriginHeader);
 
             if (origin is not null && (_allowedOrigins.Contains("*") || _allowedOrigins.Contains(origin)))
             {
-                context.Response.Headers.Replace(AllowOriginHeader, origin);
+                context.Response.SetHeader(AllowOriginHeader, origin);
 
-                if (context.Response.Headers[VaryHeader] is not null)
-                {
-                    context.Response.Headers.Replace(VaryHeader,
-                        context.Response.Headers[VaryHeader]!.First() + ", " + OriginHeader);
-                }
+                context.Response.AppendHeader(VaryHeader, OriginHeader);
             }
         }
 
         if (_allowedMethodsValue is not null)
-            context.Response.Headers.Replace(AllowMethodsHeader, _allowedMethodsValue);
+            context.Response.SetHeader(AllowMethodsHeader, _allowedMethodsValue);
 
         if (_allowedHeadersValue is not null)
-            context.Response.Headers.Replace(AllowHeadersHeader, _allowedHeadersValue);
+            context.Response.SetHeader(AllowHeadersHeader, _allowedHeadersValue);
 
         if (_allowedCredentialsValue is not null)
-            context.Response.Headers.Replace(AllowCredentialsHeader, _allowedCredentialsValue);
+            context.Response.SetHeader(AllowCredentialsHeader, _allowedCredentialsValue);
 
         if (context.Request.Method == Method.Options)
             await context.Response.Set(Status.Ok);

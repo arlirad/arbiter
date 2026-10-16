@@ -1,5 +1,5 @@
 using Arbiter.Infrastructure.Cors;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Cors.Config;
 
 namespace Arbiter.Api;
 
@@ -10,16 +10,17 @@ public static class ApiBuilderCorsExtensions
         var options = new CorsOptions();
         configure?.Invoke(options);
 
-        IConfiguration? config = null;
+        if (!options.HasValues)
+            return builder.UseMiddleware<CorsMiddleware>();
 
-        if (options.HasValues)
-        {
-            config = new ConfigurationBuilder()
-                .AddInMemoryCollection(options.ToConfigDictionary())
-                .Build();
-        }
+        var config = new CorsConfig {
+            AllowOrigin = options.AllowOrigins.Count > 0 ? options.AllowOrigins : null,
+            AllowMethods = options.AllowMethods.Count > 0 ? options.AllowMethods : null,
+            AllowHeaders = options.AllowHeaders.Count > 0 ? options.AllowHeaders : null,
+            AllowCredentials = options.AllowCredentials,
+        };
 
-        return builder.UseMiddleware<CorsMiddleware>(config);
+        return builder.UseMiddleware<CorsMiddleware, CorsConfig>(config);
     }
 }
 
@@ -48,23 +49,4 @@ public class CorsOptions
             AllowMethods.Count > 0 ||
             AllowHeaders.Count > 0 ||
             AllowCredentials.HasValue;
-
-    internal IDictionary<string, string?> ToConfigDictionary()
-    {
-        var dict = new Dictionary<string, string?>();
-
-        for (var i = 0; i < AllowOrigins.Count; i++)
-            dict[$"AllowOrigin:{i}"] = AllowOrigins[i];
-
-        for (var i = 0; i < AllowMethods.Count; i++)
-            dict[$"AllowMethods:{i}"] = AllowMethods[i];
-
-        for (var i = 0; i < AllowHeaders.Count; i++)
-            dict[$"AllowHeaders:{i}"] = AllowHeaders[i];
-
-        if (AllowCredentials.HasValue)
-            dict["AllowCredentials"] = AllowCredentials.Value.ToString().ToLowerInvariant();
-
-        return dict;
-    }
 }

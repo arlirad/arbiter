@@ -2,11 +2,11 @@ using System.Security.Cryptography.X509Certificates;
 using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Interfaces;
+using Arbiter.Infrastructure.Acme.Config;
 using Arbiter.Infrastructure.Acme.Models;
 using Certify.ACME.Anvil;
 using Certify.ACME.Anvil.Acme;
 using Certify.ACME.Anvil.Acme.Resource;
-using Microsoft.Extensions.Configuration;
 using Serilog;
 
 namespace Arbiter.Infrastructure.Acme;
@@ -14,7 +14,7 @@ namespace Arbiter.Infrastructure.Acme;
 internal class AcmeWorker(
     IConfigManager configManager,
     ICertificateManager certificateManager
-) : IWorker
+) : IConfigurableWorker<AcmeConfig>
 {
     private const double RenewalTimeRemainingFraction = 0.80;
     private const string CertificatePassword = "";
@@ -30,19 +30,17 @@ internal class AcmeWorker(
     private Task? _orderTask;
     private bool _tosAccepted;
 
-    public Task Configure(List<Uri> bindings, ComponentDataContainer data, IConfiguration config)
+    public Task Configure(List<Uri> bindings, ComponentDataContainer data, AcmeConfig config)
     {
-        var typedConfig = config.Get<ConfigModel>();
-
-        if (string.IsNullOrEmpty(typedConfig?.AccountName))
+        if (string.IsNullOrEmpty(config.AccountName))
             throw new Exception("accountName is not set");
 
-        if (!typedConfig.TosAccepted.HasValue)
+        if (!config.TosAccepted)
             throw new Exception("tosAccepted is not set");
 
-        _acmeDirectoryUrl = typedConfig.AcmeDirectoryUrl ?? throw new Exception("acmeUrl is not set");
-        _accountName = typedConfig.AccountName;
-        _tosAccepted = typedConfig.TosAccepted.Value;
+        _acmeDirectoryUrl = config.AcmeDirectoryUrl ?? throw new Exception("acmeUrl is not set");
+        _accountName = config.AccountName;
+        _tosAccepted = config.TosAccepted;
         _data = data.Get<DataModel>();
         _domains = [
             .. bindings

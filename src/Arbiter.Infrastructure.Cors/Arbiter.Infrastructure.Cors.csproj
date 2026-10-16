@@ -13,8 +13,4 @@
         <ProjectReference Include="..\Arbiter.Core\Arbiter.Core.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Binder"/>
-    </ItemGroup>
-
 </Project>

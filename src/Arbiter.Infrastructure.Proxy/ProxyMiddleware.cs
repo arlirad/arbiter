@@ -1,19 +1,20 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
+using Arbiter.Infrastructure.Proxy.Config;
 using Arbiter.Infrastructure.Proxy.Connectors;
 using Arbiter.Infrastructure.Proxy.Mappers;
-using Arbiter.Infrastructure.Proxy.Models;
 using Arbiter.Infrastructure.Streams;
-using Microsoft.Extensions.Configuration;
+using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Proxy;
 
-public class ProxyMiddleware : IMiddleware
+public class ProxyMiddleware : IConfigurableMiddleware<ProxyConfig>
 {
     private static readonly HashSet<string> DisallowedHeaders =
         new(
@@ -41,16 +42,14 @@ public class ProxyMiddleware : IMiddleware
     private HttpClient _client = null!;
     private IProxyConnector _connector = null!;
 
-    public Task Configure(ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, ProxyConfig config)
     {
-        var typedConfig = config.Get<ConfigModel>();
-
-        if (typedConfig?.Target is null)
+        if (config.Target is null)
             throw new Exception("target is not set");
 
-        _connector = typedConfig.Target.Scheme.Equals("unix", StringComparison.OrdinalIgnoreCase)
-            ? new UnixProxyConnector(typedConfig.Target.AbsolutePath)
-            : new TcpProxyConnector(typedConfig.Target);
+        _connector = config.Target.Scheme.Equals("unix", StringComparison.OrdinalIgnoreCase)
+            ? new UnixProxyConnector(config.Target.AbsolutePath)
+            : new TcpProxyConnector(config.Target);
 
         _client = new HttpClient(_connector.CreateHandler(), false);
 
@@ -59,9 +58,9 @@ public class ProxyMiddleware : IMiddleware
 
     public async Task Handle(Context context)
     {
-        if (context.Request.Upgrade is IWebSocketUpgrade upgrade)
+        if (context.Request.Upgrade is IWebSocketUpgrade)
         {
-            await HandleWebSocket(context, upgrade);
+            await HandleWebSocket(context);
 
             return;
         }
@@ -97,6 +96,15 @@ public class ProxyMiddleware : IMiddleware
                 targetRequest.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
 
+        // The protocol parsers move the client's Host/:authority into Request.Authority and strip it from
+        // the header collection, so it must be re-attached here. Otherwise the handler synthesizes Host from
+        // the upstream target URI and the client's authority only reaches the target as X-Forwarded-Host.
+        if (context.Request.Authority is not null)
+        {
+            targetRequest.Headers.Remove("Host");
+            targetRequest.Headers.TryAddWithoutValidation("Host", [context.Request.Authority]);
+        }
+
         AddForwardingHeaders(targetRequest.Headers, context);
 
         try
@@ -109,7 +117,7 @@ public class ProxyMiddleware : IMiddleware
         }
     }
 
-    private async Task HandleWebSocket(Context context, IWebSocketUpgrade upgrade)
+    private async Task HandleWebSocket(Context context)
     {
         var targetUri = _connector.BuildTargetUri(context.Request.Path);
         var host = _connector.GetHost(context);
@@ -175,8 +183,7 @@ public class ProxyMiddleware : IMiddleware
                 return;
             }
 
-            var clientStream = await upgrade.AcceptAsync(new ReadOnlyHeaders(responseHeaders));
-            context.IsUpgraded = true;
+            var clientStream = await context.AcceptUpgradeAsync(new ReadOnlyHeaders(responseHeaders));
             connection.Detach();
 
             try
@@ -249,7 +256,7 @@ public class ProxyMiddleware : IMiddleware
             if (ShouldIgnoreHeader(header.Key, header.Value, ref connectionHeaders, DisallowedHeaders))
                 continue;
 
-            context.Response.Headers[header.Key] = header.Value;
+            context.Response.SetHeader(header.Key, header.Value);
         }
     }
 
@@ -308,7 +315,7 @@ public class ProxyMiddleware : IMiddleware
             if (ShouldIgnoreHeader(header.Key, valueList, ref connectionHeaders, DisallowedHeaders))
                 continue;
 
-            context.Response.Headers[header.Key] = valueList;
+            context.Response.SetHeader(header.Key, valueList);
         }
 
         foreach (var header in response.Content.Headers)
@@ -316,7 +323,7 @@ public class ProxyMiddleware : IMiddleware
             if (DisallowedResponseContentHeaders.Contains(header.Key))
                 continue;
 
-            context.Response.Headers[header.Key] = [.. header.Value];
+            context.Response.SetHeader(header.Key, [.. header.Value]);
         }
 
         if (response.Content.Headers.ContentType is null)
@@ -331,7 +338,7 @@ public class ProxyMiddleware : IMiddleware
             segments.Add($"charset={response.Content.Headers.ContentType.CharSet}");
 
         if (segments.Count > 0)
-            context.Response.Headers.ContentType = string.Join("; ", segments);
+            context.Response.ContentType = string.Join("; ", segments);
     }
 
     private static bool ShouldIgnoreHeader(

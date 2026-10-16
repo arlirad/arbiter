@@ -1,20 +1,22 @@
 using System.Text;
+using Arbiter.Application.Interfaces;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
+using Arbiter.Infrastructure.Acme.Config;
 using Arbiter.Infrastructure.Acme.Models;
-using Microsoft.Extensions.Configuration;
 using Serilog;
+using HandleDelegate = Arbiter.Core.Interfaces.HandleDelegate;
 
 namespace Arbiter.Infrastructure.Acme;
 
-internal class AcmeMiddleware(HandleDelegate next) : IMiddleware
+internal class AcmeMiddleware(HandleDelegate next) : IConfigurableMiddleware<AcmeConfig>
 {
     private const string AcmeChallengePathPrefix = "/.well-known/acme-challenge/";
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "acme");
     private DataModel? _data;
 
-    public Task Configure(ComponentDataContainer data, IConfiguration config)
+    public Task Configure(ComponentDataContainer data, AcmeConfig config)
     {
         _data = data.Get<DataModel>();
 

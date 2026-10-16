@@ -4,12 +4,22 @@ namespace Arbiter.Core.ValueObjects;
 
 public class Headers : IEnumerable<KeyValuePair<string, List<string>>>
 {
+    // Values are always List<string>; ResponseContext.AppendHeader relies on this when casting.
     private readonly Dictionary<string, List<string>> _headers = new(StringComparer.OrdinalIgnoreCase);
 
-    public List<string>? this[string name]
+    public IReadOnlyList<string>? this[string name]
     {
         get => Get(name);
-        set => Set(name, value);
+        set {
+            if (value is null)
+            {
+                Set(name, null);
+
+                return;
+            }
+
+            Set(name, value as List<string> ?? [.. value]);
+        }
     }
 
     public string? AltSvc

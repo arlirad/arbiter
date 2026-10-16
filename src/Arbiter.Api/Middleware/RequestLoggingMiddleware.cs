@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Arbiter.Core.Aggregates;
 using Arbiter.Core.Enums;
 using Arbiter.Core.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Serilog;
 
 namespace Arbiter.Api.Middleware;
@@ -10,7 +9,6 @@ namespace Arbiter.Api.Middleware;
 public class RequestLoggingMiddleware(HandleDelegate next) : IMiddleware
 {
     private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "api");
-    public Task Configure(ComponentDataContainer data, IConfiguration config) => Task.CompletedTask;
 
     public async Task Handle(Context context)
     {
