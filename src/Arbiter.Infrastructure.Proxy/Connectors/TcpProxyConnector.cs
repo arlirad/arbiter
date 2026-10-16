@@ -23,7 +23,7 @@ internal sealed class TcpProxyConnector(Uri target) : IProxyConnector
         return new Uri(target, targetPath);
     }
 
-    public string GetHost(Context context) => target.Host;
+    public string GetHost(Context context) => context.Request.Authority ?? target.Host;
 
     public async Task<UpgradeConnection> ConnectForUpgradeAsync()
     {
