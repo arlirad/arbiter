@@ -13,7 +13,7 @@ using Arbiter.Core.Enums;
 using Arbiter.Core.Factories;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Proxy;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Proxy.Config;
 using Serilog;
 
 namespace Arbiter.Infrastructure.Proxy.Tests;
@@ -81,10 +81,7 @@ public class ProxyToUnixSocketTests
 
         _proxy = new ProxyMiddleware();
 
-        var configDict = new Dictionary<string, string?> { { "Target", $"unix://{_socketPath}" } };
-        var config = new ConfigurationBuilder().AddInMemoryCollection(configDict).Build();
-
-        await _proxy.Configure(new ComponentDataContainer(), config);
+        await _proxy.Configure(new ComponentDataContainer(), new ProxyConfig { Target = new Uri($"unix://{_socketPath}") });
     }
 
     [TearDown]

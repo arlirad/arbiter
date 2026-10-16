@@ -8,7 +8,7 @@ using Arbiter.Core.Factories;
 using Arbiter.Core.Interfaces;
 using Arbiter.Core.ValueObjects;
 using Arbiter.Infrastructure.Proxy;
-using Microsoft.Extensions.Configuration;
+using Arbiter.Infrastructure.Proxy.Config;
 using Serilog;
 
 namespace Arbiter.Infrastructure.Proxy.Tests;
@@ -43,9 +43,7 @@ public class WebSocketProxyTests
         _cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         _proxy = new ProxyMiddleware();
-        var configDict = new Dictionary<string, string?> { { "Target", $"http://localhost:{_backendPort}" } };
-        var config = new ConfigurationBuilder().AddInMemoryCollection(configDict).Build();
-        await _proxy.Configure(new ComponentDataContainer(), config);
+        await _proxy.Configure(new ComponentDataContainer(), new ProxyConfig { Target = new Uri($"http://localhost:{_backendPort}") });
     }
 
     [TearDown]
